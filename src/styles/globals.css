@@ -1,0 +1,275 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Naada design tokens — Section 3 of the prototype brief.
+   Dark UI only. Borders over shadows. Radius 4px everywhere.
+   ============================================================ */
+
+@theme {
+  --color-ink: #0e0e12;
+  --color-surface: #17171c;
+  --color-surface-2: #1f1f26;
+  --color-line: #2a2a33;
+  --color-paper: #f2f0ea;
+  --color-muted: #8a8a96;
+  --color-signal: #ff3d6e;
+  --color-brass: #e8b33c;
+  --color-live: #3ddc91;
+  --color-fault: #ff5b4a;
+
+  --font-display: "Archivo", "Archivo Narrow", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --radius-DEFAULT: 4px;
+
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 720px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1280px;
+
+  --spacing: 4px;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    background: var(--color-ink);
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--color-ink);
+    color: var(--color-paper);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    font-feature-settings: "cv05", "ss03";
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    margin: 0;
+  }
+
+  /* Accessibility floor: the focus ring is always visible and uses --signal. */
+  :focus-visible {
+    outline: 2px solid var(--color-signal);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  ::selection {
+    background: var(--color-signal);
+    color: var(--color-ink);
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--color-ink); }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-line);
+    border: 2px solid var(--color-ink);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #3a3a45; }
+
+  input, textarea, select, button { font: inherit; color: inherit; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  /* ---- Type scale (Section 3.3) ---- */
+  .t-display {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(30px, 6vw, 44px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    text-transform: uppercase;
+    font-stretch: condensed;
+  }
+  .t-h1 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(24px, 4vw, 32px);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+  }
+  .t-h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 1.2;
+  }
+  .t-h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    line-height: 1.3;
+  }
+  .t-body { font-size: 15px; line-height: 1.55; }
+  .t-small { font-size: 13px; line-height: 1.5; }
+  .t-micro {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-muted);
+  }
+  .t-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+  /* ---- Buttons (Section 3.5) ---- */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    min-height: 44px;
+    padding: 0 20px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-primary { background: var(--color-signal); color: var(--color-ink); font-weight: 600; }
+  .btn-primary:hover:not(:disabled) { background: #ff5c85; }
+
+  .btn-secondary { background: transparent; border-color: var(--color-line); color: var(--color-paper); }
+  .btn-secondary:hover:not(:disabled) { background: var(--color-surface-2); border-color: #3a3a45; }
+
+  .btn-destructive { background: transparent; border-color: var(--color-fault); color: var(--color-fault); }
+  .btn-destructive:hover:not(:disabled) { background: rgba(255, 91, 74, 0.1); }
+
+  .btn-ghost { background: transparent; color: var(--color-muted); }
+  .btn-ghost:hover:not(:disabled) { color: var(--color-paper); background: var(--color-surface-2); }
+
+  .btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
+
+  /* ---- Surfaces ---- */
+  .panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+  }
+
+  /* ---- Fields ---- */
+  .field {
+    width: 100%;
+    min-height: 44px;
+    padding: 10px 12px;
+    background: var(--color-ink);
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    color: var(--color-paper);
+    transition: border-color 140ms ease;
+  }
+  .field::placeholder { color: #5c5c68; }
+  .field:hover { border-color: #3a3a45; }
+  .field:focus { border-color: var(--color-signal); outline: none; }
+  textarea.field { min-height: 96px; resize: vertical; }
+
+  /* ---- Status pills: rectangles, 1px border, 0 radius (Section 11) ---- */
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    border: 1px solid currentColor;
+    border-radius: 0;
+    padding: 2px 7px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 1.4;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    white-space: nowrap;
+  }
+
+  /* ---- Ticket stub perforation (Section 3.4) ---- */
+  .stub-notch {
+    position: absolute;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--color-ink);
+    border: 1px solid var(--color-line);
+  }
+
+  .link-underline {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    text-decoration-color: var(--color-line);
+  }
+  .link-underline:hover { text-decoration-color: currentColor; }
+}
+
+@layer utilities {
+  .scanline {
+    background-image: repeating-linear-gradient(
+      0deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 3px
+    );
+  }
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { scrollbar-width: none; }
+}
+
+@keyframes naada-scan {
+  0% { transform: translateY(-2px); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(240px); opacity: 0; }
+}
+
+/* ============================================================
+   Light theme — applies inside .theme-light wrapper.
+   Remaps every dark token so all Tailwind classes resolve
+   to the warm amber palette without touching individual screens.
+   ============================================================ */
+.theme-light {
+  color: var(--color-paper);
+  --color-ink:       #F4F1EB;
+  --color-surface:   #FFFFFF;
+  --color-surface-2: #FAF8F4;
+  --color-line:      #E2DDD5;
+  --color-paper:     #141210;
+  --color-muted:     #7D7A74;
+  --color-signal:    #D4380D;
+  --color-brass:     #E8B33C;
+  --color-live:      #1EA874;
+  --color-fault:     #CF1322;
+}
+
+@keyframes naada-circle-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes naada-ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+@keyframes naada-live-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}

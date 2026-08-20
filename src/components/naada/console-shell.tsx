@@ -1,0 +1,238 @@
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import {
+  CalendarDays,
+  ChevronRight,
+  Handshake,
+  Inbox,
+  LayoutGrid,
+  Menu,
+  Mic2,
+  Music4,
+  Users,
+  Wallet,
+  X,
+} from "lucide-react";
+import { Wordmark } from "./wordmark";
+import { useStore } from "@/store/app-store";
+import { cn } from "@/lib/utils";
+
+/**
+ * Section 4 — console shell. 240px sidebar, icon rail below 1024, hamburger
+ * below 720. Top bar carries the breadcrumb and the account menu.
+ */
+
+export interface NavItem {
+  to: string;
+  label: string;
+  icon: keyof typeof ICONS;
+  end?: boolean;
+}
+
+const ICONS = {
+  overview: LayoutGrid,
+  events: CalendarDays,
+  artists: Users,
+  bookings: Handshake,
+  settlements: Wallet,
+  offers: Inbox,
+  gigs: Music4,
+  profile: Mic2,
+};
+
+export const HOST_NAV: NavItem[] = [
+  { to: "/host", label: "Overview", icon: "overview", end: true },
+  { to: "/host/events", label: "Events", icon: "events" },
+  { to: "/host/artists", label: "Artists", icon: "artists" },
+  { to: "/host/bookings", label: "Bookings", icon: "bookings" },
+  { to: "/host/settlements", label: "Settlements", icon: "settlements" },
+];
+
+export const ARTIST_NAV: NavItem[] = [
+  { to: "/artist", label: "Overview", icon: "overview", end: true },
+  { to: "/artist/offers", label: "Offers", icon: "offers" },
+  { to: "/artist/gigs", label: "Gigs", icon: "gigs" },
+  { to: "/artist/earnings", label: "Earnings", icon: "settlements" },
+  { to: "/artist/profile", label: "Profile", icon: "profile" },
+];
+
+export function ConsoleShell({
+  nav,
+  breadcrumb,
+  children,
+  actions,
+}: {
+  nav: NavItem[];
+  breadcrumb: string[];
+  children: ReactNode;
+  actions?: ReactNode;
+}) {
+  const { role, users } = useStore();
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const reduce = useReducedMotion();
+
+  useEffect(() => setMenuOpen(false), [location.pathname]);
+
+  const account = role === "host" ? users.host : users.artist;
+
+  return (
+    <div className="theme-light min-h-dvh bg-ink md:flex">
+      {/* Desktop sidebar / tablet icon rail */}
+      <aside className="sticky top-0 hidden h-dvh shrink-0 border-r border-line bg-surface md:block md:w-[72px] lg:w-[240px]">
+        <div className="flex h-16 items-center border-b border-line px-4 lg:px-6">
+          <Link to="/" aria-label="Naada home" className="flex items-center">
+            <Wordmark className="hidden lg:inline" />
+            <span
+              className="font-display text-[20px] font-extrabold text-signal lg:hidden"
+              aria-hidden="true"
+            >
+              N
+            </span>
+          </Link>
+        </div>
+        <nav className="flex flex-col gap-1 p-2 lg:p-3" aria-label="Console">
+          {nav.map((item) => (
+            <SidebarLink key={item.to} item={item} />
+          ))}
+        </nav>
+        <div className="mt-2 border-t border-line p-2 lg:p-3">
+          <Link
+            to="/"
+            className="flex min-h-11 items-center gap-3 px-3 text-[14px] text-muted transition-colors hover:text-paper"
+          >
+            <ChevronRight className="size-4 shrink-0 rotate-180" aria-hidden="true" />
+            <span className="hidden lg:inline">Back to Discover</span>
+          </Link>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        {/* Top bar */}
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-line px-4 backdrop-blur md:px-6" style={{ background: "rgba(251,243,227,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+          <button
+            type="button"
+            className="grid size-11 shrink-0 place-items-center border border-line md:hidden"
+            aria-label="Open navigation"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen(true)}
+          >
+            <Menu className="size-5" aria-hidden="true" />
+          </button>
+
+          <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
+            <ol className="flex items-center gap-2 overflow-hidden">
+              {breadcrumb.map((crumb, i) => (
+                <li key={crumb} className="flex min-w-0 items-center gap-2">
+                  {i > 0 && (
+                    <ChevronRight className="size-3.5 shrink-0 text-muted" aria-hidden="true" />
+                  )}
+                  <span
+                    className={cn(
+                      "truncate text-[14px]",
+                      i === breadcrumb.length - 1 ? "text-paper" : "text-muted",
+                    )}
+                  >
+                    {crumb}
+                  </span>
+                </li>
+              ))}
+            </ol>
+          </nav>
+
+          {actions}
+
+          <div className="flex shrink-0 items-center gap-2 border border-line px-2 py-1.5">
+            <span className="grid size-7 place-items-center bg-surface-2 font-display text-[13px] font-bold text-paper">
+              {account.name.charAt(0)}
+            </span>
+            <span className="t-small hidden sm:block">{account.name.split(" ")[0]}</span>
+          </div>
+        </header>
+
+        <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 py-6 md:px-8 md:py-8">
+          {children}
+        </main>
+      </div>
+
+      {/* Mobile drawer */}
+      <AnimatePresence>
+        {menuOpen && (
+          <div className="fixed inset-0 z-[80] md:hidden">
+            <motion.div
+              className="absolute inset-0 bg-black/70"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: reduce ? 0 : 0.15 }}
+              onClick={() => setMenuOpen(false)}
+              aria-hidden="true"
+            />
+            <motion.nav
+              aria-label="Console"
+              className="absolute inset-y-0 left-0 w-[260px] border-r border-line bg-surface p-3"
+              initial={reduce ? { opacity: 0 } : { x: -260 }}
+              animate={reduce ? { opacity: 1 } : { x: 0 }}
+              exit={reduce ? { opacity: 0 } : { x: -260 }}
+              transition={{ duration: reduce ? 0 : 0.22, ease: [0.16, 1, 0.3, 1] }}
+            >
+              <div className="mb-3 flex h-12 items-center justify-between px-2">
+                <Wordmark />
+                <button
+                  type="button"
+                  onClick={() => setMenuOpen(false)}
+                  aria-label="Close navigation"
+                  className="grid size-11 place-items-center text-muted"
+                >
+                  <X className="size-5" aria-hidden="true" />
+                </button>
+              </div>
+              {nav.map((item) => (
+                <SidebarLink key={item.to} item={item} forceLabel />
+              ))}
+              <Link
+                to="/"
+                className="mt-3 flex min-h-11 items-center gap-3 border-t border-line px-3 pt-4 text-[14px] text-muted"
+              >
+                Back to Discover
+              </Link>
+            </motion.nav>
+          </div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function SidebarLink({ item, forceLabel }: { item: NavItem; forceLabel?: boolean }) {
+  const Icon = ICONS[item.icon];
+  return (
+    <NavLink
+      to={item.to}
+      end={item.end}
+      title={item.label}
+      className={({ isActive }) =>
+        cn(
+          "relative flex min-h-11 items-center gap-3 px-3 text-[14px] transition-colors",
+          forceLabel ? "" : "justify-center lg:justify-start",
+          isActive ? "bg-surface-2 text-paper" : "text-muted hover:bg-surface-2 hover:text-paper",
+        )
+      }
+    >
+      {({ isActive }) => (
+        <>
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute inset-y-0 left-0 w-[2px]",
+              isActive ? "bg-signal" : "bg-transparent",
+            )}
+          />
+          <Icon className="size-4 shrink-0" aria-hidden="true" />
+          <span className={forceLabel ? "" : "hidden lg:inline"}>{item.label}</span>
+        </>
+      )}
+    </NavLink>
+  );
+}

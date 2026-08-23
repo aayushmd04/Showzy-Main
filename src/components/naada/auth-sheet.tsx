@@ -106,7 +106,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
                   <span className="t-micro">or</span>
                   <span className="h-px flex-1 bg-line" />
                 </div>
-                <Button full onClick={() => finish("guest")}>
+                <Button full onClick={() => finish("guest", "")}>
                   Continue as guest
                 </Button>
               </>

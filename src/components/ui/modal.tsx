@@ -20,8 +20,20 @@ export interface ModalProps {
  */
 export function Modal({ open, onClose, title, children, className, hideClose }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<Element | null>(null);
   const reduce = useReducedMotion();
+
+  // Read the latest onClose through a ref rather than as an effect
+  // dependency: any caller whose onClose is an inline closure (e.g. it
+  // clears input state on close) gets a new function identity on every
+  // keystroke inside the modal. Depending on it directly re-ran this whole
+  // effect each time — including the initial-focus timer — which yanked
+  // focus back to the first focusable element mid-type.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -29,22 +41,25 @@ export function Modal({ open, onClose, title, children, className, hideClose }: 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
+    const FOCUSABLE =
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
     const focusables = () =>
-      Array.from(
-        panelRef.current?.querySelectorAll<HTMLElement>(
-          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ) ?? [],
-      );
+      Array.from(panelRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []);
 
     const timer = window.setTimeout(() => {
-      const first = focusables()[0] ?? panelRef.current;
+      // Prefer the modal's actual content over the header's close button —
+      // a real control (a field, a primary action) over a corner icon that
+      // just dismisses the thing you opened. Only fall back to it (then the
+      // panel itself) when the content has nothing focusable at all.
+      const inContent = contentRef.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [];
+      const first = inContent[0] ?? focusables()[0] ?? panelRef.current;
       first?.focus();
     }, 20);
 
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -68,7 +83,7 @@ export function Modal({ open, onClose, title, children, className, hideClose }: 
       document.body.style.overflow = previousOverflow;
       (openerRef.current as HTMLElement | null)?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return createPortal(
     <AnimatePresence>
@@ -115,7 +130,9 @@ export function Modal({ open, onClose, title, children, className, hideClose }: 
                 )}
               </div>
             )}
-            <div className="px-6 py-5">{children}</div>
+            <div ref={contentRef} className="px-6 py-5">
+              {children}
+            </div>
           </motion.div>
         </div>
       )}

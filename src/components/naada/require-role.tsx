@@ -9,6 +9,7 @@ const WHO: Record<Role, string> = {
   listener: "Meera (listener)",
   artist: "Rohan (artist)",
   host: "Sonal (host)",
+  admin: "Priya (admin)",
 };
 
 /**

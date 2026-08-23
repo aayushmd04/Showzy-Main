@@ -16,6 +16,7 @@ const ROLES: { value: Role; label: string; who: string; home: string }[] = [
   { value: "listener", label: "Listener", who: "Meera", home: "/tickets" },
   { value: "artist", label: "Artist", who: "Rohan", home: "/artist" },
   { value: "host", label: "Host", who: "Sonal", home: "/host" },
+  { value: "admin", label: "Admin", who: "Priya", home: "/admin" },
 ];
 
 export function DevSwitcher() {
@@ -30,6 +31,7 @@ export function DevSwitcher() {
     const consoleRoute =
       location.pathname.startsWith("/host") ||
       location.pathname.startsWith("/artist") ||
+      location.pathname.startsWith("/admin") ||
       location.pathname.startsWith("/bookings");
     if (consoleRoute || next === "out") {
       navigate(ROLES.find((r) => r.value === next)?.home ?? "/");

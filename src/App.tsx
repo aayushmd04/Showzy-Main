@@ -30,10 +30,17 @@ import { HostSettlementsScreen } from "@/screens/host/host-settlements";
 import { HostDoorScannerScreen } from "@/screens/host/host-door-scanner";
 
 import { ArtistHomeScreen } from "@/screens/artist/artist-home";
+import { ArtistGigBoardScreen } from "@/screens/artist/artist-gig-board";
 import { ArtistOffersScreen } from "@/screens/artist/artist-offers";
 import { ArtistGigsScreen } from "@/screens/artist/artist-gigs";
 import { ArtistEarningsScreen } from "@/screens/artist/artist-earnings";
 import { ArtistProfileBuilderScreen } from "@/screens/artist/artist-profile-builder";
+
+import { AdminHomeScreen } from "@/screens/admin/admin-home";
+import { AdminVerificationScreen } from "@/screens/admin/admin-verification";
+import { AdminDisputesScreen } from "@/screens/admin/admin-disputes";
+import { AdminLedgerScreen } from "@/screens/admin/admin-ledger";
+import { AdminMessagesScreen } from "@/screens/admin/admin-messages";
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -51,6 +58,12 @@ const host = (element: React.ReactNode) => (
 
 const artist = (element: React.ReactNode) => (
   <RequireRole roles={["artist"]} suggest="artist">
+    {element}
+  </RequireRole>
+);
+
+const admin = (element: React.ReactNode) => (
+  <RequireRole roles={["admin"]} suggest="admin">
     {element}
   </RequireRole>
 );
@@ -85,16 +98,24 @@ export default function App() {
 
                 {/* Artist console */}
                 <Route path="/artist" element={artist(<ArtistHomeScreen />)} />
+                <Route path="/artist/gig-board" element={artist(<ArtistGigBoardScreen />)} />
                 <Route path="/artist/offers" element={artist(<ArtistOffersScreen />)} />
                 <Route path="/artist/gigs" element={artist(<ArtistGigsScreen />)} />
                 <Route path="/artist/earnings" element={artist(<ArtistEarningsScreen />)} />
                 <Route path="/artist/profile" element={artist(<ArtistProfileBuilderScreen />)} />
 
-                {/* Shared by both roles */}
+                {/* Admin / ops console */}
+                <Route path="/admin" element={admin(<AdminHomeScreen />)} />
+                <Route path="/admin/verification" element={admin(<AdminVerificationScreen />)} />
+                <Route path="/admin/disputes" element={admin(<AdminDisputesScreen />)} />
+                <Route path="/admin/ledger" element={admin(<AdminLedgerScreen />)} />
+                <Route path="/admin/messages" element={admin(<AdminMessagesScreen />)} />
+
+                {/* Shared by host, artist and admin (read-only) */}
                 <Route
                   path="/bookings/:id"
                   element={
-                    <RequireRole roles={["host", "artist"]} suggest="host">
+                    <RequireRole roles={["host", "artist", "admin"]} suggest="host">
                       <BookingThreadScreen />
                     </RequireRole>
                   }

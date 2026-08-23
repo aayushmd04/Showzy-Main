@@ -34,6 +34,13 @@ export function ArtistHomeScreen() {
         <StatTile value={money(paid)} label="Paid this month" tone="live" />
       </div>
 
+      <p className="t-small mt-6 flex items-center justify-between gap-3 border border-line bg-surface p-4 text-muted">
+        <span>Hosts with an open slot and a budget post it to the gig board.</span>
+        <Link to="/artist/gig-board" className="btn btn-secondary btn-sm shrink-0">
+          Browse gig board
+        </Link>
+      </p>
+
       <h2 className="t-micro mt-10">Upcoming gigs</h2>
       {confirmed.length > 0 ? (
         <ul className="mt-3 divide-y divide-line border border-line bg-surface">

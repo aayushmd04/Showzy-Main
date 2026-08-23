@@ -3,9 +3,11 @@ import { ExternalLink, Pencil, ScanLine } from "lucide-react";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { StatTile } from "@/components/naada/stat-tile";
 import { StateToggle } from "@/components/naada/state-toggle";
+import { Button } from "@/components/ui/button";
 import { Pill, statusLabel } from "@/components/ui/pill";
 import { Poster } from "@/components/naada/poster";
 import { useStore } from "@/store/app-store";
+import { useBriefComposer } from "@/components/naada/brief-composer";
 import type { EventStatus } from "@/data/fixtures";
 import { dateListingFull, money } from "@/lib/format";
 import { NotFoundScreen } from "../not-found";
@@ -15,8 +17,19 @@ const EVENT_STATES: EventStatus[] = ["draft", "published", "live", "completed", 
 /** Event manager — the hub each event row opens into. State toggle per Section 9. */
 export function HostEventManagerScreen() {
   const { id = "" } = useParams();
-  const { eventById, venueOf, artistById, bookings, soldOf, capacityOf, setEventStatus, toast } =
-    useStore();
+  const {
+    eventById,
+    venueOf,
+    artistById,
+    bookings,
+    applications,
+    setApplicationStatus,
+    soldOf,
+    capacityOf,
+    setEventStatus,
+    toast,
+  } = useStore();
+  const { open: openBrief } = useBriefComposer();
   const event = eventById(id);
   if (!event) return <NotFoundScreen />;
 
@@ -25,6 +38,9 @@ export function HostEventManagerScreen() {
   const capacity = capacityOf(event);
   const revenue = event.tiers.reduce((sum, t) => sum + t.price * t.sold, 0);
   const eventBookings = bookings.filter((b) => b.eventId === event.id);
+  const openApplications = applications.filter(
+    (a) => a.eventId === event.id && (a.status === "pending" || a.status === "shortlisted"),
+  );
 
   return (
     <ConsoleShell nav={HOST_NAV} breadcrumb={["Events", event.name]}>
@@ -136,6 +152,67 @@ export function HostEventManagerScreen() {
               </Link>
               .
             </p>
+          )}
+
+          {event.isSeekingArtist && (
+            <>
+              <h2 className="t-micro mt-8">
+                Applications {openApplications.length > 0 && `(${openApplications.length})`}
+              </h2>
+              {openApplications.length > 0 ? (
+                <ul className="mt-3 space-y-2">
+                  {openApplications.map((application) => {
+                    const artist = artistById(application.artistId);
+                    if (!artist) return null;
+                    return (
+                      <li
+                        key={application.id}
+                        className="flex flex-wrap items-start gap-3 border border-line bg-surface p-3"
+                      >
+                        <div className="min-w-0 flex-1 basis-[200px]">
+                          <p className="text-[15px]">{artist.name}</p>
+                          <p className="t-small mt-1 text-muted">{application.message}</p>
+                          {application.proposedRate && (
+                            <p className="t-mono mt-1 text-[13px] text-brass">
+                              {money(application.proposedRate)} proposed
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex shrink-0 flex-col items-end gap-2">
+                          <Pill>{application.status}</Pill>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => {
+                                setApplicationStatus(application.id, "declined");
+                                toast(`${artist.name} declined`);
+                              }}
+                            >
+                              Decline
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={() => {
+                                setApplicationStatus(application.id, "shortlisted");
+                                openBrief(artist.id, event.id);
+                              }}
+                            >
+                              {application.status === "shortlisted" ? "Send brief" : "Shortlist & reply"}
+                            </Button>
+                          </div>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="t-small mt-3 border border-dashed border-line px-4 py-6 text-muted">
+                  No applications yet — this event is listed on the artist gig board.
+                </p>
+              )}
+            </>
           )}
         </div>
 

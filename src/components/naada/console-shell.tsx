@@ -4,12 +4,16 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   CalendarDays,
   ChevronRight,
+  Compass,
+  Flag,
+  Gavel,
   Handshake,
   Inbox,
   LayoutGrid,
   Menu,
   Mic2,
   Music4,
+  ShieldCheck,
   Users,
   Wallet,
   X,
@@ -39,6 +43,10 @@ const ICONS = {
   offers: Inbox,
   gigs: Music4,
   profile: Mic2,
+  verification: ShieldCheck,
+  disputes: Gavel,
+  flags: Flag,
+  board: Compass,
 };
 
 export const HOST_NAV: NavItem[] = [
@@ -51,10 +59,19 @@ export const HOST_NAV: NavItem[] = [
 
 export const ARTIST_NAV: NavItem[] = [
   { to: "/artist", label: "Overview", icon: "overview", end: true },
+  { to: "/artist/gig-board", label: "Gig board", icon: "board" },
   { to: "/artist/offers", label: "Offers", icon: "offers" },
   { to: "/artist/gigs", label: "Gigs", icon: "gigs" },
   { to: "/artist/earnings", label: "Earnings", icon: "settlements" },
   { to: "/artist/profile", label: "Profile", icon: "profile" },
+];
+
+export const ADMIN_NAV: NavItem[] = [
+  { to: "/admin", label: "Overview", icon: "overview", end: true },
+  { to: "/admin/verification", label: "Verification", icon: "verification" },
+  { to: "/admin/disputes", label: "Disputes", icon: "disputes" },
+  { to: "/admin/ledger", label: "Ledger", icon: "settlements" },
+  { to: "/admin/messages", label: "Flagged messages", icon: "flags" },
 ];
 
 export function ConsoleShell({
@@ -75,7 +92,7 @@ export function ConsoleShell({
 
   useEffect(() => setMenuOpen(false), [location.pathname]);
 
-  const account = role === "host" ? users.host : users.artist;
+  const account = role === "host" ? users.host : role === "admin" ? users.admin : users.artist;
 
   return (
     <div className="theme-light min-h-dvh bg-ink md:flex">

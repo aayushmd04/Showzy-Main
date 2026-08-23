@@ -3,7 +3,7 @@
  * event looks identical wherever it appears. Extendable, never contradicted.
  */
 
-export type Role = "out" | "listener" | "artist" | "host";
+export type Role = "out" | "listener" | "artist" | "host" | "admin";
 
 export type EventStatus =
   | "draft"
@@ -26,6 +26,8 @@ export type BookingState =
 
 export type TicketStatus = "valid" | "checked_in" | "cancelled";
 export type SettlementStatus = "pending" | "held" | "paid";
+export type KycStatus = "pending" | "verified" | "rejected";
+export type DisputeOutcome = "release" | "refund";
 
 export interface Venue {
   id: string;
@@ -44,6 +46,8 @@ export interface Artist {
   gigsPlayed: number;
   rating: number;
   bio: string;
+  /** Razorpay Linked Account KYC status — gated at payout, not at signup (Q17). */
+  kycStatus: KycStatus;
 }
 
 export interface Tier {
@@ -66,6 +70,22 @@ export interface NaadaEvent {
   tiers: Tier[];
   description: string;
   checkedIn: number;
+  /** Gig board — the host still has an open slot and budget for it. */
+  isSeekingArtist?: boolean;
+  budgetMin?: number;
+  budgetMax?: number;
+}
+
+export type ApplicationStatus = "pending" | "shortlisted" | "declined" | "withdrawn" | "converted";
+
+export interface GigApplication {
+  id: string;
+  eventId: string;
+  artistId: string;
+  message: string;
+  proposedRate?: number;
+  status: ApplicationStatus;
+  createdAt: string;
 }
 
 export interface Quote {
@@ -73,6 +93,13 @@ export interface Quote {
   amount: number;
   at: string;
   accepted?: boolean;
+}
+
+export interface DisputeResolution {
+  outcome: DisputeOutcome;
+  note: string;
+  by: string;
+  at: string;
 }
 
 export interface Booking {
@@ -84,6 +111,31 @@ export interface Booking {
   agreedFee: number | null;
   message?: string;
   quotes: Quote[];
+  /** Set when state is "disputed" — who raised it and why. */
+  disputedBy?: "host" | "artist";
+  disputeReason?: string;
+  /** Set once an admin has resolved a dispute. */
+  resolution?: DisputeResolution;
+}
+
+export interface Review {
+  id: string;
+  bookingId: string;
+  direction: "host_to_artist" | "artist_to_host";
+  rating: number;
+  body: string;
+  createdAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  bookingId: string;
+  sender: "host" | "artist";
+  body: string;
+  at: string;
+  /** Section 12 — the disintermediation guard flags a message; it is never blocked. */
+  flagged?: boolean;
+  flagReason?: string;
 }
 
 export interface Ticket {
@@ -132,6 +184,7 @@ export const artists: Artist[] = [
     gigsPlayed: 23,
     rating: 4.8,
     bio: "Fingerstyle guitarist and songwriter. Plays mostly originals, occasional Nick Drake.",
+    kycStatus: "verified",
   },
   {
     id: "a2",
@@ -143,6 +196,7 @@ export const artists: Artist[] = [
     gigsPlayed: 41,
     rating: 4.9,
     bio: "Four-piece blending khayal vocals with double bass and drums.",
+    kycStatus: "verified",
   },
   {
     id: "a3",
@@ -154,6 +208,7 @@ export const artists: Artist[] = [
     gigsPlayed: 12,
     rating: 4.6,
     bio: "Modular synth sets built from field recordings of KR Market.",
+    kycStatus: "pending",
   },
   {
     id: "a4",
@@ -165,6 +220,7 @@ export const artists: Artist[] = [
     gigsPlayed: 67,
     rating: 4.7,
     bio: "Loud, old-fashioned blues rock. Been playing the same three pubs for nine years.",
+    kycStatus: "verified",
   },
   {
     id: "a5",
@@ -176,6 +232,7 @@ export const artists: Artist[] = [
     gigsPlayed: 34,
     rating: 4.9,
     bio: "Piano. Standards, mostly. Will take requests if you buy him a filter coffee.",
+    kycStatus: "pending",
   },
   {
     id: "a6",
@@ -187,6 +244,7 @@ export const artists: Artist[] = [
     gigsPlayed: 19,
     rating: 4.5,
     bio: "Instrumental. Long songs. Very loud endings.",
+    kycStatus: "rejected",
   },
 ];
 
@@ -222,6 +280,9 @@ export const events: NaadaEvent[] = [
     ],
     description: "Two bands, one long night. Doors 8pm, first set 8:45.",
     checkedIn: 47,
+    isSeekingArtist: true,
+    budgetMin: 2000,
+    budgetMax: 4000,
   },
   {
     id: "e3",
@@ -374,6 +435,90 @@ export const bookings: Booking[] = [
     message: "Late slot, modular only. We can hold the room till 1am.",
     quotes: [{ by: "host", amount: 6000, at: "2026-08-19T20:10:00" }],
   },
+  {
+    id: "b5",
+    eventId: "e7",
+    artistId: "a2",
+    hostId: "h1",
+    state: "disputed",
+    agreedFee: 12000,
+    message: "Headline slot, two 40 minute sets.",
+    quotes: [{ by: "host", amount: 12000, at: "2026-08-05T10:00:00", accepted: true }],
+    disputedBy: "host",
+    disputeReason:
+      "Band arrived 40 minutes late and played one 30 minute set instead of two 40 minute sets.",
+  },
+];
+
+export const reviews: Review[] = [
+  {
+    id: "rv1",
+    bookingId: "b3",
+    direction: "host_to_artist",
+    rating: 5,
+    body: "Tarana Collective were incredible — professional, on time, and the room loved them.",
+    createdAt: "2026-08-15T09:00:00",
+  },
+];
+
+export const gigApplications: GigApplication[] = [
+  {
+    id: "ga1",
+    eventId: "e2",
+    artistId: "a6",
+    message:
+      "Would love to open — we've got a shorter instrumental set that'd work well before the headliner.",
+    proposedRate: 3000,
+    status: "pending",
+    createdAt: "2026-08-12T09:00:00",
+  },
+];
+
+export const messages: ChatMessage[] = [
+  {
+    id: "m1",
+    bookingId: "b1",
+    sender: "host",
+    body: "Hey! Loved your set at Chamundi Sessions — any chance you're free the 28th?",
+    at: "2026-08-10T10:40:00",
+  },
+  {
+    id: "m2",
+    bookingId: "b1",
+    sender: "artist",
+    body: "Yeah, that works. What time are you thinking and what's the backline situation?",
+    at: "2026-08-10T10:58:00",
+  },
+  {
+    id: "m3",
+    bookingId: "b1",
+    sender: "host",
+    body: "Doors 8, you'd close around 10:30. We've got a full backline already.",
+    at: "2026-08-10T11:02:00",
+  },
+  {
+    id: "m4",
+    bookingId: "b5",
+    sender: "host",
+    body: "You were 40 minutes late and only played one set — that's not what we agreed.",
+    at: "2026-08-15T23:10:00",
+  },
+  {
+    id: "m5",
+    bookingId: "b5",
+    sender: "artist",
+    body: "Traffic on the ring road, I messaged the venue phone as soon as I could.",
+    at: "2026-08-15T23:22:00",
+  },
+  {
+    id: "m6",
+    bookingId: "b2",
+    sender: "host",
+    body: "Easier if you just WhatsApp me on 98450 11223 for the details",
+    at: "2026-08-18T18:40:00",
+    flagged: true,
+    flagReason: "mention of WhatsApp",
+  },
 ];
 
 export const tickets: Ticket[] = [
@@ -420,6 +565,7 @@ export const users = {
     phone: "+91 98860 77889",
     kycStatus: "verified",
   },
+  admin: { id: "adm1", name: "Priya Shenoy", phone: "+91 90000 00000" },
 } as const;
 
 export const settlements: Settlement[] = [

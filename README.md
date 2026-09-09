@@ -79,16 +79,16 @@ The one path that must work end to end, verified in a browser:
 1. Land on **Discover** logged out → filter genre to **Blues**
 2. Open **Fuzz & Filter Coffee**
 3. **Get ticket** → General tier
-4. **Auth sheet** → *Continue as guest* → **Guest details** (tick consent) → Continue
-5. **Payment** → *Pay ₹518* → 800ms spinner → **Ticket detail** with the perforated stub and QR
+4. **Auth sheet** → _Continue as guest_ → **Guest details** (tick consent) → Continue
+5. **Payment** → _Pay ₹518_ → 800ms spinner → **Ticket detail** with the perforated stub and QR
 6. **My tickets** → the ticket appears under Upcoming
 7. Dev switcher (bottom right) → **Host (Sonal)**
 8. **Host console** → Fuzz & Filter → **Door scanner**
-9. *Simulate valid scan* → green full-screen overlay, counter goes 47 → 48
+9. _Simulate valid scan_ → green full-screen overlay, counter goes 47 → 48
 10. **Settlements** → Fuzz & Filter shows `HELD`; flip its state toggle to `PAID`
 11. Dev switcher → **Artist (Rohan)**
 12. **Offers** → open the Sunday Sundowner offer → **Booking thread**
-13. Counter ₹5,000 → switch to Host → *Accept* → *Fund escrow* (₹5,000 + ₹350 fee = ₹5,350)
+13. Counter ₹5,000 → switch to Host → _Accept_ → _Fund escrow_ (₹5,000 + ₹350 fee = ₹5,350)
 14. Switch to Artist → **Earnings** shows ₹5,000 held, zero platform fee
 
 ## Prototype affordances
@@ -104,20 +104,20 @@ The one path that must work end to end, verified in a browser:
 
 ## Routes
 
-| Route | Screen |
-|---|---|
-| `/` | Discover feed |
-| `/e/:id` | Event page |
-| `/a/:id` | Artist profile |
-| `/checkout/details` · `/checkout/pay` | Guest details · Payment |
-| `/ticket/:code` · `/tickets` | Ticket detail · My tickets |
-| `/host` · `/host/events` · `/host/events/:id` | Host overview · events · event manager |
-| `/host/events/:id/edit` · `/host/events/:id/door` | Event editor · Door scanner |
-| `/host/artists` · `/host/bookings` · `/host/settlements` | Artist search · Bookings · Settlements |
-| `/artist` · `/artist/offers` · `/artist/gigs` | Artist overview · Offer inbox · Gigs |
-| `/artist/earnings` · `/artist/profile` | Earnings · Profile builder |
-| `/bookings/:id` | Booking thread (one screen, both roles) |
-| `/lab/keyboard` | Component lab — the `vintage-keyboard` ui component |
+| Route                                                    | Screen                                              |
+| -------------------------------------------------------- | --------------------------------------------------- |
+| `/`                                                      | Discover feed                                       |
+| `/e/:id`                                                 | Event page                                          |
+| `/a/:id`                                                 | Artist profile                                      |
+| `/checkout/details` · `/checkout/pay`                    | Guest details · Payment                             |
+| `/ticket/:code` · `/tickets`                             | Ticket detail · My tickets                          |
+| `/host` · `/host/events` · `/host/events/:id`            | Host overview · events · event manager              |
+| `/host/events/:id/edit` · `/host/events/:id/door`        | Event editor · Door scanner                         |
+| `/host/artists` · `/host/bookings` · `/host/settlements` | Artist search · Bookings · Settlements              |
+| `/artist` · `/artist/offers` · `/artist/gigs`            | Artist overview · Offer inbox · Gigs                |
+| `/artist/earnings` · `/artist/profile`                   | Earnings · Profile builder                          |
+| `/bookings/:id`                                          | Booking thread (one screen, both roles)             |
+| `/lab/keyboard`                                          | Component lab — the `vintage-keyboard` ui component |
 
 Console routes are role-scoped: landing on one in the wrong role shows a one-click switch
 rather than a dead end.

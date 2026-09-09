@@ -110,10 +110,12 @@ def verify_otp(request):
     user.save(update_fields=["last_login_ip", "last_login_device"])
 
     refresh = RefreshToken.for_user(user)
+    user_data = UserProfileSerializer(user).data
+    user_data["is_new_user"] = created
     return Response({
         "access": str(refresh.access_token),
         "refresh": str(refresh),
-        "user": UserProfileSerializer(user).data,
+        "user": user_data,
         "created": created,
     }, status=status.HTTP_200_OK)
 

@@ -25,11 +25,22 @@ class EventListView(generics.ListAPIView):
     ordering = ["start_datetime"]
 
     def get_queryset(self):
-        qs = Event.objects.filter(
-            status=EventStatus.PUBLISHED, is_deleted=False
-        ).select_related("venue", "venue__city", "venue__area").prefetch_related(
-            "genres", "ticket_tiers", "photos"
-        )
+        mine = self.request.query_params.get("mine") == "true"
+
+        if mine and self.request.user.is_authenticated:
+            # Organizer view: all their events regardless of status
+            qs = Event.objects.filter(
+                organizer=self.request.user, is_deleted=False
+            ).select_related("venue", "venue__city", "venue__area").prefetch_related(
+                "genres", "ticket_tiers", "photos"
+            )
+        else:
+            qs = Event.objects.filter(
+                status=EventStatus.PUBLISHED, is_deleted=False
+            ).select_related("venue", "venue__city", "venue__area").prefetch_related(
+                "genres", "ticket_tiers", "photos"
+            )
+
         city = self.request.query_params.get("city")
         genre = self.request.query_params.get("genre")
         date = self.request.query_params.get("date")

@@ -50,6 +50,7 @@ class EventListSerializer(serializers.ModelSerializer):
             "venue", "venue_name", "venue_area", "city_name",
             "genres", "poster_image", "is_free", "is_featured",
             "min_price", "seats_left", "is_saved",
+            "is_seeking_artists", "performance_budget_min", "performance_budget_max",
         ]
 
     def get_min_price(self, obj):

@@ -60,7 +60,8 @@ export function adaptEvent(e: ApiEvent): NaadaEvent {
     budgetMin: e.performance_budget_min ? parseFloat(e.performance_budget_min) : undefined,
     budgetMax: e.performance_budget_max ? parseFloat(e.performance_budget_max) : undefined,
     _posterImage: e.poster_image,
-  } as NaadaEvent & { _posterImage?: string };
+    _cityName: e.city_name ?? "",
+  } as NaadaEvent & { _posterImage?: string; _cityName?: string };
 }
 
 // ─── Artists ──────────────────────────────────────────────────────────────────
@@ -68,14 +69,14 @@ export function adaptEvent(e: ApiEvent): NaadaEvent {
 export function adaptArtist(a: ApiArtist): Artist {
   return {
     id: a.id,
-    name: a.stage_name || a.user.full_name,
+    name: a.stage_name || a.user?.full_name || "",
     genres: a.genres.map((g) => g.name),
-    city: a.base_city,
+    city: a.city_name ?? a.base_city ?? "",
     feeMin: a.fee_range_min ? parseFloat(a.fee_range_min) : 0,
     feeMax: a.fee_range_max ? parseFloat(a.fee_range_max) : 0,
-    gigsPlayed: a.total_gigs,
+    gigsPlayed: a.total_gigs ?? 0,
     rating: a.avg_rating ?? 0,
-    bio: a.bio,
+    bio: a.bio ?? "",
     kycStatus: "pending",
   };
 }
@@ -86,7 +87,7 @@ export function adaptVenue(v: ApiVenue): Venue {
   return {
     id: v.id,
     name: v.name,
-    area: v.area || v.city,
+    area: v.area_name ?? v.area ?? v.city_name ?? v.city ?? "",
     capacity: v.capacity ?? 0,
   };
 }

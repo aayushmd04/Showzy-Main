@@ -12,7 +12,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useStore } from "@/store/app-store";
-import { requestOtp, verifyOtp, logout as apiLogout } from "@/lib/api";
+import { requestOtp, verifyOtp, updateMe, logout as apiLogout } from "@/lib/api";
 import type { Role } from "@/data/fixtures";
 
 type Outcome = "authed" | "guest";
@@ -40,9 +40,10 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
   const { setRole, role, toast, hydrateFromApi } = useStore();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("Log in to continue");
-  const [step, setStep] = useState<"email" | "code">("email");
+  const [step, setStep] = useState<"email" | "code" | "role">("email");
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [, setPendingRole] = useState<Role>("listener");
   const optionsRef = useRef<AuthOptions>({});
 
   const openSheet = useCallback((nextTitle: string, options: AuthOptions = {}) => {
@@ -58,7 +59,6 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
       setOpen(false);
       if (outcome === "authed") {
         setRole(nextRole);
-        // Fetch real data from API and hydrate store
         hydrateFromApi().catch(console.error);
       }
       const cb = optionsRef.current.onDone;
@@ -66,6 +66,21 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     },
     [setRole, hydrateFromApi],
   );
+
+  const handleRoleSelect = useCallback(async (chosenRole: Role) => {
+    setLoading(true);
+    const apiRoleMap: Record<Role, string> = {
+      listener: "listener", artist: "artist", host: "venue_owner", admin: "admin", out: "listener",
+    };
+    try {
+      await updateMe({ role: apiRoleMap[chosenRole] });
+    } catch {
+      // Non-fatal — proceed with local role
+    } finally {
+      setLoading(false);
+    }
+    finish("authed", chosenRole);
+  }, [finish]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +103,14 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     try {
       const { user } = await verifyOtp(email.trim(), otp);
       const nextRole: Role = ROLE_MAP[user.role] ?? "listener";
-      finish("authed", nextRole);
+      // If this looks like a brand new account (no meaningful role set by the user),
+      // show the role picker so they can self-identify.
+      if (user.is_new_user) {
+        setPendingRole(nextRole);
+        setStep("role");
+      } else {
+        finish("authed", nextRole);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Invalid OTP";
       toast(msg, "fault");
@@ -115,9 +137,11 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={step === "email" ? title : "Enter the 6-digit code"}
+        title={step === "email" ? title : step === "code" ? "Enter the 6-digit code" : "How are you using Naada?"}
       >
-        {step === "email" ? (
+        {step === "role" ? (
+          <RoleStep loading={loading} onSelect={handleRoleSelect} />
+        ) : step === "email" ? (
           <form onSubmit={handleSendOtp}>
             <Label htmlFor="auth-email">Email address</Label>
             <Input
@@ -160,9 +184,41 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
             onBack={() => setStep("email")}
             onVerified={handleVerifyOtp}
           />
-        )}
+        ) }
       </Modal>
     </AuthContext.Provider>
+  );
+}
+
+const ROLE_OPTIONS: { role: Role; label: string; description: string; emoji: string }[] = [
+  { role: "listener", label: "I'm here to watch",    description: "Browse and book tickets to shows near you",           emoji: "🎵" },
+  { role: "artist",   label: "I'm an artist",         description: "Get booked for gigs and receive payments via Naada",  emoji: "🎸" },
+  { role: "host",     label: "I host events",          description: "Create events, hire artists, sell tickets",          emoji: "🎪" },
+];
+
+function RoleStep({ loading, onSelect }: { loading: boolean; onSelect: (role: Role) => void }) {
+  return (
+    <div>
+      <p className="t-small text-muted mb-4">Tell us how you'd like to use Naada — you can change this later.</p>
+      <div className="flex flex-col gap-3">
+        {ROLE_OPTIONS.map(({ role, label, description, emoji }) => (
+          <button
+            key={role}
+            type="button"
+            disabled={loading}
+            onClick={() => onSelect(role)}
+            className="flex items-start gap-4 border border-line p-4 text-left transition-colors hover:border-signal hover:bg-surface-2 disabled:opacity-50"
+            style={{ borderRadius: 6, background: "transparent", fontFamily: "inherit", cursor: loading ? "not-allowed" : "pointer" }}
+          >
+            <span style={{ fontSize: 28, lineHeight: 1 }}>{emoji}</span>
+            <span>
+              <span className="block text-[15px] font-semibold text-paper">{label}</span>
+              <span className="t-small block text-muted mt-0.5">{description}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 

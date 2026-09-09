@@ -143,7 +143,8 @@ def conversations(request):
         qs = BookingConversation.objects.filter(
             models_Q(organizer_id__in=org_ids) | models_Q(artist=artist)
         ).select_related("organizer", "artist").order_by("-last_message_at")
-        return Response(BookingConversationSerializer(qs, many=True).data)
+        data = BookingConversationSerializer(qs, many=True).data
+        return Response({"count": len(data), "results": data})
 
     # POST — open a conversation (host initiates)
     org_id = request.data.get("organizer")
@@ -175,7 +176,8 @@ def conversation_messages(request, convo_id):
 
     if request.method == "GET":
         msgs = convo.messages.filter(is_deleted=False).select_related("sender")
-        return Response(BookingMessageSerializer(msgs, many=True).data)
+        data = BookingMessageSerializer(msgs, many=True).data
+        return Response({"count": len(data), "results": data})
 
     content = request.data.get("content", "").strip()
     if not content:
@@ -332,7 +334,8 @@ def booking_orders(request):
     qs = BookingOrder.objects.filter(
         Q(organizer_id__in=org_ids) | Q(artist=artist)
     ).select_related("organizer", "artist", "event").order_by("-created_at")
-    return Response(BookingOrderSerializer(qs, many=True).data)
+    data = BookingOrderSerializer(qs, many=True).data
+    return Response({"count": len(data), "results": data})
 
 
 @api_view(["GET"])
@@ -497,7 +500,8 @@ def order_ledger(request, pk):
     if not order:
         return Response({"detail": "Not found."}, status=404)
     entries = order.ledger_entries.all()
-    return Response(LedgerEntrySerializer(entries, many=True).data)
+    data = LedgerEntrySerializer(entries, many=True).data
+    return Response({"count": len(data), "results": data})
 
 
 # ─── Admin — dispute resolution ───────────────────────────────────────────────

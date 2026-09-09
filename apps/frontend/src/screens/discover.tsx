@@ -408,6 +408,7 @@ export function DiscoverScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchInput, setSearchInput]   = useState(searchParams.get("q") ?? "");
   const [activeFilter, setActiveFilter] = useState(0);
+  const [cityFilter, setCityFilter]     = useState<"all" | "mysuru" | "bengaluru">("all");
   const tickerRef = useRef<HTMLDivElement>(null);
 
   const isDark = theme === "dark";
@@ -430,14 +431,21 @@ export function DiscoverScreen() {
     : role === "host"    ? users.host
     : null;
 
-  // Published upcoming events sorted by date
-  const published = useMemo(
-    () =>
-      events
-        .filter((e) => e.status === "published" && e.date >= TODAY)
-        .sort((a, b) => a.date.localeCompare(b.date)),
-    [events],
-  );
+  // Published upcoming events sorted by date (city-filtered)
+  const published = useMemo(() => {
+    return events
+      .filter((e) => e.status === "published" && e.date >= TODAY)
+      .filter((e) => {
+        if (cityFilter === "all") return true;
+        const ev = e as NaadaEvent & { _cityName?: string };
+        const city = (ev._cityName ?? "").toLowerCase();
+        const vArea = (venueOf(e)?.area ?? "").toLowerCase();
+        if (cityFilter === "mysuru") return city.includes("mys") || vArea.includes("gokulam") || vArea.includes("vv mohalla") || vArea.includes("jayalakshmi");
+        if (cityFilter === "bengaluru") return city.includes("beng") || city.includes("blr") || vArea.includes("koramangala") || vArea.includes("indiranagar") || vArea.includes("jayanagar");
+        return true;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
+  }, [events, cityFilter, venueOf]);
 
   // Filter tabs
   const filterTabs = useMemo(() => {
@@ -530,14 +538,16 @@ export function DiscoverScreen() {
           </Link>
           <div className="discover-nav-links">
             {[
-              { label: lang === "en" ? "What's on" : "ಏನಿದೆ", active: true },
-              { label: lang === "en" ? "Artists" : "ಕಲಾವಿದರು", active: false },
-              { label: lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು", active: false },
-              { label: lang === "en" ? "How it works" : "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ", active: false },
-            ].map(({ label, active }) => (
-              <span
-                key={label}
+              { label: lang === "en" ? "What's on" : "ಏನಿದೆ",                          path: "/",            active: true },
+              { label: lang === "en" ? "Artists" : "ಕಲಾವಿದರು",                          path: "/artists",     active: false },
+              { label: lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು",                             path: "/venues",      active: false },
+              { label: lang === "en" ? "How it works" : "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ",         path: "/how-it-works", active: false },
+            ].map(({ label, path, active }) => (
+              <Link
+                key={path}
+                to={path}
                 style={{
+                  textDecoration: "none",
                   color: active ? tok.navLinkActive : tok.navLinkInactive,
                   borderBottom: active ? `2px solid ${tok.navActiveBorder}` : "none",
                   paddingBottom: active ? 3 : 0,
@@ -546,22 +556,26 @@ export function DiscoverScreen() {
                 }}
               >
                 {label}
-              </span>
+              </Link>
             ))}
           </div>
         </div>
 
         {/* Right: city, lang toggle, log in, CTA */}
         <div className="discover-nav-right" style={{ alignItems: "center" }}>
-          {/* City selector */}
+          {/* City selector — cycles All → Mysuru → Bengaluru → All */}
           <button
+            onClick={() => setCityFilter(
+              cityFilter === "all" ? "mysuru" : cityFilter === "mysuru" ? "bengaluru" : "all"
+            )}
+            title={cityFilter === "all" ? "Showing all cities" : cityFilter === "mysuru" ? "Showing Mysuru events" : "Showing Bengaluru events"}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 7,
               minHeight: 44,
-              border: `1.5px solid ${isDark ? "rgba(243,233,214,.25)" : "rgba(36,28,21,.22)"}`,
-              background: "transparent",
+              border: `1.5px solid ${cityFilter !== "all" ? tok.signal : isDark ? "rgba(243,233,214,.25)" : "rgba(36,28,21,.22)"}`,
+              background: cityFilter !== "all" ? `${tok.signal}18` : "transparent",
               borderRadius: 999,
               padding: "0 15px",
               fontSize: 15,
@@ -569,10 +583,17 @@ export function DiscoverScreen() {
               color: tok.paper,
               cursor: "pointer",
               fontFamily: "'Archivo',sans-serif",
+              transition: "all .15s",
             }}
           >
             <span style={{ fontSize: 13, color: tok.signal }}>◎</span>
-            <span>{lang === "en" ? "Mysuru" : "ಮೈಸೂರು"}</span>
+            <span>
+              {cityFilter === "all"
+                ? lang === "en" ? "All cities" : "ಎಲ್ಲಾ ನಗರಗಳು"
+                : cityFilter === "mysuru"
+                ? lang === "en" ? "Mysuru" : "ಮೈಸೂರು"
+                : lang === "en" ? "Bengaluru" : "ಬೆಂಗಳೂರು"}
+            </span>
           </button>
 
           {/* Language toggle */}
@@ -1197,9 +1218,9 @@ export function DiscoverScreen() {
       >
         <NaadaLogo tok={tok} size={19} />
         <div style={{ display: "flex", gap: 24, fontSize: 14, color: tok.muted }}>
-          <span style={{ cursor: "pointer" }}>{lang === "en" ? "Artists" : "ಕಲಾವಿದರು"}</span>
-          <span style={{ cursor: "pointer" }}>{lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು"}</span>
-          <span style={{ cursor: "pointer" }}>{lang === "en" ? "Help · ಸಹಾಯ" : "ಸಹಾಯ"}</span>
+          <Link to="/artists"      style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Artists" : "ಕಲಾವಿದರು"}</Link>
+          <Link to="/venues"       style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು"}</Link>
+          <Link to="/how-it-works" style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "How it works" : "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ"}</Link>
           <span style={{ cursor: "pointer" }}>{lang === "en" ? "Terms" : "ನಿಯಮಗಳು"}</span>
         </div>
         <span style={{ fontSize: 14, color: tok.muted }}>

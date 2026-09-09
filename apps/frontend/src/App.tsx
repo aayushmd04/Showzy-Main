@@ -15,6 +15,9 @@ import { tokens } from "@/lib/api";
 import { DiscoverScreen } from "@/screens/discover";
 import { EventScreen } from "@/screens/event";
 import { ArtistProfileScreen } from "@/screens/artist-profile";
+import { ArtistsScreen } from "@/screens/artists";
+import { VenuesScreen } from "@/screens/venues";
+import { HowItWorksScreen } from "@/screens/how-it-works";
 import { CheckoutDetailsScreen } from "@/screens/checkout-details";
 import { CheckoutPayScreen } from "@/screens/checkout-pay";
 import { TicketDetailScreen } from "@/screens/ticket-detail";
@@ -121,6 +124,9 @@ export default function App() {
                 <Route path="/" element={<DiscoverScreen />} />
                 <Route path="/e/:id" element={<EventScreen />} />
                 <Route path="/a/:id" element={<ArtistProfileScreen />} />
+                <Route path="/artists" element={<ArtistsScreen />} />
+                <Route path="/venues" element={<VenuesScreen />} />
+                <Route path="/how-it-works" element={<HowItWorksScreen />} />
                 <Route path="/checkout/details" element={<CheckoutDetailsScreen />} />
                 <Route path="/checkout/pay" element={<CheckoutPayScreen />} />
                 <Route path="/ticket/:code" element={<TicketDetailScreen />} />

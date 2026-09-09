@@ -107,7 +107,8 @@ def my_tickets(request):
         user=request.user
     ).select_related("event", "event__venue", "tier").order_by("-created_at")
     serializer = TicketSerializer(tickets, many=True, context={"request": request})
-    return Response(serializer.data)
+    data = serializer.data
+    return Response({"count": len(data), "results": data})
 
 
 @api_view(["GET"])

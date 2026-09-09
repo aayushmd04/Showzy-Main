@@ -13,14 +13,34 @@ class ArtistListSerializer(serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
     primary_photo = serializers.SerializerMethodField()
     city_name = serializers.CharField(source="city.name", read_only=True, allow_null=True)
+    user = serializers.SerializerMethodField()
+    total_gigs = serializers.SerializerMethodField()
+    avg_rating = serializers.SerializerMethodField()
+    # Expose with consistent names the frontend adapter expects
+    fee_range_min = serializers.DecimalField(source="booking_fee_min", max_digits=10, decimal_places=2, allow_null=True, read_only=True)
+    fee_range_max = serializers.DecimalField(source="booking_fee_max", max_digits=10, decimal_places=2, allow_null=True, read_only=True)
 
     class Meta:
         model = Artist
         fields = [
             "id", "stage_name", "stage_name_kn", "city_name",
-            "genres", "follower_count", "is_verified", "is_featured",
+            "bio", "genres", "follower_count", "is_verified", "is_featured",
             "primary_photo", "instagram",
+            "fee_range_min", "fee_range_max",
+            "total_gigs", "avg_rating",
+            "user",
         ]
+
+    def get_user(self, obj):
+        if obj.user_id:
+            return {"id": str(obj.user_id), "full_name": obj.user.full_name, "email": obj.user.email}
+        return {"id": "", "full_name": obj.stage_name, "email": ""}
+
+    def get_total_gigs(self, obj):
+        return obj.event_appearances.count()
+
+    def get_avg_rating(self, obj):
+        return 0.0
 
     def get_primary_photo(self, obj):
         photo = obj.photos.filter(is_primary=True).first() or obj.photos.first()

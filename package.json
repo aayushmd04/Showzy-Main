@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -n frontend,backend -c blue,green \"npm run dev:frontend\" \"npm run dev:backend\"",
     "dev:frontend": "npm run dev --workspace apps/frontend",
-    "dev:backend": "cd apps/backend && python3 manage.py runserver",
+    "dev:backend": "cd apps/backend && sh -c 'if [ -x .venv/bin/python ]; then exec .venv/bin/python manage.py runserver \"$@\"; else exec python3 manage.py runserver \"$@\"; fi' --",
     "build": "npm run build --workspace apps/frontend",
     "typecheck": "npm run typecheck --workspace apps/frontend",
     "test": "npm run test --workspace apps/frontend",

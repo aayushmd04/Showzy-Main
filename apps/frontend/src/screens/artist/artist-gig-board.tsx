@@ -7,6 +7,7 @@ import { Modal } from "@/components/ui/modal";
 import { Pill } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
 import { useStore } from "@/store/app-store";
+import { applyToGig as apiApplyToGig } from "@/lib/api";
 import { TODAY, dateListing, money } from "@/lib/format";
 
 const OPEN_STATUS_LABEL = {
@@ -25,10 +26,11 @@ const OPEN_STATUS_LABEL = {
 export function ArtistGigBoardScreen() {
   const navigate = useNavigate();
   const { events, venueOf, applications, applyToGig, artists, toast, emptyLists } = useStore();
-  const me = artists[0]; // Rohan — the only logged-in artist persona in this prototype
+  const me = artists[0];
   const [openEventId, setOpenEventId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [rate, setRate] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const open = events.find((e) => e.id === openEventId);
 
@@ -47,11 +49,23 @@ export function ArtistGigBoardScreen() {
     setRate(String(me.feeMin));
   };
 
-  const submit = () => {
+  const submit = async () => {
     if (!open) return;
-    applyToGig(open.id, me.id, message, Number(rate.replace(/\D/g, "")) || undefined);
-    toast(`Applied to ${open.name}`, "success");
-    setOpenEventId(null);
+    setSubmitting(true);
+    try {
+      await apiApplyToGig({
+        event_id: open.id,
+        message,
+        proposed_rate: Number(rate.replace(/\D/g, "")) || undefined,
+      });
+      applyToGig(open.id, me?.id ?? "", message, Number(rate.replace(/\D/g, "")) || undefined);
+      toast(`Applied to ${open.name}`, "success");
+      setOpenEventId(null);
+    } catch {
+      toast("Could not submit application — try again", "fault");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -142,7 +156,7 @@ export function ArtistGigBoardScreen() {
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />
-            <Button variant="primary" full className="mt-5" onClick={submit} disabled={!rate}>
+            <Button variant="primary" full className="mt-5" onClick={submit} disabled={!rate || submitting}>
               Send application
             </Button>
           </>

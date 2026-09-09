@@ -105,6 +105,7 @@ export interface MeResponse {
   role: "listener" | "artist" | "venue_owner" | "admin";
   avatar_url?: string;
   created_at: string;
+  is_new_user?: boolean;
 }
 
 export async function requestOtp(email: string): Promise<void> {
@@ -128,6 +129,10 @@ export async function getMe(): Promise<MeResponse> {
   return get<MeResponse>("/auth/me/");
 }
 
+export async function updateMe(data: { role?: string; full_name?: string }): Promise<MeResponse> {
+  return patch<MeResponse>("/auth/me/", data);
+}
+
 export function logout() {
   tokens.clear();
 }
@@ -137,8 +142,10 @@ export function logout() {
 export interface ApiVenue {
   id: string;
   name: string;
-  area: string;
-  city: string;
+  area?: string;       // detail endpoint nested object field
+  area_name?: string;  // list endpoint flat field
+  city?: string;       // city id or name depending on endpoint
+  city_name?: string;  // flat field from list endpoint
   capacity?: number;
 }
 
@@ -191,6 +198,10 @@ export function getEvents(params = ""): Promise<ApiEventList> {
   return get<ApiEventList>(`/events/${params}`, false);
 }
 
+export function getMyEvents(): Promise<ApiEventList> {
+  return get<ApiEventList>("/events/?mine=true");
+}
+
 export function getEvent(id: string): Promise<ApiEvent> {
   return get<ApiEvent>(`/events/${id}/`, false);
 }
@@ -203,13 +214,15 @@ export interface ApiArtist {
   stage_name: string;
   stage_name_kn: string;
   bio: string;
-  base_city: string;
+  city_name?: string;   // list endpoint flat field
+  base_city?: string;   // legacy
   fee_range_min?: string;
   fee_range_max?: string;
   genres: Array<{ name: string }>;
   total_gigs: number;
   avg_rating: number;
   profile_image?: string;
+  primary_photo?: string;
 }
 
 export interface ApiArtistList {

@@ -1,120 +1,207 @@
-import { useEffect, useState, type ReactNode } from "react";
+/**
+ * Shared shell for all public (listener-facing) screens.
+ * Uses the same design tokens as discover.tsx for visual consistency.
+ */
+import { type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 
-/** Public shell — warm amber light theme. Wraps all listener-facing pages. */
+// Design tokens — mirrors discover.tsx exactly
+const T = {
+  dark: {
+    bg:              "#120E0B",
+    navBg:           "rgba(18,14,11,.88)",
+    navBorder:       "rgba(243,233,214,.14)",
+    paper:           "#F3E9D6",
+    muted:           "rgba(243,233,214,.55)",
+    signal:          "#C4472E",
+    logoName:        "#E8B85C",
+    logoKn:          "#C4472E",
+    navLinkActive:   "#F3E9D6",
+    navLinkInactive: "rgba(243,233,214,.55)",
+    navActiveBorder: "#E8B85C",
+    footerBg:        "#1A1512",
+    footerBorder:    "rgba(243,233,214,.14)",
+    btnBorder:       "rgba(243,233,214,.25)",
+    surface:         "#1A1512",
+  },
+  light: {
+    bg:              "#F7F0E2",
+    navBg:           "rgba(255,252,244,.92)",
+    navBorder:       "rgba(36,28,21,.14)",
+    paper:           "#241C15",
+    muted:           "rgba(36,28,21,.62)",
+    signal:          "#8C2B3E",
+    logoName:        "#8C2B3E",
+    logoKn:          "#D98324",
+    navLinkActive:   "#241C15",
+    navLinkInactive: "rgba(36,28,21,.62)",
+    navActiveBorder: "#8C2B3E",
+    footerBg:        "#FFFCF4",
+    footerBorder:    "rgba(36,28,21,.14)",
+    btnBorder:       "rgba(36,28,21,.25)",
+    surface:         "#FFFCF4",
+  },
+};
+
+function NaadaLogo({ tok }: { tok: typeof T.dark }) {
+  return (
+    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+      <span style={{ fontFamily: "'Baloo Tamma 2',system-ui", fontWeight: 800, fontSize: 22, lineHeight: 1, color: tok.logoName }}>
+        Naada
+      </span>
+      <span style={{ fontFamily: "'Anek Kannada',sans-serif", fontWeight: 600, fontSize: 16, color: tok.logoKn }}>
+        ನಾದ
+      </span>
+    </div>
+  );
+}
+
+const NAV_LINKS = [
+  { label: "What's on", path: "/" },
+  { label: "Artists",   path: "/artists" },
+  { label: "Venues",    path: "/venues" },
+  { label: "How it works", path: "/how-it-works" },
+];
+
 export function PublicShell({ children }: { children: ReactNode }) {
-  const { role, users } = useStore();
+  const { role, theme, setTheme, users } = useStore();
+  const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
   const location = useLocation();
-  const { open: openAuth } = useAuthSheet();
-  const [query, setQuery] = useState("");
-
-  useEffect(() => {
-    if (location.pathname !== "/") setQuery("");
-  }, [location.pathname]);
+  const isDark = theme === "dark";
+  const tok = isDark ? T.dark : T.light;
 
   const account =
     role === "listener" ? users.listener
-    : role === "artist" ? users.artist
-    : role === "host"   ? users.host
+    : role === "artist"  ? users.artist
+    : role === "host"    ? users.host
     : null;
 
-  const submit = (e: React.FormEvent) => {
-    e.preventDefault();
-    navigate(query.trim() ? `/?q=${encodeURIComponent(query.trim())}` : "/");
-  };
-
   return (
-    <div
-      className="theme-light flex min-h-dvh flex-col"
-      style={{ background: "#F4F1EB", fontFamily: "'Archivo', sans-serif", WebkitFontSmoothing: "antialiased" }}
-    >
-      {/* ── Nav ──────────────────────────────────────────────────────────── */}
+    <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: tok.bg, fontFamily: "'Archivo', sans-serif" }}>
+      {/* ── Nav ───────────────────────────────────────────────────────────── */}
       <header
-        className="sticky top-0 z-40 border-b border-line"
-        style={{ background: "rgba(251,243,227,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 40,
+          background: tok.navBg,
+          borderBottom: `1px solid ${tok.navBorder}`,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+        }}
       >
-        <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center gap-4 px-4 md:px-8">
-
-          {/* Wordmark */}
-          <Link to="/" aria-label="Naada home" className="flex shrink-0 items-center py-2 no-underline" style={{ textDecoration: "none" }}>
-            <span style={{ fontSize: 19, letterSpacing: "-.05em", textTransform: "uppercase", color: "#111", display: "flex", alignItems: "center" }}>
-              <span style={{ fontVariationSettings: "'wdth' 62,'wght' 900" }}>NAA</span>
-              <span style={{ color: "#D4380D", margin: "0 1px", fontVariationSettings: "'wdth' 62,'wght' 900" }}>·</span>
-              <span style={{ fontVariationSettings: "'wdth' 125,'wght' 900" }}>DA</span>
-            </span>
+        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", alignItems: "center", height: 64, padding: "0 24px", gap: 32 }}>
+          {/* Logo */}
+          <Link to="/" style={{ textDecoration: "none", flexShrink: 0 }}>
+            <NaadaLogo tok={tok} />
           </Link>
 
-          {/* Search */}
-          <form role="search" onSubmit={submit} className="relative min-w-0 flex-1 md:mx-4">
-            <div
-              className="flex items-center gap-2 border border-line"
-              style={{ background: "rgba(255,255,255,0.7)", backdropFilter: "blur(12px)", borderRadius: 6 }}
-            >
-              <span aria-hidden="true" className="pl-3 text-muted" style={{ fontSize: 15 }}>⌕</span>
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search gigs, artists, venues…"
-                aria-label="Search gigs and artists"
-                style={{ flex: 1, minHeight: 40, border: "none", background: "transparent", fontFamily: "inherit", fontSize: 14, color: "#141210", outline: "none", padding: "0 4px" }}
-              />
-            </div>
-          </form>
+          {/* Nav links — hidden on mobile */}
+          <nav style={{ display: "flex", gap: 24, alignItems: "center" }} className="discover-nav-links">
+            {NAV_LINKS.map(({ label, path }) => {
+              const active = path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+              return (
+                <Link
+                  key={path}
+                  to={path}
+                  style={{
+                    textDecoration: "none",
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: active ? tok.navLinkActive : tok.navLinkInactive,
+                    borderBottom: active ? `2px solid ${tok.navActiveBorder}` : "none",
+                    paddingBottom: active ? 2 : 0,
+                    whiteSpace: "nowrap",
+                    transition: "color .15s",
+                  }}
+                >
+                  {label}
+                </Link>
+              );
+            })}
+          </nav>
+
+          {/* Spacer */}
+          <div style={{ flex: 1 }} />
 
           {/* Right side */}
-          <div className="flex shrink-0 items-center gap-3">
-            {role !== "out" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
+            {/* Theme toggle */}
+            <button
+              onClick={() => setTheme(isDark ? "light" : "dark")}
+              aria-label="Toggle theme"
+              style={{
+                minHeight: 36, width: 36, border: `1.5px solid ${tok.btnBorder}`,
+                background: "transparent", borderRadius: 999, fontSize: 15,
+                cursor: "pointer", color: tok.paper,
+              }}
+            >
+              {isDark ? "☀" : "🌙"}
+            </button>
+
+            {/* My Tickets (logged in listeners) */}
+            {role === "listener" && (
               <Link
                 to="/tickets"
-                className="hidden md:flex items-center gap-1.5 text-[13px] text-muted no-underline transition-colors hover:text-paper"
-                style={{ fontVariationSettings: "'wdth' 90,'wght' 500", textDecoration: "none" }}
+                style={{ fontSize: 14, fontWeight: 600, color: tok.muted, textDecoration: "none", whiteSpace: "nowrap" }}
               >
                 My Tickets
               </Link>
             )}
+
+            {/* Account avatar or Log in */}
             {account ? (
               <Link
                 to={role === "host" ? "/host" : role === "artist" ? "/artist" : "/tickets"}
                 aria-label={`Account — ${account.name}`}
-                style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#D4380D,#C42E08)", color: "#fff", fontSize: 11, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", boxShadow: "0 2px 12px rgba(212,56,13,.35)", flexShrink: 0 }}
+                style={{
+                  width: 34, height: 34, borderRadius: "50%",
+                  background: `linear-gradient(135deg,${tok.signal},${tok.logoName})`,
+                  color: "#fff", fontSize: 13, fontWeight: 900,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  textDecoration: "none", flexShrink: 0,
+                }}
               >
                 {account.name.charAt(0)}
               </Link>
             ) : (
-              <div style={{ padding: 1, borderRadius: 28, background: "linear-gradient(135deg,rgba(212,56,13,.6),rgba(212,56,13,.2))", boxShadow: "0 2px 8px rgba(212,56,13,.15)", flexShrink: 0 }}>
-                <button
-                  onClick={() => openAuth("Log in to Naada", {
-                    onDone: (_outcome, role) => {
-                      if (role === "host") navigate("/host");
-                      else if (role === "artist") navigate("/artist");
-                    },
-                  })}
-                  style={{ display: "block", background: "rgba(255,255,255,.65)", backdropFilter: "blur(8px)", border: "none", borderRadius: 27, padding: "7px 18px", fontFamily: "inherit", fontVariationSettings: "'wdth' 90,'wght' 700", fontSize: 13, color: "#C42E08", cursor: "pointer", whiteSpace: "nowrap" }}
-                >
-                  Log in
-                </button>
-              </div>
+              <button
+                onClick={() => openAuth("Log in to Naada", {
+                  onDone: (_outcome, role) => {
+                    if (role === "host") navigate("/host");
+                    else if (role === "artist") navigate("/artist");
+                  },
+                })}
+                style={{
+                  background: tok.signal, border: "none", borderRadius: 999,
+                  padding: "8px 20px", fontFamily: "inherit", fontSize: 14,
+                  fontWeight: 700, color: "#F3E9D6", cursor: "pointer", whiteSpace: "nowrap",
+                }}
+              >
+                Log in
+              </button>
             )}
           </div>
         </div>
       </header>
 
-      <main className="flex-1">{children}</main>
+      {/* ── Content ───────────────────────────────────────────────────────── */}
+      <main style={{ flex: 1, color: tok.paper }}>{children}</main>
 
-      {/* ── Footer ───────────────────────────────────────────────────────── */}
-      <footer className="mt-16 border-t border-line">
-        <div className="mx-auto flex w-full max-w-[1280px] flex-col gap-2 px-4 py-8 md:flex-row md:items-center md:justify-between md:px-8">
-          <span style={{ fontSize: 15, letterSpacing: "-.05em", textTransform: "uppercase", color: "#111", display: "flex", alignItems: "center" }}>
-            <span style={{ fontVariationSettings: "'wdth' 62,'wght' 900" }}>NAA</span>
-            <span style={{ color: "#D4380D", margin: "0 1px", fontVariationSettings: "'wdth' 62,'wght' 900" }}>·</span>
-            <span style={{ fontVariationSettings: "'wdth' 125,'wght' 900" }}>DA</span>
-          </span>
-          <p className="t-small text-muted">
-            Grassroots live music in Mysuru. Prototype — no real payments, no real accounts.
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
+      <footer style={{ borderTop: `1px solid ${tok.footerBorder}`, background: tok.footerBg, marginTop: 64 }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "32px 24px" }}>
+          <NaadaLogo tok={tok} />
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+            {NAV_LINKS.slice(1).map(({ label, path }) => (
+              <Link key={path} to={path} style={{ fontSize: 13, color: tok.muted, textDecoration: "none" }}>{label}</Link>
+            ))}
+          </div>
+          <p style={{ fontSize: 13, color: tok.muted }}>
+            Grassroots live music · Mysuru & Bengaluru
           </p>
         </div>
       </footer>

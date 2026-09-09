@@ -27,6 +27,7 @@ import { NotFoundScreen } from "@/screens/not-found";
 import { KeyboardLabScreen } from "@/screens/keyboard-lab";
 
 import { HostHomeLetterpressScreen } from "@/screens/host/host-home-letterpress";
+import { HostVenueLayoutScreen } from "@/screens/host/host-venue-layout";
 import { HostEventsScreen } from "@/screens/host/host-events";
 import { HostEventManagerScreen } from "@/screens/host/host-event-manager";
 import { HostEventEditorScreen } from "@/screens/host/host-event-editor";
@@ -65,7 +66,7 @@ const ROLE_MAP: Record<string, import("@/data/fixtures").Role> = {
 
 /** Loads public event/artist data on mount and restores session if token exists. */
 function AppBootstrap() {
-  const { hydrateFromApi, setRole } = useStore();
+  const { hydrateFromApi, setRole, setCurrentUser } = useStore();
 
   useEffect(() => {
     // Always load public data (events, artists) for guest browsing
@@ -79,6 +80,7 @@ function AppBootstrap() {
         .then((user) => {
           const role = ROLE_MAP[user.role] ?? "listener";
           setRole(role);
+          setCurrentUser({ id: user.id, email: user.email, full_name: user.full_name, role: user.role });
           hydrateFromApi().catch(console.error);
         })
         .catch(() => {
@@ -134,6 +136,8 @@ export default function App() {
 
                 {/* Host console */}
                 <Route path="/host" element={host(<HostHomeLetterpressScreen />)} />
+                <Route path="/host/venue" element={host(<HostVenueLayoutScreen />)} />
+                <Route path="/host/venue/layout" element={host(<HostVenueLayoutScreen />)} />
                 <Route path="/host/events" element={host(<HostEventsScreen />)} />
                 <Route path="/host/events/:id" element={host(<HostEventManagerScreen />)} />
                 <Route path="/host/events/:id/edit" element={host(<HostEventEditorScreen />)} />

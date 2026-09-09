@@ -66,18 +66,15 @@ const NAV_LINKS = [
 ];
 
 export function PublicShell({ children }: { children: ReactNode }) {
-  const { role, theme, setTheme, users } = useStore();
+  const { role, theme, setTheme, currentUser } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
   const location = useLocation();
   const isDark = theme === "dark";
   const tok = isDark ? T.dark : T.light;
 
-  const account =
-    role === "listener" ? users.listener
-    : role === "artist"  ? users.artist
-    : role === "host"    ? users.host
-    : null;
+  const isLoggedIn = role !== "out" && currentUser !== null;
+  const displayName = currentUser?.full_name ?? "";
 
   return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: tok.bg, fontFamily: "'Archivo', sans-serif" }}>
@@ -143,7 +140,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             </button>
 
             {/* My Tickets (logged in listeners) */}
-            {role === "listener" && (
+            {role === "listener" && isLoggedIn && (
               <Link
                 to="/tickets"
                 style={{ fontSize: 14, fontWeight: 600, color: tok.muted, textDecoration: "none", whiteSpace: "nowrap" }}
@@ -152,11 +149,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </Link>
             )}
 
-            {/* Account avatar or Log in */}
-            {account ? (
+            {/* Account avatar or Sign in */}
+            {isLoggedIn ? (
               <Link
                 to={role === "host" ? "/host" : role === "artist" ? "/artist" : "/tickets"}
-                aria-label={`Account — ${account.name}`}
+                aria-label={`Account — ${displayName}`}
+                title={displayName}
                 style={{
                   width: 34, height: 34, borderRadius: "50%",
                   background: `linear-gradient(135deg,${tok.signal},${tok.logoName})`,
@@ -165,14 +163,14 @@ export function PublicShell({ children }: { children: ReactNode }) {
                   textDecoration: "none", flexShrink: 0,
                 }}
               >
-                {account.name.charAt(0)}
+                {(displayName || "?").charAt(0).toUpperCase()}
               </Link>
             ) : (
               <button
-                onClick={() => openAuth("Log in to Naada", {
-                  onDone: (_outcome, role) => {
-                    if (role === "host") navigate("/host");
-                    else if (role === "artist") navigate("/artist");
+                onClick={() => openAuth("Sign in to Naada", {
+                  onDone: (_outcome, nextRole) => {
+                    if (nextRole === "host") navigate("/host");
+                    else if (nextRole === "artist") navigate("/artist");
                   },
                 })}
                 style={{
@@ -181,7 +179,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
                   fontWeight: 700, color: "#F3E9D6", cursor: "pointer", whiteSpace: "nowrap",
                 }}
               >
-                Log in
+                Sign in
               </button>
             )}
           </div>

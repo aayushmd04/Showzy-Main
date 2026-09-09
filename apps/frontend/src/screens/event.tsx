@@ -52,7 +52,7 @@ export function EventScreen() {
     if (!tier) return;
     startCheckout(event.id, tier.name);
     if (role === "out") {
-      openAuth(isFree ? "Log in to reserve" : "Log in to book", {
+      openAuth(isFree ? "Sign in to reserve" : "Sign in to book", {
         allowGuest: true,
         onDone: (outcome) =>
           navigate(outcome === "guest" ? "/checkout/details" : "/checkout/pay"),
@@ -259,8 +259,8 @@ export function EventScreen() {
               {soldOut && (
                 <div className="border-t border-line px-4 py-5 text-center">
                   <p className="t-body text-muted">Every tier is sold out.</p>
-                  <Link to="/" className="btn btn-secondary mt-3 w-full">
-                    Find something else on
+                  <Link to="/" className="btn btn-secondary mt-3 w-full text-center">
+                    Browse more events
                   </Link>
                 </div>
               )}

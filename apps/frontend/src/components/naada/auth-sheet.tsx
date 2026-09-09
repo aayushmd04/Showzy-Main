@@ -37,13 +37,14 @@ const ROLE_MAP: Record<string, Role> = {
 };
 
 export function AuthSheetProvider({ children }: { children: ReactNode }) {
-  const { setRole, role, toast, hydrateFromApi } = useStore();
+  const { setRole, role, toast, hydrateFromApi, setCurrentUser } = useStore();
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("Log in to continue");
-  const [step, setStep] = useState<"email" | "code" | "role">("email");
+  const [title, setTitle] = useState("Sign in to Naada");
+  const [step, setStep] = useState<"email" | "code" | "role" | "profile">("email");
   const [email, setEmail] = useState("");
+  const [debugOtp, setDebugOtp] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
-  const [, setPendingRole] = useState<Role>("listener");
+  const [pendingRole, setPendingRole] = useState<Role>("listener");
   const optionsRef = useRef<AuthOptions>({});
 
   const openSheet = useCallback((nextTitle: string, options: AuthOptions = {}) => {
@@ -51,6 +52,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     setTitle(nextTitle);
     setStep("email");
     setEmail("");
+    setDebugOtp(undefined);
     setOpen(true);
   }, []);
 
@@ -79,19 +81,43 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-    finish("authed", chosenRole);
-  }, [finish]);
+    setPendingRole(chosenRole);
+    setStep("profile");
+  }, []);
+
+  const handleProfileDone = useCallback(async (name: string, bio: string) => {
+    setLoading(true);
+    try {
+      const updated = await updateMe({ full_name: name, bio });
+      setCurrentUser({
+        id: updated.id,
+        email: updated.email,
+        full_name: updated.full_name,
+        role: updated.role,
+      });
+    } catch {
+      // Non-fatal
+    } finally {
+      setLoading(false);
+    }
+    finish("authed", pendingRole);
+  }, [finish, pendingRole, setCurrentUser]);
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim()) return;
     setLoading(true);
     try {
-      await requestOtp(email.trim());
+      const res = await requestOtp(email.trim());
+      setDebugOtp(res?.debug_otp);
       setStep("code");
-      toast("OTP sent to " + email.trim());
+      if (res?.debug_otp) {
+        toast(`Dev mode — OTP: ${res.debug_otp}`, "default");
+      } else {
+        toast("Code sent — check your email");
+      }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to send OTP";
+      const msg = err instanceof Error ? err.message : "Failed to send code";
       toast(msg, "fault");
     } finally {
       setLoading(false);
@@ -102,9 +128,8 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const { user } = await verifyOtp(email.trim(), otp);
+      setCurrentUser({ id: user.id, email: user.email, full_name: user.full_name, role: user.role });
       const nextRole: Role = ROLE_MAP[user.role] ?? "listener";
-      // If this looks like a brand new account (no meaningful role set by the user),
-      // show the role picker so they can self-identify.
       if (user.is_new_user) {
         setPendingRole(nextRole);
         setStep("role");
@@ -112,7 +137,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
         finish("authed", nextRole);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Invalid OTP";
+      const msg = err instanceof Error ? err.message : "Invalid code — try again";
       toast(msg, "fault");
     } finally {
       setLoading(false);
@@ -122,7 +147,8 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
   const doLogout = useCallback(() => {
     apiLogout();
     setRole("out");
-  }, [setRole]);
+    setCurrentUser(null);
+  }, [setRole, setCurrentUser]);
 
   const api = useMemo<AuthApi>(
     () => ({ open: openSheet, logout: doLogout }),
@@ -131,18 +157,30 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
 
   const allowGuest = optionsRef.current.allowGuest ?? false;
 
+  const modalTitle =
+    step === "email" ? title
+    : step === "code" ? "Enter your code"
+    : step === "role" ? "How are you using Naada?"
+    : "Set up your profile";
+
   return (
     <AuthContext.Provider value={api}>
       {children}
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        title={step === "email" ? title : step === "code" ? "Enter the 6-digit code" : "How are you using Naada?"}
-      >
-        {step === "role" ? (
+      <Modal open={open} onClose={() => setOpen(false)} title={modalTitle}>
+        {step === "profile" ? (
+          <ProfileStep
+            role={pendingRole}
+            loading={loading}
+            onSubmit={handleProfileDone}
+            onSkip={() => finish("authed", pendingRole)}
+          />
+        ) : step === "role" ? (
           <RoleStep loading={loading} onSelect={handleRoleSelect} />
         ) : step === "email" ? (
           <form onSubmit={handleSendOtp}>
+            <p className="t-small text-muted mb-4">
+              Enter your email to sign in. No account yet? One will be created for you.
+            </p>
             <Label htmlFor="auth-email">Email address</Label>
             <Input
               id="auth-email"
@@ -161,7 +199,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
               className="mt-5"
               disabled={loading}
             >
-              {loading ? "Sending…" : "Send code"}
+              {loading ? "Sending…" : "Continue with email"}
             </Button>
 
             {allowGuest && (
@@ -180,26 +218,29 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
         ) : (
           <CodeStep
             email={email}
+            debugOtp={debugOtp}
             loading={loading}
             onBack={() => setStep("email")}
             onVerified={handleVerifyOtp}
           />
-        ) }
+        )}
       </Modal>
     </AuthContext.Provider>
   );
 }
 
 const ROLE_OPTIONS: { role: Role; label: string; description: string; emoji: string }[] = [
-  { role: "listener", label: "I'm here to watch",    description: "Browse and book tickets to shows near you",           emoji: "🎵" },
-  { role: "artist",   label: "I'm an artist",         description: "Get booked for gigs and receive payments via Naada",  emoji: "🎸" },
-  { role: "host",     label: "I host events",          description: "Create events, hire artists, sell tickets",          emoji: "🎪" },
+  { role: "listener", label: "I'm here to watch",   description: "Browse events and book tickets near you",             emoji: "🎵" },
+  { role: "artist",   label: "I'm an artist",        description: "Get booked for gigs and receive payments via Naada", emoji: "🎸" },
+  { role: "host",     label: "I host events",         description: "Create events, hire artists, sell tickets",         emoji: "🎪" },
 ];
 
 function RoleStep({ loading, onSelect }: { loading: boolean; onSelect: (role: Role) => void }) {
   return (
     <div>
-      <p className="t-small text-muted mb-4">Tell us how you'd like to use Naada — you can change this later.</p>
+      <p className="t-small text-muted mb-4">
+        Tell us how you'd like to use Naada — you can change this later in settings.
+      </p>
       <div className="flex flex-col gap-3">
         {ROLE_OPTIONS.map(({ role, label, description, emoji }) => (
           <button
@@ -224,11 +265,13 @@ function RoleStep({ loading, onSelect }: { loading: boolean; onSelect: (role: Ro
 
 function CodeStep({
   email,
+  debugOtp,
   loading,
   onBack,
   onVerified,
 }: {
   email: string;
+  debugOtp?: string;
   loading: boolean;
   onBack: () => void;
   onVerified: (otp: string) => void;
@@ -247,6 +290,14 @@ function CodeStep({
     }, 1000);
     return () => window.clearInterval(timer);
   }, []);
+
+  // Auto-fill if debugOtp is available
+  useEffect(() => {
+    if (debugOtp && debugOtp.length === 6) {
+      const filled = debugOtp.split("");
+      setDigits(filled);
+    }
+  }, [debugOtp]);
 
   const code = digits.join("");
 
@@ -303,13 +354,19 @@ function CodeStep({
         Sent to <span className="t-mono text-paper">{email}</span>
       </p>
 
+      {debugOtp && (
+        <div className="mt-3 rounded border border-dashed border-signal/40 bg-signal/5 px-3 py-2">
+          <p className="t-mono text-[12px] text-signal">
+            Dev mode — your code is <strong>{debugOtp}</strong>
+          </p>
+        </div>
+      )}
+
       <div className="mt-4 flex gap-2" role="group" aria-label="6-digit verification code">
         {digits.map((d, i) => (
           <input
             key={i}
-            ref={(el) => {
-              inputRefs.current[i] = el;
-            }}
+            ref={(el) => { inputRefs.current[i] = el; }}
             type="text"
             inputMode="numeric"
             autoComplete={i === 0 ? "one-time-code" : "off"}
@@ -328,14 +385,11 @@ function CodeStep({
 
       <p className="t-small mt-4 text-muted">
         {seconds > 0 ? (
-          <>
-            Resend in{" "}
-            <span className="t-mono">
-              0:{String(seconds).padStart(2, "0")}
-            </span>
-          </>
+          <>Resend in <span className="t-mono">0:{String(seconds).padStart(2, "0")}</span></>
         ) : (
-          "Didn't get it? Go back and resend."
+          <button type="button" className="underline hover:text-paper transition-colors" onClick={onBack}>
+            Didn't get it? Go back and try again.
+          </button>
         )}
       </p>
 
@@ -349,9 +403,87 @@ function CodeStep({
           full
           disabled={code.length !== 6 || loading}
         >
-          {loading ? "Verifying…" : "Verify"}
+          {loading ? "Verifying…" : "Verify code"}
         </Button>
       </div>
+    </form>
+  );
+}
+
+function ProfileStep({
+  role,
+  loading,
+  onSubmit,
+  onSkip,
+}: {
+  role: Role;
+  loading: boolean;
+  onSubmit: (name: string, bio: string) => void;
+  onSkip: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [bio, setBio] = useState("");
+  const showBio = role === "artist" || role === "host";
+
+  const placeholder =
+    role === "artist"
+      ? "Genre, city, instruments you play…"
+      : role === "host"
+      ? "Venue type, city, typical events you host…"
+      : "";
+
+  return (
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(name.trim(), bio.trim()); }}>
+      <p className="t-small text-muted mb-4">
+        {role === "artist"
+          ? "Let venue hosts know who you are so they can book you with confidence."
+          : role === "host"
+          ? "Help artists and fans find and trust your venue."
+          : "A display name helps personalise your experience."}
+      </p>
+
+      <Label htmlFor="p-name">Your name</Label>
+      <Input
+        id="p-name"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Full name"
+        autoFocus
+        required
+        className="mt-1"
+      />
+
+      {showBio && (
+        <div className="mt-4">
+          <Label htmlFor="p-bio">Short bio</Label>
+          <textarea
+            id="p-bio"
+            value={bio}
+            onChange={(e) => setBio(e.target.value)}
+            placeholder={placeholder}
+            maxLength={200}
+            className="field mt-1 h-[72px] w-full resize-none text-[14px]"
+          />
+          <p className="t-micro mt-1 text-muted">{bio.length}/200</p>
+        </div>
+      )}
+
+      <Button
+        type="submit"
+        variant="primary"
+        full
+        className="mt-5"
+        disabled={loading || !name.trim()}
+      >
+        {loading ? "Saving…" : "Complete setup"}
+      </Button>
+      <button
+        type="button"
+        onClick={onSkip}
+        className="mt-3 w-full text-center t-small text-muted transition-colors hover:text-paper"
+      >
+        Skip for now
+      </button>
     </form>
   );
 }

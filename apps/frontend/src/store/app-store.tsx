@@ -93,9 +93,19 @@ const EMPTY_CHECKOUT: CheckoutDraft = {
 /* Context                                                             */
 /* ------------------------------------------------------------------ */
 
+export interface CurrentUser {
+  id: string;
+  email: string;
+  full_name: string;
+  role: string;
+}
+
 interface AppStore {
   role: Role;
   setRole: (role: Role) => void;
+
+  currentUser: CurrentUser | null;
+  setCurrentUser: (user: CurrentUser | null) => void;
 
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -203,6 +213,7 @@ const HELD_STATES: BookingState[] = ["accepted", "funded", "performed", "release
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>("out");
+  const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   const [theme, setTheme] = useState<Theme>("dark");
   const [lang, setLang] = useState<Lang>("en");
   const [events, setEvents] = useState<NaadaEvent[]>(() =>
@@ -707,6 +718,8 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     () => ({
       role,
       setRole,
+      currentUser,
+      setCurrentUser,
       theme,
       setTheme,
       lang,
@@ -772,7 +785,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       apiCompleteOrder,
     }),
     [
-      role, theme, lang, hydrateFromApi,
+      role, currentUser, theme, lang, hydrateFromApi,
       events, artists, bookings, tickets, settlements, messages, applications, reviews, venues,
       checkout, artistProfile, bankAdded, emptyLists, toasts, toast, dismissToast,
       eventById, artistById, venueById, bookingById, ticketByCode, messagesFor, reviewsFor,

@@ -494,7 +494,7 @@ export function DiscoverScreen() {
 
   const handleGetTicket = (eventId: string) => {
     if (role === "out") {
-      openAuth("Log in to get tickets");
+      openAuth("Sign in to get tickets");
     } else {
       navigate(`/e/${eventId}`);
     }
@@ -637,10 +637,10 @@ export function DiscoverScreen() {
           {/* Log in */}
           {!account && (
             <span
-              onClick={() => openAuth("Log in to Naada")}
+              onClick={() => openAuth("Sign in to Naada")}
               style={{ fontSize: 15, fontWeight: 600, padding: "0 8px", cursor: "pointer", color: tok.paper }}
             >
-              {lang === "en" ? "Log in" : "ಲಾಗಿನ್"}
+              {lang === "en" ? "Sign in" : "ಸೈನ್ ಇನ್"}
             </span>
           )}
 

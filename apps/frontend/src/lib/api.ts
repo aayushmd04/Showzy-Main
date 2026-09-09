@@ -108,8 +108,8 @@ export interface MeResponse {
   is_new_user?: boolean;
 }
 
-export async function requestOtp(email: string): Promise<void> {
-  await post("/auth/request-otp/", { email, purpose: "login" }, false);
+export async function requestOtp(email: string): Promise<{ debug_otp?: string }> {
+  return post<{ detail: string; debug_otp?: string }>("/auth/request-otp/", { email, purpose: "login" }, false);
 }
 
 export async function verifyOtp(
@@ -129,7 +129,15 @@ export async function getMe(): Promise<MeResponse> {
   return get<MeResponse>("/auth/me/");
 }
 
-export async function updateMe(data: { role?: string; full_name?: string }): Promise<MeResponse> {
+export async function updateMe(data: {
+  role?: string;
+  full_name?: string;
+  display_name?: string;
+  bio?: string;
+  instagram?: string;
+  website?: string;
+  phone?: string;
+}): Promise<MeResponse> {
   return patch<MeResponse>("/auth/me/", data);
 }
 

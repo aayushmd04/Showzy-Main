@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
+  Building2,
   CalendarDays,
   ChevronRight,
   Compass,
@@ -47,10 +48,12 @@ const ICONS = {
   disputes: Gavel,
   flags: Flag,
   board: Compass,
+  venue: Building2,
 };
 
 export const HOST_NAV: NavItem[] = [
   { to: "/host", label: "Overview", icon: "overview", end: true },
+  { to: "/host/venue", label: "Venue", icon: "venue" },
   { to: "/host/events", label: "Events", icon: "events" },
   { to: "/host/artists", label: "Artists", icon: "artists" },
   { to: "/host/bookings", label: "Bookings", icon: "bookings" },
@@ -85,14 +88,15 @@ export function ConsoleShell({
   children: ReactNode;
   actions?: ReactNode;
 }) {
-  const { role, users } = useStore();
+  const { currentUser } = useStore();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const reduce = useReducedMotion();
 
   useEffect(() => setMenuOpen(false), [location.pathname]);
 
-  const account = role === "host" ? users.host : role === "admin" ? users.admin : users.artist;
+  const displayName = currentUser?.full_name ?? "You";
+  const displayInitial = (displayName).charAt(0).toUpperCase();
 
   return (
     <div className="theme-light min-h-dvh bg-ink md:flex">
@@ -160,11 +164,11 @@ export function ConsoleShell({
 
           {actions}
 
-          <div className="flex shrink-0 items-center gap-2 border border-line px-2 py-1.5">
+          <div className="flex shrink-0 items-center gap-2 border border-line px-2 py-1.5" title={displayName}>
             <span className="grid size-7 place-items-center bg-surface-2 font-display text-[13px] font-bold text-paper">
-              {account.name.charAt(0)}
+              {displayInitial}
             </span>
-            <span className="t-small hidden sm:block">{account.name.split(" ")[0]}</span>
+            <span className="t-small hidden sm:block">{displayName.split(" ")[0]}</span>
           </div>
         </header>
 

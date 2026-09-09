@@ -98,10 +98,10 @@ export function CheckoutDetailsScreen() {
               type="button"
               className="link-underline text-paper"
               onClick={() =>
-                openAuth("Log in to book", { onDone: () => navigate("/checkout/pay") })
+                openAuth("Sign in to book", { onDone: () => navigate("/checkout/pay") })
               }
             >
-              Log in instead
+              Sign in instead
             </button>
           </p>
         </form>

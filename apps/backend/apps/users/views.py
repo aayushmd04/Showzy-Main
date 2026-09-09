@@ -68,10 +68,11 @@ It expires in 10 minutes. Do not share this with anyone.
         fail_silently=False,
     )
 
-    return Response(
-        {"detail": f"OTP sent to {email}. Check your email."},
-        status=status.HTTP_200_OK
-    )
+    resp = {"detail": f"OTP sent to {email}. Check your email."}
+    # In DEBUG mode, include the OTP in the response so developers can test without email SMTP
+    if django_settings.DEBUG:
+        resp["debug_otp"] = raw_otp
+    return Response(resp, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])

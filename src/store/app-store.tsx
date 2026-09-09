@@ -16,7 +16,7 @@ import {
   settlements as settlementsFixture,
   tickets as ticketsFixture,
   users,
-  venues,
+  venues as venuesFixture,
   MAX_COUNTERS,
   type ApplicationStatus,
   type Artist,
@@ -35,13 +35,26 @@ import {
   type SettlementStatus,
   type Ticket,
   type Tier,
+  type Venue,
 } from "@/data/fixtures";
 import { detectContactInfo } from "@/lib/contact-filter";
 import { ticketCode } from "@/lib/format";
+import * as api from "@/lib/api";
+import type { ApiVenue } from "@/lib/api";
+import {
+  adaptEvent,
+  adaptArtist,
+  adaptVenue,
+  adaptTicket,
+  adaptOrder,
+} from "@/lib/adapters";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
 /* ------------------------------------------------------------------ */
+
+export type Theme = "dark" | "light";
+export type Lang = "en" | "kn";
 
 export interface Toast {
   id: number;
@@ -84,6 +97,14 @@ interface AppStore {
   role: Role;
   setRole: (role: Role) => void;
 
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  lang: Lang;
+  setLang: (lang: Lang) => void;
+
+  /** Fetch real data from API and replace in-memory fixtures. */
+  hydrateFromApi: () => Promise<void>;
+
   events: NaadaEvent[];
   artists: Artist[];
   bookings: Booking[];
@@ -92,7 +113,7 @@ interface AppStore {
   messages: ChatMessage[];
   applications: GigApplication[];
   reviews: Review[];
-  venues: typeof venues;
+  venues: Venue[];
   users: typeof users;
 
   checkout: CheckoutDraft;
@@ -107,12 +128,12 @@ interface AppStore {
   /* selectors */
   eventById: (id: string) => NaadaEvent | undefined;
   artistById: (id: string) => Artist | undefined;
-  venueById: (id: string) => (typeof venues)[number] | undefined;
+  venueById: (id: string) => Venue | undefined;
   bookingById: (id: string) => Booking | undefined;
   ticketByCode: (code: string) => Ticket | undefined;
   messagesFor: (bookingId: string) => ChatMessage[];
   reviewsFor: (bookingId: string) => Review[];
-  venueOf: (event: NaadaEvent) => (typeof venues)[number] | undefined;
+  venueOf: (event: NaadaEvent) => Venue | undefined;
   soldOf: (event: NaadaEvent) => number;
   capacityOf: (event: NaadaEvent) => number;
 
@@ -147,10 +168,8 @@ interface AppStore {
   setBankAdded: (value: boolean) => void;
   countersUsed: (booking: Booking) => number;
 
-  /* chat — Section 12, disintermediation guard runs on every send */
   sendMessage: (bookingId: string, sender: "host" | "artist", body: string) => ChatMessage;
 
-  /* gig board — artist-initiated applications to an open event slot */
   applyToGig: (
     eventId: string,
     artistId: string,
@@ -159,39 +178,38 @@ interface AppStore {
   ) => GigApplication;
   setApplicationStatus: (id: string, status: ApplicationStatus) => void;
 
-  /* admin / ops — mind map §14 */
   setArtistKycStatus: (artistId: string, status: KycStatus) => void;
   resolveDispute: (bookingId: string, outcome: DisputeOutcome, note: string) => void;
   reviewFlaggedMessage: (messageId: string) => void;
 
-  /* reviews — the trust layer that makes booking a stranger viable */
   submitReview: (
     bookingId: string,
     direction: Review["direction"],
     rating: number,
     body: string,
   ) => Review;
+
+  /* API-backed booking actions */
+  apiSendMessage: (convoId: string, body: string) => Promise<ChatMessage>;
+  apiFundOrder: (orderId: string) => Promise<void>;
+  apiCompleteOrder: (orderId: string) => Promise<void>;
 }
 
 const StoreContext = createContext<AppStore | null>(null);
 
-/* ------------------------------------------------------------------ */
-/* Provider                                                            */
-/* ------------------------------------------------------------------ */
-
 let toastSeq = 0;
 
-// An artist can't hold two gigs on the same date (Q4 in the technical
-// discovery — in production this is a partial unique DB index; here it's
-// the same rule checked against in-memory state before the transition).
 const HELD_STATES: BookingState[] = ["accepted", "funded", "performed", "released"];
 
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>("out");
+  const [theme, setTheme] = useState<Theme>("dark");
+  const [lang, setLang] = useState<Lang>("en");
   const [events, setEvents] = useState<NaadaEvent[]>(() =>
     eventsFixture.map((e) => ({ ...e, tiers: e.tiers.map((t) => ({ ...t })) })),
   );
   const [artists, setArtists] = useState<Artist[]>(() => artistsFixture.map((a) => ({ ...a })));
+  const [venues, setVenues] = useState<Venue[]>(() => venuesFixture.map((v) => ({ ...v })));
   const [bookings, setBookings] = useState<Booking[]>(() =>
     bookingsFixture.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),
   );
@@ -224,6 +242,84 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     };
   });
 
+  /* ---- hydrate from API ---- */
+  const hydrateFromApi = useCallback(async () => {
+    try {
+      const [eventsData, artistsData, venuesData] = await Promise.allSettled([
+        api.getEvents(),
+        api.getArtists(),
+        api.getVenues(),
+      ]);
+
+      if (eventsData.status === "fulfilled") {
+        const adapted = eventsData.value.results.map(adaptEvent);
+        setEvents(adapted);
+        // Build venues from flat event fields (list endpoint returns venue as UUID + venue_name/venue_area)
+        const eventVenues = eventsData.value.results.map((e) => {
+          const raw = e as unknown as { venue: string | ApiVenue; venue_name?: string; venue_area?: string };
+          if (typeof raw.venue === "object" && raw.venue) return adaptVenue(raw.venue as ApiVenue);
+          return {
+            id: raw.venue as string,
+            name: raw.venue_name ?? "",
+            area: raw.venue_area ?? "",
+            capacity: 0,
+          } as Venue;
+        });
+        setVenues((prev) => {
+          const ids = new Set(prev.map((v) => v.id));
+          const merged = [...prev];
+          for (const v of eventVenues) {
+            if (!ids.has(v.id)) {
+              merged.push(v);
+              ids.add(v.id);
+            }
+          }
+          return merged;
+        });
+      }
+
+      if (artistsData.status === "fulfilled") {
+        setArtists(artistsData.value.results.map(adaptArtist));
+      }
+
+      if (venuesData.status === "fulfilled") {
+        setVenues(venuesData.value.results.map(adaptVenue));
+      }
+
+      // Fetch user-specific data only when authenticated
+      if (!api.tokens.access) return;
+      const [ticketsData, ordersData] = await Promise.allSettled([
+        api.getMyTickets(),
+        api.getMyOrders(),
+      ]);
+
+      if (ticketsData.status === "fulfilled") {
+        const adapted = ticketsData.value.results.map(adaptTicket);
+        // Merge events from tickets that weren't in the public list
+        const ticketEvents = ticketsData.value.results.map((t) => adaptEvent(t.event));
+        setEvents((prev) => {
+          const ids = new Set(prev.map((e) => e.id));
+          const merged = [...prev];
+          for (const e of ticketEvents) {
+            if (!ids.has(e.id)) {
+              merged.push(e);
+              ids.add(e.id);
+            }
+          }
+          return merged;
+        });
+        setTickets(adapted);
+      }
+
+      if (ordersData.status === "fulfilled") {
+        const adapted = ordersData.value.results.map((o) => adaptOrder(o));
+        setBookings(adapted);
+      }
+    } catch (err) {
+      console.error("hydrateFromApi failed:", err);
+    }
+  }, []);
+
   /* ---- toasts ---- */
   const dismissToast = useCallback((id: number) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -241,7 +337,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   /* ---- selectors ---- */
   const eventById = useCallback((id: string) => events.find((e) => e.id === id), [events]);
   const artistById = useCallback((id: string) => artists.find((a) => a.id === id), [artists]);
-  const venueById = useCallback((id: string) => venues.find((v) => v.id === id), []);
+  const venueById = useCallback((id: string) => venues.find((v) => v.id === id), [venues]);
   const bookingById = useCallback((id: string) => bookings.find((b) => b.id === id), [bookings]);
   const ticketByCode = useCallback(
     (code: string) => tickets.find((t) => t.code === code),
@@ -256,7 +352,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     (bookingId: string) => reviews.filter((r) => r.bookingId === bookingId),
     [reviews],
   );
-  const venueOf = useCallback((event: NaadaEvent) => venues.find((v) => v.id === event.venueId), []);
+  const venueOf = useCallback(
+    (event: NaadaEvent) => venues.find((v) => v.id === event.venueId),
+    [venues],
+  );
   const soldOf = useCallback(
     (event: NaadaEvent) => event.tiers.reduce((sum, t) => sum + t.sold, 0),
     [],
@@ -322,7 +421,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       if (ticket.status === "checked_in") return "duplicate";
       setTickets((prev) =>
         prev.map((t) =>
-          t.code === code ? { ...t, status: "checked_in" as const, checkedInAt: "20:14" } : t,
+          t.code === code ? { ...t, status: "checked_in" as const, checkedInAt: "now" } : t,
         ),
       );
       setEvents((prev) =>
@@ -382,9 +481,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
             : e,
         ),
       );
-      // A brief sent for an event/artist pair that has a live gig-board
-      // application resolves that application — the negotiation now lives
-      // in the booking thread, not the application.
       setApplications((prev) =>
         prev.map((a) =>
           a.eventId === input.eventId &&
@@ -459,7 +555,9 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         if (b.id !== id) return b;
         const last = b.quotes[b.quotes.length - 1];
         const settled: BookingState[] = ["accepted", "funded", "performed", "released"];
-        const agreedFee = settled.includes(state) ? (b.agreedFee ?? last?.amount ?? 0) : b.agreedFee;
+        const agreedFee = settled.includes(state)
+          ? (b.agreedFee ?? last?.amount ?? 0)
+          : b.agreedFee;
         return { ...b, state, agreedFee };
       }),
     );
@@ -474,7 +572,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  /* ---- chat ---- */
+  /* ---- chat (local) ---- */
   const sendMessage = useCallback(
     (bookingId: string, sender: "host" | "artist", body: string): ChatMessage => {
       const flag = detectContactInfo(body);
@@ -492,6 +590,50 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     },
     [],
   );
+
+  /* ---- API-backed chat ---- */
+  const apiSendMessage = useCallback(
+    async (convoId: string, body: string): Promise<ChatMessage> => {
+      try {
+        const msg = await api.sendMessage(convoId, body);
+        const adapted: ChatMessage = {
+          id: msg.id,
+          bookingId: convoId,
+          sender: "host",
+          body: msg.content,
+          at: msg.created_at,
+          flagged: msg.is_flagged,
+        };
+        setMessages((prev) => [...prev, adapted]);
+        return adapted;
+      } catch {
+        // Fall back to local if API fails
+        return sendMessage(convoId, "host", body);
+      }
+    },
+    [sendMessage],
+  );
+
+  /* ---- API-backed fund order ---- */
+  const apiFundOrder = useCallback(async (orderId: string): Promise<void> => {
+    // Dev mode: use placeholder Razorpay data
+    await api.fundOrder(orderId, {
+      razorpay_order_id: `order_DEV_${Date.now()}`,
+      razorpay_payment_id: `pay_DEV_${Date.now()}`,
+      razorpay_signature: "dev_sig_bypass",
+    });
+    setBookings((prev) =>
+      prev.map((b) => (b.id === orderId ? { ...b, state: "funded" } : b)),
+    );
+  }, []);
+
+  /* ---- API-backed complete order ---- */
+  const apiCompleteOrder = useCallback(async (orderId: string): Promise<void> => {
+    await api.completeOrder(orderId);
+    setBookings((prev) =>
+      prev.map((b) => (b.id === orderId ? { ...b, state: "released" } : b)),
+    );
+  }, []);
 
   /* ---- admin / ops ---- */
   const setArtistKycStatus = useCallback((artistId: string, status: KycStatus) => {
@@ -531,6 +673,10 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
         createdAt: now(),
       };
       setApplications((prev) => [created, ...prev]);
+      // Fire-and-forget API call
+      api.applyToGig({ event_id: eventId, message, proposed_rate: proposedRate }).catch(
+        console.error,
+      );
       return created;
     },
     [],
@@ -561,6 +707,11 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
     () => ({
       role,
       setRole,
+      theme,
+      setTheme,
+      lang,
+      setLang,
+      hydrateFromApi,
       events,
       artists,
       bookings,
@@ -616,16 +767,21 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       applyToGig,
       setApplicationStatus,
       submitReview,
+      apiSendMessage,
+      apiFundOrder,
+      apiCompleteOrder,
     }),
     [
-      role, events, artists, bookings, tickets, settlements, messages, applications, reviews,
-      checkout, artistProfile, bankAdded, emptyLists, toasts, toast, dismissToast, eventById,
-      artistById, venueById, bookingById, ticketByCode, messagesFor, reviewsFor, venueOf, soldOf,
-      capacityOf, startCheckout, setGuestDetails, clearCheckout, completePurchase, cancelTicket,
-      checkIn, updateEvent, setEventStatus, addTier, removeTier, sendBrief, counterBooking,
-      acceptBooking, declineBooking, fundBooking, setBookingState, setSettlementStatus,
-      updateArtistProfile, countersUsed, sendMessage, setArtistKycStatus, resolveDispute,
-      reviewFlaggedMessage, applyToGig, setApplicationStatus, submitReview,
+      role, theme, lang, hydrateFromApi,
+      events, artists, bookings, tickets, settlements, messages, applications, reviews, venues,
+      checkout, artistProfile, bankAdded, emptyLists, toasts, toast, dismissToast,
+      eventById, artistById, venueById, bookingById, ticketByCode, messagesFor, reviewsFor,
+      venueOf, soldOf, capacityOf, startCheckout, setGuestDetails, clearCheckout,
+      completePurchase, cancelTicket, checkIn, updateEvent, setEventStatus, addTier, removeTier,
+      sendBrief, counterBooking, acceptBooking, declineBooking, fundBooking, setBookingState,
+      setSettlementStatus, updateArtistProfile, countersUsed, sendMessage, setArtistKycStatus,
+      resolveDispute, reviewFlaggedMessage, applyToGig, setApplicationStatus, submitReview,
+      apiSendMessage, apiFundOrder, apiCompleteOrder,
     ],
   );
 

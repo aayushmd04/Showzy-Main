@@ -1,25 +1,26 @@
 @import "tailwindcss";
 
 /* ============================================================
-   Naada design tokens — Section 3 of the prototype brief.
-   Dark UI only. Borders over shadows. Radius 4px everywhere.
+   Naada design tokens — exact values from the design handoff.
+   Default = dark theme. .theme-light wrapper flips all tokens.
    ============================================================ */
 
 @theme {
-  --color-ink: #0e0e12;
-  --color-surface: #17171c;
-  --color-surface-2: #1f1f26;
-  --color-line: #2a2a33;
-  --color-paper: #f2f0ea;
-  --color-muted: #8a8a96;
-  --color-signal: #ff3d6e;
-  --color-brass: #e8b33c;
-  --color-live: #3ddc91;
-  --color-fault: #ff5b4a;
+  --color-ink:       #120E0B;
+  --color-surface:   #1A1512;
+  --color-surface-2: #231D18;
+  --color-line:      rgba(243,233,214,.14);
+  --color-paper:     #F3E9D6;
+  --color-muted:     rgba(243,233,214,.55);
+  --color-signal:    #C4472E;
+  --color-gold:      #E8B85C;
+  --color-live:      #3ddc91;
+  --color-fault:     #ff5b4a;
 
-  --font-display: "Archivo", "Archivo Narrow", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Baloo Tamma 2", system-ui, sans-serif;
+  --font-kannada: "Anek Kannada", sans-serif;
+  --font-sans:    "Archivo", "Archivo Narrow", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --radius-DEFAULT: 4px;
 
@@ -33,7 +34,7 @@
 
 @layer base {
   * {
-    border-color: var(--color-line);
+    box-sizing: border-box;
   }
 
   html {
@@ -48,7 +49,6 @@
     font-family: var(--font-sans);
     font-size: 15px;
     line-height: 1.55;
-    font-feature-settings: "cv05", "ss03";
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
   }
@@ -59,7 +59,6 @@
     margin: 0;
   }
 
-  /* Accessibility floor: the focus ring is always visible and uses --signal. */
   :focus-visible {
     outline: 2px solid var(--color-signal);
     outline-offset: 2px;
@@ -74,11 +73,10 @@
   ::-webkit-scrollbar { width: 10px; height: 10px; }
   ::-webkit-scrollbar-track { background: var(--color-ink); }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-line);
+    background: rgba(243,233,214,.18);
     border: 2px solid var(--color-ink);
     border-radius: 8px;
   }
-  ::-webkit-scrollbar-thumb:hover { background: #3a3a45; }
 
   input, textarea, select, button { font: inherit; color: inherit; }
 
@@ -87,54 +85,11 @@
       animation-duration: 0.001ms !important;
       animation-iteration-count: 1 !important;
       transition-duration: 0.001ms !important;
-      scroll-behavior: auto !important;
     }
   }
 }
 
 @layer components {
-  /* ---- Type scale (Section 3.3) ---- */
-  .t-display {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: clamp(30px, 6vw, 44px);
-    line-height: 1;
-    letter-spacing: -0.02em;
-    text-transform: uppercase;
-    font-stretch: condensed;
-  }
-  .t-h1 {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: clamp(24px, 4vw, 32px);
-    line-height: 1.1;
-    letter-spacing: -0.01em;
-  }
-  .t-h2 {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 22px;
-    line-height: 1.2;
-  }
-  .t-h3 {
-    font-family: var(--font-display);
-    font-weight: 700;
-    font-size: 17px;
-    line-height: 1.3;
-  }
-  .t-body { font-size: 15px; line-height: 1.55; }
-  .t-small { font-size: 13px; line-height: 1.5; }
-  .t-micro {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    line-height: 1.4;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--color-muted);
-  }
-  .t-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
-
-  /* ---- Buttons (Section 3.5) ---- */
   .btn {
     display: inline-flex;
     align-items: center;
@@ -142,39 +97,28 @@
     gap: 8px;
     min-height: 44px;
     padding: 0 20px;
-    border-radius: 4px;
+    border-radius: 999px;
     border: 1px solid transparent;
+    font-family: var(--font-sans);
     font-size: 15px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
-    transition: background-color 140ms ease, border-color 140ms ease, color 140ms ease, opacity 140ms ease;
+    transition: opacity 140ms ease, background-color 140ms ease;
     text-decoration: none;
     white-space: nowrap;
   }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-  .btn-primary { background: var(--color-signal); color: var(--color-ink); font-weight: 600; }
-  .btn-primary:hover:not(:disabled) { background: #ff5c85; }
-
-  .btn-secondary { background: transparent; border-color: var(--color-line); color: var(--color-paper); }
-  .btn-secondary:hover:not(:disabled) { background: var(--color-surface-2); border-color: #3a3a45; }
-
-  .btn-destructive { background: transparent; border-color: var(--color-fault); color: var(--color-fault); }
-  .btn-destructive:hover:not(:disabled) { background: rgba(255, 91, 74, 0.1); }
-
+  .btn-primary { background: var(--color-signal); color: #F3E9D6; }
+  .btn-primary:hover:not(:disabled) { opacity: 0.88; }
+  .btn-secondary { background: transparent; border: 1.5px solid rgba(243,233,214,.25); color: var(--color-paper); }
   .btn-ghost { background: transparent; color: var(--color-muted); }
-  .btn-ghost:hover:not(:disabled) { color: var(--color-paper); background: var(--color-surface-2); }
 
-  .btn-sm { min-height: 36px; padding: 0 12px; font-size: 13px; }
-
-  /* ---- Surfaces ---- */
   .panel {
     background: var(--color-surface);
     border: 1px solid var(--color-line);
     border-radius: 4px;
   }
 
-  /* ---- Fields ---- */
   .field {
     width: 100%;
     min-height: 44px;
@@ -185,83 +129,171 @@
     color: var(--color-paper);
     transition: border-color 140ms ease;
   }
-  .field::placeholder { color: #5c5c68; }
-  .field:hover { border-color: #3a3a45; }
+  .field::placeholder { color: rgba(243,233,214,.32); }
   .field:focus { border-color: var(--color-signal); outline: none; }
-  textarea.field { min-height: 96px; resize: vertical; }
 
-  /* ---- Status pills: rectangles, 1px border, 0 radius (Section 11) ---- */
   .pill {
     display: inline-flex;
     align-items: center;
     border: 1px solid currentColor;
-    border-radius: 0;
-    padding: 2px 7px;
+    border-radius: 999px;
+    padding: 2px 10px;
     font-family: var(--font-mono);
     font-size: 11px;
-    line-height: 1.4;
     font-weight: 500;
     text-transform: uppercase;
     letter-spacing: 0.08em;
     white-space: nowrap;
   }
 
-  /* ---- Ticket stub perforation (Section 3.4) ---- */
-  .stub-notch {
+  /* Frosted glass caption band — the signature visual element */
+  .frosted-caption {
     position: absolute;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    background: var(--color-ink);
-    border: 1px solid var(--color-line);
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(18,14,11,.32);
+    backdrop-filter: blur(6px) saturate(140%);
+    -webkit-backdrop-filter: blur(6px) saturate(140%);
+    border-top: 1px solid rgba(232,184,92,.22);
   }
 
-  .link-underline {
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    text-decoration-color: var(--color-line);
+  .frosted-caption-light {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(24,18,14,.28);
+    backdrop-filter: blur(6px) saturate(140%);
+    -webkit-backdrop-filter: blur(6px) saturate(140%);
+    border-top: 1px solid rgba(247,240,226,.15);
   }
-  .link-underline:hover { text-decoration-color: currentColor; }
 }
 
 @layer utilities {
-  .scanline {
-    background-image: repeating-linear-gradient(
-      0deg, rgba(255, 255, 255, 0.025) 0px, rgba(255, 255, 255, 0.025) 1px, transparent 1px, transparent 3px
-    );
-  }
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { scrollbar-width: none; }
-}
-
-@keyframes naada-scan {
-  0% { transform: translateY(-2px); opacity: 0; }
-  10% { opacity: 1; }
-  90% { opacity: 1; }
-  100% { transform: translateY(240px); opacity: 0; }
+  .scanline {
+    background-image: repeating-linear-gradient(
+      0deg, rgba(255,255,255,.025) 0px, rgba(255,255,255,.025) 1px, transparent 1px, transparent 3px
+    );
+  }
 }
 
 /* ============================================================
-   Light theme — applies inside .theme-light wrapper.
-   Remaps every dark token so all Tailwind classes resolve
-   to the warm amber palette without touching individual screens.
+   LIGHT THEME — applied via .theme-light on the page root.
+   Remaps all tokens to the warm amber palette.
    ============================================================ */
 .theme-light {
-  color: var(--color-paper);
-  --color-ink:       #F4F1EB;
-  --color-surface:   #FFFFFF;
-  --color-surface-2: #FAF8F4;
-  --color-line:      #E2DDD5;
-  --color-paper:     #141210;
-  --color-muted:     #7D7A74;
-  --color-signal:    #D4380D;
-  --color-brass:     #E8B33C;
+  --color-ink:       #F7F0E2;
+  --color-surface:   #FFFCF4;
+  --color-surface-2: #F5EDD8;
+  --color-line:      rgba(36,28,21,.14);
+  --color-paper:     #241C15;
+  --color-muted:     rgba(36,28,21,.55);
+  --color-signal:    #8C2B3E;
+  --color-gold:      #D98324;
   --color-live:      #1EA874;
   --color-fault:     #CF1322;
 }
 
-@keyframes naada-circle-draw {
-  to { stroke-dashoffset: 0; }
+.theme-light body,
+.theme-light {
+  background: #F7F0E2;
+  color: #241C15;
+}
+
+.theme-light ::-webkit-scrollbar-track { background: #F7F0E2; }
+.theme-light ::-webkit-scrollbar-thumb { background: rgba(36,28,21,.18); }
+
+/* ============================================================
+   Discover screen responsive helpers
+   ============================================================ */
+.discover-nav {
+  padding: 0 56px;
+}
+.discover-hero {
+  display: grid;
+  grid-template-columns: 1fr 480px;
+  gap: 56px;
+  padding: 68px 56px 56px;
+  align-items: center;
+}
+.discover-hero-photo {
+  display: block;
+}
+.discover-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
+}
+.discover-trust {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.discover-karnataka {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.discover-footer-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  flex-wrap: wrap;
+  padding: 52px 56px;
+}
+.discover-section {
+  padding: 52px 56px 56px;
+}
+.discover-nav-links {
+  display: flex;
+  gap: 26px;
+  font-size: 15px;
+  font-weight: 600;
+}
+.discover-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.discover-footer {
+  padding: 22px 56px 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .discover-nav { padding: 0 20px; }
+  .discover-nav-links { display: none; }
+  .discover-hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 36px 20px 40px;
+  }
+  .discover-hero-photo { display: none; }
+  .discover-trust { grid-template-columns: 1fr 1fr; }
+  .discover-karnataka { grid-template-columns: 1fr; }
+  .discover-section { padding: 36px 20px 40px; }
+  .discover-footer-cta { padding: 36px 20px; flex-direction: column; align-items: flex-start; }
+  .discover-footer { padding: 20px 20px 24px; flex-direction: column; gap: 12px; align-items: flex-start; }
+  .discover-nav-right { gap: 6px; }
+}
+
+@media (max-width: 540px) {
+  .discover-trust { grid-template-columns: 1fr 1fr; }
+}
+
+/* ============================================================
+   Keyframes
+   ============================================================ */
+@keyframes naada-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
 }
 
 @keyframes naada-ticker {
@@ -269,7 +301,13 @@
   to   { transform: translateX(-50%); }
 }
 
-@keyframes naada-live-pulse {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.35; }
+@keyframes naada-circle-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes naada-scan {
+  0% { transform: translateY(-2px); opacity: 0; }
+  10% { opacity: 1; }
+  90% { opacity: 1; }
+  100% { transform: translateY(240px); opacity: 0; }
 }

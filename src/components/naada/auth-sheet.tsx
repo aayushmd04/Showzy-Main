@@ -12,13 +12,8 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { useStore } from "@/store/app-store";
+import { requestOtp, verifyOtp, logout as apiLogout } from "@/lib/api";
 import type { Role } from "@/data/fixtures";
-
-/**
- * Section 7.4. Fake auth: any six digits are accepted, 123456 is shown as the
- * placeholder. No role selection here, ever — role is a capability unlocked
- * later, not a signup choice. Only fires when the user tries to do something.
- */
 
 type Outcome = "authed" | "guest";
 
@@ -29,74 +24,120 @@ interface AuthOptions {
 
 interface AuthApi {
   open: (title: string, options?: AuthOptions) => void;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthApi | null>(null);
 
+const ROLE_MAP: Record<string, Role> = {
+  listener: "listener",
+  artist: "artist",
+  venue_owner: "host",
+  admin: "admin",
+};
+
 export function AuthSheetProvider({ children }: { children: ReactNode }) {
-  const { setRole, role, toast, users } = useStore();
+  const { setRole, role, toast, hydrateFromApi } = useStore();
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("Log in to book");
-  const [step, setStep] = useState<"phone" | "code">("phone");
-  const [phone, setPhone] = useState(users.listener.phone.replace("+91 ", ""));
+  const [title, setTitle] = useState("Log in to continue");
+  const [step, setStep] = useState<"email" | "code">("email");
+  const [email, setEmail] = useState("");
+  const [loading, setLoading] = useState(false);
   const optionsRef = useRef<AuthOptions>({});
 
   const openSheet = useCallback((nextTitle: string, options: AuthOptions = {}) => {
     optionsRef.current = options;
     setTitle(nextTitle);
-    setStep("phone");
+    setStep("email");
+    setEmail("");
     setOpen(true);
   }, []);
 
-  const finish = (outcome: Outcome, phone: string) => {
-    setOpen(false);
-    let nextRole: Role = role === "out" ? "listener" : role;
-    if (outcome === "authed") {
-      const last10 = (s: string) => s.replace(/\D/g, "").slice(-10);
-      const typed = last10(phone);
-      if (typed === last10(users.host.phone)) nextRole = "host";
-      else if (typed === last10(users.artist.phone)) nextRole = "artist";
-      else nextRole = "listener";
-      setRole(nextRole);
+  const finish = useCallback(
+    (outcome: Outcome, nextRole: Role) => {
+      setOpen(false);
+      if (outcome === "authed") {
+        setRole(nextRole);
+        // Fetch real data from API and hydrate store
+        hydrateFromApi().catch(console.error);
+      }
+      const cb = optionsRef.current.onDone;
+      if (cb) setTimeout(() => cb(outcome, nextRole), 0);
+    },
+    [setRole, hydrateFromApi],
+  );
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setLoading(true);
+    try {
+      await requestOtp(email.trim());
+      setStep("code");
+      toast("OTP sent to " + email.trim());
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to send OTP";
+      toast(msg, "fault");
+    } finally {
+      setLoading(false);
     }
-    const cb = optionsRef.current.onDone;
-    if (cb) setTimeout(() => cb(outcome, nextRole), 0);
   };
 
-  const api = useMemo<AuthApi>(() => ({ open: openSheet }), [openSheet]);
+  const handleVerifyOtp = async (otp: string) => {
+    setLoading(true);
+    try {
+      const { user } = await verifyOtp(email.trim(), otp);
+      const nextRole: Role = ROLE_MAP[user.role] ?? "listener";
+      finish("authed", nextRole);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Invalid OTP";
+      toast(msg, "fault");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const doLogout = useCallback(() => {
+    apiLogout();
+    setRole("out");
+  }, [setRole]);
+
+  const api = useMemo<AuthApi>(
+    () => ({ open: openSheet, logout: doLogout }),
+    [openSheet, doLogout],
+  );
+
   const allowGuest = optionsRef.current.allowGuest ?? false;
 
   return (
     <AuthContext.Provider value={api}>
       {children}
-      <Modal open={open} onClose={() => setOpen(false)} title={step === "phone" ? title : "Enter the 6-digit code"}>
-        {step === "phone" ? (
-          <form
-            onSubmit={(e) => {
-              e.preventDefault();
-              setStep("code");
-              toast("Code sent. Any six digits work in this prototype.");
-            }}
-          >
-            <Label htmlFor="auth-phone">Phone number</Label>
-            <div className="flex items-stretch gap-2">
-              <span className="t-mono grid min-w-[52px] place-items-center border border-line bg-ink px-3 text-[14px] text-muted">
-                +91
-              </span>
-              <Input
-                id="auth-phone"
-                type="tel"
-                inputMode="numeric"
-                autoComplete="tel-national"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="t-mono flex-1"
-                required
-              />
-            </div>
-
-            <Button type="submit" variant="primary" full className="mt-5">
-              Send code
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={step === "email" ? title : "Enter the 6-digit code"}
+      >
+        {step === "email" ? (
+          <form onSubmit={handleSendOtp}>
+            <Label htmlFor="auth-email">Email address</Label>
+            <Input
+              id="auth-email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              required
+            />
+            <Button
+              type="submit"
+              variant="primary"
+              full
+              className="mt-5"
+              disabled={loading}
+            >
+              {loading ? "Sending…" : "Send code"}
             </Button>
 
             {allowGuest && (
@@ -106,7 +147,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
                   <span className="t-micro">or</span>
                   <span className="h-px flex-1 bg-line" />
                 </div>
-                <Button full onClick={() => finish("guest", "")}>
+                <Button full onClick={() => finish("guest", role === "out" ? "listener" : role)}>
                   Continue as guest
                 </Button>
               </>
@@ -114,9 +155,10 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
           </form>
         ) : (
           <CodeStep
-            phone={phone}
-            onBack={() => setStep("phone")}
-            onVerified={() => finish("authed", phone)}
+            email={email}
+            loading={loading}
+            onBack={() => setStep("email")}
+            onVerified={handleVerifyOtp}
           />
         )}
       </Modal>
@@ -125,16 +167,18 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
 }
 
 function CodeStep({
-  phone,
+  email,
+  loading,
   onBack,
   onVerified,
 }: {
-  phone: string;
+  email: string;
+  loading: boolean;
   onBack: () => void;
-  onVerified: () => void;
+  onVerified: (otp: string) => void;
 }) {
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
-  const [seconds, setSeconds] = useState(24);
+  const [seconds, setSeconds] = useState(59);
   const inputRefs = useRef<Array<HTMLInputElement | null>>(Array(6).fill(null));
 
   useEffect(() => {
@@ -157,7 +201,7 @@ function CodeStep({
     setDigits(next);
     if (digit && index < 5) inputRefs.current[index + 1]?.focus();
     if (next.every((d) => d) && next.join("").length === 6) {
-      setTimeout(onVerified, 80);
+      setTimeout(() => onVerified(next.join("")), 80);
     }
   };
 
@@ -189,20 +233,27 @@ function CodeStep({
     setDigits(next);
     const focusIdx = Math.min(pasted.length, 5);
     inputRefs.current[focusIdx]?.focus();
-    if (pasted.length === 6) setTimeout(onVerified, 80);
+    if (pasted.length === 6) setTimeout(() => onVerified(pasted), 80);
   };
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); if (code.length === 6) onVerified(); }}>
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (code.length === 6) onVerified(code);
+      }}
+    >
       <p className="t-small text-muted">
-        Sent to <span className="t-mono text-paper">+91 {phone}</span>
+        Sent to <span className="t-mono text-paper">{email}</span>
       </p>
 
       <div className="mt-4 flex gap-2" role="group" aria-label="6-digit verification code">
         {digits.map((d, i) => (
           <input
             key={i}
-            ref={(el) => { inputRefs.current[i] = el; }}
+            ref={(el) => {
+              inputRefs.current[i] = el;
+            }}
             type="text"
             inputMode="numeric"
             autoComplete={i === 0 ? "one-time-code" : "off"}
@@ -222,17 +273,27 @@ function CodeStep({
       <p className="t-small mt-4 text-muted">
         {seconds > 0 ? (
           <>
-            Resend in <span className="t-mono">0:{String(seconds).padStart(2, "0")}</span>
+            Resend in{" "}
+            <span className="t-mono">
+              0:{String(seconds).padStart(2, "0")}
+            </span>
           </>
         ) : (
-          "Didn't get it? Resend the code."
+          "Didn't get it? Go back and resend."
         )}
       </p>
 
       <div className="mt-5 flex gap-2">
-        <Button type="button" onClick={onBack}>Back</Button>
-        <Button type="submit" variant="primary" full disabled={code.length !== 6}>
-          Verify
+        <Button type="button" onClick={onBack} disabled={loading}>
+          Back
+        </Button>
+        <Button
+          type="submit"
+          variant="primary"
+          full
+          disabled={code.length !== 6 || loading}
+        >
+          {loading ? "Verifying…" : "Verify"}
         </Button>
       </div>
     </form>

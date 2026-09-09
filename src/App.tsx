@@ -8,6 +8,9 @@ import { BriefComposerProvider } from "@/components/naada/brief-composer";
 import { DevSwitcher } from "@/components/naada/dev-switcher";
 import { RequireRole } from "@/components/naada/require-role";
 import { Toaster } from "@/components/ui/toaster";
+import { useStore } from "@/store/app-store";
+import { getMe } from "@/lib/api";
+import { tokens } from "@/lib/api";
 
 import { DiscoverScreen } from "@/screens/discover";
 import { EventScreen } from "@/screens/event";
@@ -50,6 +53,42 @@ function ScrollToTop() {
   return null;
 }
 
+const ROLE_MAP: Record<string, import("@/data/fixtures").Role> = {
+  listener: "listener",
+  artist: "artist",
+  venue_owner: "host",
+  admin: "admin",
+};
+
+/** Loads public event/artist data on mount and restores session if token exists. */
+function AppBootstrap() {
+  const { hydrateFromApi, setRole } = useStore();
+
+  useEffect(() => {
+    // Always load public data (events, artists) for guest browsing
+    hydrateFromApi().catch(() => {
+      // Backend not running — fixtures stay in place, no error shown
+    });
+
+    // Restore session if token exists in localStorage
+    if (tokens.access) {
+      getMe()
+        .then((user) => {
+          const role = ROLE_MAP[user.role] ?? "listener";
+          setRole(role);
+          hydrateFromApi().catch(console.error);
+        })
+        .catch(() => {
+          // Token expired — clear it silently
+          tokens.clear();
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}
+
 const host = (element: React.ReactNode) => (
   <RequireRole roles={["host"]} suggest="host">
     {element}
@@ -73,6 +112,7 @@ export default function App() {
     <MotionConfig reducedMotion="user">
       <BrowserRouter>
         <AppStoreProvider>
+          <AppBootstrap />
           <AuthSheetProvider>
             <BriefComposerProvider>
               <ScrollToTop />

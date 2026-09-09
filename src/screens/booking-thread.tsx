@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ShieldCheck, Star } from "lucide-react";
@@ -9,6 +9,8 @@ import { Input, Textarea } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Pill, statusLabel } from "@/components/ui/pill";
 import { useStore } from "@/store/app-store";
+import { useConversationMessages } from "@/hooks/use-api";
+import type { ChatMessage } from "@/data/fixtures";
 import {
   MAX_COUNTERS,
   PLATFORM_FEE_RATE,
@@ -51,6 +53,7 @@ export function BookingThreadScreen() {
     countersUsed,
     messagesFor,
     sendMessage,
+    apiSendMessage,
     reviewsFor,
     submitReview,
     toast,
@@ -58,14 +61,35 @@ export function BookingThreadScreen() {
   const [counter, setCounter] = useState("");
   const [fundOpen, setFundOpen] = useState(false);
   const [chatDraft, setChatDraft] = useState("");
+  const [sending, setSending] = useState(false);
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewBody, setReviewBody] = useState("");
   const reduce = useReducedMotion();
+  const chatEndRef = useRef<HTMLLIElement>(null);
 
   const booking = bookingById(id);
-  if (!booking) return <NotFoundScreen />;
 
-  const chatThread = messagesFor(booking.id);
+  // Live message polling for real conversations (UUIDs) vs fixture bookings (b1, b2 etc.)
+  const isRealConvo = booking && /^[0-9a-f-]{36}$/.test(booking.id);
+  const { data: liveMessages } = useConversationMessages(isRealConvo ? booking.id : null);
+
+  const storeMessages = booking ? messagesFor(booking.id) : [];
+  const chatThread: ChatMessage[] = isRealConvo && liveMessages
+    ? liveMessages.results.map((m) => ({
+        id: m.id,
+        bookingId: booking!.id,
+        sender: "host" as const,
+        body: m.content,
+        at: m.created_at,
+        flagged: m.is_flagged,
+      }))
+    : storeMessages;
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chatThread.length]);
+
+  if (!booking) return <NotFoundScreen />;
 
   const event = eventById(booking.eventId);
   const artist = artistById(booking.artistId);
@@ -285,18 +309,29 @@ export function BookingThreadScreen() {
               </li>
             );
           })}
+          <li ref={chatEndRef} aria-hidden="true" />
         </ol>
 
         {!isAdmin && (
           <form
             className="mt-3 flex gap-2"
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
               const text = chatDraft.trim();
-              if (!text) return;
-              const sent = sendMessage(booking.id, viewer, text);
-              setChatDraft("");
-              if (sent.flagged) toast("Message sent — flagged for review", "fault");
+              if (!text || sending) return;
+              setSending(true);
+              try {
+                if (isRealConvo) {
+                  const sent = await apiSendMessage(booking.id, text);
+                  if (sent.flagged) toast("Message sent — flagged for review", "fault");
+                } else {
+                  const sent = sendMessage(booking.id, viewer, text);
+                  if (sent.flagged) toast("Message sent — flagged for review", "fault");
+                }
+                setChatDraft("");
+              } finally {
+                setSending(false);
+              }
             }}
           >
             <label htmlFor="chat-draft" className="sr-only">
@@ -309,8 +344,8 @@ export function BookingThreadScreen() {
               placeholder="Write a message…"
               className="flex-1"
             />
-            <Button type="submit" disabled={!chatDraft.trim()}>
-              Send
+            <Button type="submit" disabled={!chatDraft.trim() || sending}>
+              {sending ? "…" : "Send"}
             </Button>
           </form>
         )}

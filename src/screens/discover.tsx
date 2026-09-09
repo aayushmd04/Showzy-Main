@@ -1,154 +1,428 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { TODAY } from "@/lib/format";
 import type { NaadaEvent } from "@/data/fixtures";
 
+// ─── Design tokens per theme ─────────────────────────────────────────────────
+// These mirror the exact hex values from the design handoff DC file.
+
+const T = {
+  dark: {
+    bg:            "#120E0B",
+    surface:       "#1A1512",
+    navBg:         "rgba(18,14,11,.88)",
+    navBorder:     "rgba(243,233,214,.14)",
+    paper:         "#F3E9D6",
+    muted:         "rgba(243,233,214,.55)",
+    muted2:        "rgba(243,233,214,.45)",
+    signal:        "#C4472E",
+    gold:          "#E8B85C",
+    logoName:      "#E8B85C",
+    logoKn:        "#C4472E",
+    cardBorder:    "rgba(243,233,214,.16)",
+    cardBg:        "#1A1512",
+    stripBorder:   "rgba(243,233,214,.1)",
+    photoBorder:   "rgba(232,184,92,.55)",
+    captionBg:     "rgba(18,14,11,.32)",
+    captionBorder: "rgba(232,184,92,.25)",
+    tickerBg:      "#C4472E",
+    footerBandBg:  "#1A1512",
+    footerBandBorder: "rgba(243,233,214,.14)",
+    btnSecBorder:  "rgba(243,233,214,.3)",
+    tagBorder:     "rgba(243,233,214,.2)",
+    tagBg:         "rgba(243,233,214,.06)",
+    navLinkActive: "#F3E9D6",
+    navLinkInactive: "rgba(243,233,214,.55)",
+    navActiveBorder: "#E8B85C",
+    badgeBg:       "rgba(196,71,46,.14)",
+    badgeBorder:   "rgba(196,71,46,.5)",
+    badgeText:     "#E8B85C",
+    searchBg:      "#1A1512",
+    searchBorder:  "rgba(243,233,214,.18)",
+    searchIcon:    "rgba(243,233,214,.4)",
+    searchPlaceholder: "rgba(243,233,214,.38)",
+  },
+  light: {
+    bg:            "#F7F0E2",
+    surface:       "#FFFCF4",
+    navBg:         "rgba(255,252,244,.92)",
+    navBorder:     "rgba(36,28,21,.14)",
+    paper:         "#241C15",
+    muted:         "rgba(36,28,21,.62)",
+    muted2:        "rgba(36,28,21,.5)",
+    signal:        "#8C2B3E",
+    gold:          "#D98324",
+    logoName:      "#8C2B3E",
+    logoKn:        "#D98324",
+    cardBorder:    "rgba(36,28,21,.16)",
+    cardBg:        "#FFFCF4",
+    stripBorder:   "rgba(36,28,21,.1)",
+    photoBorder:   "rgba(36,28,21,.22)",
+    captionBg:     "rgba(24,18,14,.28)",
+    captionBorder: "rgba(247,240,226,.15)",
+    tickerBg:      "#8C2B3E",
+    footerBandBg:  "#FFFCF4",
+    footerBandBorder: "rgba(36,28,21,.14)",
+    btnSecBorder:  "rgba(36,28,21,.28)",
+    tagBorder:     "rgba(36,28,21,.2)",
+    tagBg:         "#FFFCF4",
+    navLinkActive: "#241C15",
+    navLinkInactive: "rgba(36,28,21,.62)",
+    navActiveBorder: "#8C2B3E",
+    badgeBg:       "#FFF6E4",
+    badgeBorder:   "rgba(217,131,36,.5)",
+    badgeText:     "#241C15",
+    searchBg:      "#FFFCF4",
+    searchBorder:  "rgba(36,28,21,.18)",
+    searchIcon:    "rgba(36,28,21,.38)",
+    searchPlaceholder: "rgba(36,28,21,.4)",
+  },
+};
+
+// ─── Photo mapping for events ─────────────────────────────────────────────────
+const GIG_PHOTOS = ["/gig-1.jpg", "/gig-2.jpg", "/gig-3.jpg", "/gig-4.jpg", "/gig-5.jpg"];
+
+function gigPhoto(index: number) {
+  return GIG_PHOTOS[index % GIG_PHOTOS.length];
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
-function posterStyle(genres: string[]): { bg: string; accent: string } {
-  const g = genres[0] ?? "";
-  if (g === "Jazz")              return { bg: "linear-gradient(160deg,#0A0C18,#121626)", accent: "#8BBCF0" };
-  if (g === "Blues" || g === "Rock") return { bg: "linear-gradient(160deg,#141210,#2A1208)", accent: "#D4380D" };
-  if (g === "Open Mic")          return { bg: "linear-gradient(160deg,#0A1810,#0E2216)", accent: "#3DDC91" };
-  if (g === "Folk" || g === "Indie") return { bg: "linear-gradient(160deg,#16100A,#281808)", accent: "#E8B33C" };
-  if (g === "Carnatic Fusion")   return { bg: "linear-gradient(160deg,#100C08,#201810)", accent: "#E8B33C" };
-  if (g === "Hindustani Fusion") return { bg: "linear-gradient(160deg,#100A0E,#201016)", accent: "#F472B6" };
-  if (g === "Electronic" || g === "Experimental") return { bg: "linear-gradient(160deg,#0E0A18,#1A1226)", accent: "#C084FC" };
-  if (g === "Post-rock")         return { bg: "linear-gradient(160deg,#0A0E12,#121820)", accent: "#94A3B8" };
-  return                                { bg: "linear-gradient(160deg,#0E0E12,#1A1A22)", accent: "#D4380D" };
+function fmt(date: string, part: "dow" | "d" | "mon") {
+  const d = new Date(date + "T00:00:00");
+  if (part === "dow") return d.toLocaleString("en", { weekday: "short" }).toUpperCase();
+  if (part === "d")   return d.getDate().toString();
+  return d.toLocaleString("en", { month: "short" }).toUpperCase();
 }
 
-function posterWords(name: string): [string, string] {
-  const words = name.toUpperCase().split(" ");
-  if (words.length === 1) return [words[0].slice(0, 9), ""];
-  return [words[0].slice(0, 9), words.slice(1).join(" ").slice(0, 11)];
+function seatsLeft(event: NaadaEvent): number {
+  const total  = event.tiers.reduce((s, t) => s + t.capacity, 0);
+  const sold   = event.tiers.reduce((s, t) => s + t.sold, 0);
+  return Math.max(0, total - sold);
 }
 
-function monthLabel(date: string) {
-  return new Date(date + "T00:00:00").toLocaleString("en", { month: "short" }).toUpperCase();
+function lowestPrice(event: NaadaEvent): number {
+  return Math.min(...event.tiers.map((t) => t.price));
 }
 
-function dayLabel(date: string) {
-  return new Date(date + "T00:00:00").getDate().toString().padStart(2, "0");
+function isFree(event: NaadaEvent): boolean {
+  return lowestPrice(event) === 0;
 }
 
-function dateGradient(genres: string[]) {
-  const g = genres[0] ?? "";
-  if (g === "Open Mic") return "linear-gradient(90deg,#1EA874,#39C98A)";
-  return "linear-gradient(90deg,#D4380D,#E8763A)";
+function isSoldOut(event: NaadaEvent): boolean {
+  return event.tiers.every((t) => t.sold >= t.capacity);
 }
 
-// ─── Gradient-border wrapper ──────────────────────────────────────────────────
-function GradBorder({
-  children,
-  gradient = "linear-gradient(135deg,rgba(255,255,255,.75) 0%,rgba(212,56,13,.15) 50%,rgba(232,179,60,.2) 100%)",
-  radius = 32,
-  shadow = "0 2px 8px rgba(100,60,20,.06)",
-  className = "",
-  style = {},
-}: {
-  children: React.ReactNode;
-  gradient?: string;
-  radius?: number;
-  shadow?: string;
-  className?: string;
-  style?: React.CSSProperties;
-}) {
+function priceLabel(event: NaadaEvent): string {
+  const p = lowestPrice(event);
+  return p === 0 ? "Free" : `₹${p}`;
+}
+
+function soldPct(event: NaadaEvent): number {
+  const cap = event.tiers.reduce((s, t) => s + t.capacity, 0);
+  if (cap === 0) return 0;
+  const sold = event.tiers.reduce((s, t) => s + t.sold, 0);
+  return Math.min(100, Math.round((sold / cap) * 100));
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
+
+function NaadaLogo({ tok, size = 27 }: { tok: typeof T.dark; size?: number }) {
   return (
-    <div className={className} style={{ padding: 1, borderRadius: radius, background: gradient, boxShadow: shadow, ...style }}>
-      {children}
-    </div>
-  );
-}
-
-// ─── Price pill ───────────────────────────────────────────────────────────────
-function PricePill({ price, free, sold }: { price: string; free: boolean; sold: boolean }) {
-  const grad = free
-    ? "linear-gradient(135deg,rgba(30,168,116,.5),rgba(57,201,138,.3))"
-    : sold
-      ? "linear-gradient(135deg,rgba(0,0,0,.15),rgba(0,0,0,.08))"
-      : "linear-gradient(135deg,rgba(212,56,13,.5),rgba(232,120,58,.3))";
-  const innerBg = free ? "rgba(240,252,247,.85)" : sold ? "rgba(245,245,245,.8)" : "rgba(255,248,245,.85)";
-  const color   = free ? "#19956A" : sold ? "rgba(0,0,0,.35)" : "#C42E08";
-  return (
-    <div style={{ padding: 1, borderRadius: 28, background: grad }}>
-      <span style={{ display: "block", fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, padding: "4px 10px", borderRadius: 27, background: innerBg, color, letterSpacing: ".02em" }}>
-        {price}{!sold && " →"}
+    <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+      <span style={{ fontFamily: "'Baloo Tamma 2',system-ui", fontWeight: 800, fontSize: size, lineHeight: 1, color: tok.logoName }}>
+        Naada
+      </span>
+      <span style={{ fontFamily: "'Anek Kannada',sans-serif", fontWeight: 600, fontSize: size * 0.74, color: tok.logoKn }}>
+        ನಾದ
       </span>
     </div>
   );
 }
 
-// ─── Glass event card (real data) ─────────────────────────────────────────────
-function EventGlassCard({ event, soldCount, capCount }: { event: NaadaEvent; soldCount: number; capCount: number }) {
-  const { bg, accent } = posterStyle(event.genres);
-  const [line1, line2] = posterWords(event.name);
-  const dateGrad = dateGradient(event.genres);
-  const lowestPrice = Math.min(...event.tiers.map((t) => t.price));
-  const isFree = lowestPrice === 0;
-  const isSold = event.tiers.every((t) => t.sold >= t.capacity);
-  const priceLabel = isFree ? "Free" : `₹ ${lowestPrice}`;
-
+function PulsingDot({ color }: { color: string }) {
   return (
-    <Link to={`/e/${event.id}`} style={{ textDecoration: "none" }}>
-      <GradBorder
-        radius={16}
-        gradient="linear-gradient(145deg,rgba(255,255,255,.9) 0%,rgba(212,56,13,.12) 50%,rgba(232,179,60,.15) 100%)"
-        shadow="0 4px 22px rgba(100,60,20,.09)"
-        style={{ flexShrink: 0, width: 196, cursor: "pointer" }}
-      >
-        <div style={{ background: "rgba(255,255,255,0.62)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", borderRadius: 15, overflow: "hidden" }}>
-          {/* Date */}
-          <div style={{ padding: "13px 15px 9px" }}>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, fontWeight: 700, letterSpacing: ".14em", textTransform: "uppercase", background: dateGrad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-              {monthLabel(event.date)}
-            </div>
-            <div style={{ fontVariationSettings: "'wdth' 70,'wght' 900", fontSize: 42, lineHeight: 1, letterSpacing: "-.04em", background: dateGrad, WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-              {dayLabel(event.date)}
-            </div>
-          </div>
-          {/* Poster */}
-          <div style={{ height: 86, display: "flex", alignItems: "flex-end", padding: "8px 11px", background: bg }}>
-            <div style={{ fontVariationSettings: "'wdth' 68,'wght' 900", fontSize: 18, lineHeight: 0.9, letterSpacing: "-.03em", textTransform: "uppercase", color: "rgba(255,255,255,.92)" }}>
-              {line1}
-              {line2 && <><br /><span style={{ color: accent }}>{line2}</span></>}
-            </div>
-          </div>
-          {/* Body */}
-          <div style={{ padding: "10px 15px 13px" }}>
-            <div style={{ fontSize: 12, fontVariationSettings: "'wdth' 90,'wght' 700", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: "#111", marginBottom: 2 }}>
-              {event.name}
-            </div>
-            <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, letterSpacing: ".07em", textTransform: "uppercase", color: "rgba(0,0,0,.37)", marginBottom: 10, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {/* venue name comes from parent — passed via prop below */}
-              {event.genres.join(", ")}
-            </div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-              <PricePill price={priceLabel} free={isFree} sold={isSold} />
-              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 8, color: "rgba(0,0,0,.3)", textAlign: "right", lineHeight: 1.5 }}>
-                {soldCount}/{capCount}<br />{isSold ? "full" : isFree ? "going" : "sold"}
-              </span>
-            </div>
-          </div>
-        </div>
-      </GradBorder>
-    </Link>
+    <span
+      aria-hidden="true"
+      style={{
+        display: "inline-block",
+        width: 8,
+        height: 8,
+        borderRadius: "50%",
+        background: color,
+        boxShadow: `0 0 8px ${color}88`,
+        flexShrink: 0,
+        animation: "naada-pulse 1.8s ease-in-out infinite",
+      }}
+    />
   );
 }
 
-// ─── Main screen ──────────────────────────────────────────────────────────────
+// ─── Event card (the featured "This week" card) ───────────────────────────────
+function EventCard({
+  event,
+  index,
+  tok,
+  isDark,
+  lang,
+  onGetTicket,
+}: {
+  event: NaadaEvent;
+  index: number;
+  tok: typeof T.dark;
+  isDark: boolean;
+  lang: "en" | "kn";
+  onGetTicket: (eventId: string) => void;
+}) {
+  const photo = gigPhoto(index);
+  const pct   = soldPct(event);
+  const left  = seatsLeft(event);
+  const sold  = isSoldOut(event);
+  const free  = isFree(event);
+  const price = priceLabel(event);
+
+  const seatsText = sold
+    ? (lang === "en" ? "Sold out" : "ಟಿಕೆಟ್ ಮುಗಿದಿದೆ")
+    : free
+      ? (lang === "en" ? "Free entry" : "ಉಚಿತ ಪ್ರವೇಶ")
+      : (lang === "en" ? `${left} seats left` : `${left} ಆಸನಗಳು ಉಳಿದಿವೆ`);
+
+  return (
+    <div
+      style={{
+        background: tok.cardBg,
+        border: `1px solid ${tok.cardBorder}`,
+        borderRadius: 18,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Photo */}
+      <div style={{ position: "relative", height: 240, flexShrink: 0 }}>
+        <img
+          src={photo}
+          alt={event.name}
+          style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+        />
+        <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(18,14,11,0) 38%,rgba(18,14,11,.55) 100%)" }} />
+        {/* Frosted caption band */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            padding: "16px 18px",
+            background: tok.captionBg,
+            backdropFilter: "blur(6px) saturate(140%)",
+            WebkitBackdropFilter: "blur(6px) saturate(140%)",
+            borderTop: `1px solid ${tok.captionBorder}`,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, fontWeight: 700, color: tok.gold }}>
+            <span>{fmt(event.date, "dow")} {fmt(event.date, "d")} {fmt(event.date, "mon")}</span>
+            <span style={{ color: "rgba(247,240,226,.7)", fontWeight: 500 }}>{event.time}</span>
+          </div>
+          <div
+            style={{
+              fontFamily: "'Baloo Tamma 2',system-ui",
+              fontWeight: 700,
+              fontSize: 22,
+              lineHeight: 1.2,
+              marginTop: 6,
+              color: "#F3E9D6",
+              textShadow: "0 1px 4px rgba(0,0,0,.4)",
+            }}
+          >
+            {event.name}
+          </div>
+        </div>
+      </div>
+
+      {/* Card body */}
+      <div style={{ padding: "16px 18px 18px", display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+        {/* Genre tags */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {event.genres.map((g) => (
+            <span
+              key={g}
+              style={{
+                background: tok.tagBg,
+                border: `1px solid ${tok.tagBorder}`,
+                borderRadius: 999,
+                padding: "3px 10px",
+                fontSize: 12,
+                fontWeight: 600,
+                color: tok.muted,
+                whiteSpace: "nowrap",
+              }}
+            >
+              {g}
+            </span>
+          ))}
+        </div>
+
+        {/* Sold progress bar */}
+        <div>
+          <div
+            style={{
+              background: isDark ? "rgba(243,233,214,.12)" : "rgba(36,28,21,.1)",
+              borderRadius: 999,
+              height: 5,
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${pct}%`,
+                borderRadius: 999,
+                background: sold ? tok.muted : tok.signal,
+                transition: "width .4s ease",
+              }}
+            />
+          </div>
+          <div style={{ fontSize: 12, color: tok.muted2, marginTop: 4 }}>
+            {seatsText}
+          </div>
+        </div>
+
+        {/* Price + CTA */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: "auto" }}>
+          <div>
+            <div
+              style={{
+                fontFamily: "'Baloo Tamma 2',system-ui",
+                fontWeight: 800,
+                fontSize: 22,
+                lineHeight: 1.2,
+                color: tok.paper,
+              }}
+            >
+              {price}
+            </div>
+            <div style={{ fontSize: 12, color: tok.muted2 }}>
+              {lang === "en" ? "₹0 booking fee" : "₹0 ಬುಕಿಂಗ್ ಶುಲ್ಕ"}
+            </div>
+          </div>
+          <button
+            onClick={() => onGetTicket(event.id)}
+            disabled={sold}
+            style={{
+              minHeight: 44,
+              border: "none",
+              borderRadius: 12,
+              background: sold ? (isDark ? "rgba(243,233,214,.12)" : "rgba(36,28,21,.1)") : tok.signal,
+              color: sold ? tok.muted : "#F3E9D6",
+              fontFamily: "'Archivo',sans-serif",
+              fontSize: 14,
+              fontWeight: 700,
+              padding: "0 18px",
+              cursor: sold ? "not-allowed" : "pointer",
+              whiteSpace: "nowrap",
+              transition: "opacity .15s",
+            }}
+          >
+            {sold
+              ? (lang === "en" ? "Sold out" : "ಮುಗಿದಿದೆ")
+              : (lang === "en" ? "Get ticket" : "ಟಿಕೆಟ್ ಪಡೆಯಿರಿ")}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Hero photo panel ─────────────────────────────────────────────────────────
+function HeroPhotoPanel({ event, venue, tok }: {
+  event: NaadaEvent;
+  venue?: { name: string; area: string };
+  tok: typeof T.dark;
+}) {
+  const price = priceLabel(event);
+  const left  = seatsLeft(event);
+
+  return (
+    <div
+      style={{
+        position: "relative",
+        height: 480,
+        borderRadius: 8,
+        overflow: "hidden",
+        border: `2px solid ${tok.photoBorder}`,
+        flexShrink: 0,
+      }}
+    >
+      <img
+        src="/gig-1.jpg"
+        alt={event.name}
+        style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "saturate(1.05) contrast(1.05)" }}
+      />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(18,14,11,0) 40%,rgba(18,14,11,.72) 100%)" }} />
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          padding: "20px 22px",
+          background: tok.captionBg,
+          backdropFilter: "blur(6px) saturate(140%)",
+          WebkitBackdropFilter: "blur(6px) saturate(140%)",
+          borderTop: `1px solid ${tok.captionBorder}`,
+          color: "#F3E9D6",
+        }}
+      >
+        <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: tok.gold }}>
+          {venue ? `Tonight · ${venue.name}` : "Tonight"}
+        </div>
+        <div style={{ fontFamily: "'Baloo Tamma 2',system-ui", fontWeight: 800, fontSize: 24, lineHeight: 1.2, marginTop: 8 }}>
+          {event.name}
+        </div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginTop: 10 }}>
+          <span style={{ fontSize: 14, color: "rgba(243,233,214,.72)" }}>
+            {event.time}{venue?.area ? ` · ${venue.area}` : ""}
+          </span>
+          <span style={{ fontFamily: "'Baloo Tamma 2',system-ui", fontWeight: 800, fontSize: 20, color: tok.gold }}>
+            {price === "Free" ? "Free entry" : price}
+          </span>
+        </div>
+        {left > 0 && !isSoldOut(event) && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: "rgba(243,233,214,.6)" }}>
+            <PulsingDot color={tok.signal} />
+            <span>{left} seats left</span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Main DiscoverScreen ──────────────────────────────────────────────────────
 export function DiscoverScreen() {
-  const { role, users, events, artists, venueOf, soldOf, capacityOf } = useStore();
+  const { role, users, events, artists, venueOf, theme, setTheme, lang, setLang } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
+  const [searchInput, setSearchInput]   = useState(searchParams.get("q") ?? "");
+  const [activeFilter, setActiveFilter] = useState(0);
+  const tickerRef = useRef<HTMLDivElement>(null);
+
+  const isDark = theme === "dark";
+  const tok    = isDark ? T.dark : T.light;
   const urlQuery = searchParams.get("q")?.toLowerCase().trim() ?? "";
 
-  const [searchInput, setSearchInput] = useState(urlQuery);
-  const [activeFilter, setActiveFilter] = useState(0); // 0 = All
-  const [carouselPos, setCarouselPos] = useState(0);
+  // Apply theme class to <html> so the whole app reflects the theme
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDark) {
+      root.classList.remove("theme-light");
+    } else {
+      root.classList.add("theme-light");
+    }
+  }, [isDark]);
 
   const account =
     role === "listener" ? users.listener
@@ -156,13 +430,16 @@ export function DiscoverScreen() {
     : role === "host"    ? users.host
     : null;
 
-  // Published, not past
+  // Published upcoming events sorted by date
   const published = useMemo(
-    () => events.filter((e) => e.status === "published" && e.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date)),
+    () =>
+      events
+        .filter((e) => e.status === "published" && e.date >= TODAY)
+        .sort((a, b) => a.date.localeCompare(b.date)),
     [events],
   );
 
-  // Filter tabs: All + top 5 genres by event count + Free
+  // Filter tabs
   const filterTabs = useMemo(() => {
     const genreCount: Record<string, number> = {};
     published.forEach((e) => e.genres.forEach((g) => { genreCount[g] = (genreCount[g] ?? 0) + 1; }));
@@ -170,44 +447,34 @@ export function DiscoverScreen() {
     return ["All", ...genres, "Free"];
   }, [published]);
 
-  // Active filter name
   const activeTabName = filterTabs[activeFilter] ?? "All";
 
-  // Filtered events
-  const filtered = useMemo(() => {
-    return published
+  const filtered = useMemo(() =>
+    published
       .filter((e) => {
         if (activeTabName === "All") return true;
-        if (activeTabName === "Free") return e.tiers.some((t) => t.price === 0);
+        if (activeTabName === "Free") return isFree(e);
         return e.genres.includes(activeTabName);
       })
       .filter((e) => {
         if (!urlQuery) return true;
-        const venue = venueOf(e);
-        const lineupNames = e.lineup.map((id) => artists.find((a) => a.id === id)?.name ?? "").join(" ");
-        return `${e.name} ${venue?.name ?? ""} ${venue?.area ?? ""} ${e.genres.join(" ")} ${lineupNames}`
+        const venue      = venueOf(e);
+        const lineupStr  = e.lineup.map((id) => artists.find((a) => a.id === id)?.name ?? "").join(" ");
+        return `${e.name} ${venue?.name ?? ""} ${venue?.area ?? ""} ${e.genres.join(" ")} ${lineupStr}`
           .toLowerCase()
           .includes(urlQuery);
-      });
-  }, [published, activeTabName, urlQuery, venueOf, artists]);
+      }),
+    [published, activeTabName, urlQuery, venueOf, artists],
+  );
 
-  const carouselMax = Math.max(0, filtered.length - 2);
-  const clampedPos = Math.min(carouselPos, carouselMax);
+  const heroEvent = published[0];
+  const heroVenue = heroEvent ? venueOf(heroEvent) : undefined;
 
-  const moveCarousel = (dir: number) => {
-    setCarouselPos((p) => Math.max(0, Math.min(carouselMax, p + dir)));
-  };
-
-  // Tonight: first event that is today, or fallback to next upcoming
-  const tonightEvent = useMemo(() => published[0], [published]);
-  const tonightVenue = tonightEvent ? venueOf(tonightEvent) : null;
-
-  // Ticker: unique areas + genres from published events
+  // Ticker items: areas + genres
   const tickerItems = useMemo(() => {
     const areas  = Array.from(new Set(published.map((e) => venueOf(e)?.area).filter(Boolean))) as string[];
     const genres = Array.from(new Set(published.flatMap((e) => e.genres)));
     const combined = [...areas, ...genres];
-    // duplicate for seamless loop
     return [...combined, ...combined];
   }, [published, venueOf]);
 
@@ -217,244 +484,728 @@ export function DiscoverScreen() {
     setSearchParams(q ? { q } : {});
   };
 
-  return (
-    <div style={{ minHeight: "100dvh", fontFamily: "'Archivo',sans-serif", WebkitFontSmoothing: "antialiased", overflowX: "hidden", background: "#F5F3EF" }}>
+  const handleGetTicket = (eventId: string) => {
+    if (role === "out") {
+      openAuth("Log in to get tickets");
+    } else {
+      navigate(`/e/${eventId}`);
+    }
+  };
 
-      {/* ── NAV ──────────────────────────────────────────────────────────── */}
-      <nav style={{ display: "flex", alignItems: "center", padding: "18px 32px", position: "sticky", top: 0, zIndex: 40, background: "rgba(251,243,227,0.85)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid rgba(100,60,20,.1)" }}>
-        <div style={{ fontSize: 20, letterSpacing: "-.05em", textTransform: "uppercase", color: "#111", display: "flex", alignItems: "center", marginRight: "auto" }}>
-          <span style={{ fontVariationSettings: "'wdth' 62,'wght' 900" }}>NAA</span>
-          <span style={{ color: "#D4380D", margin: "0 1px", fontVariationSettings: "'wdth' 62,'wght' 900" }}>·</span>
-          <span style={{ fontVariationSettings: "'wdth' 125,'wght' 900" }}>DA</span>
+  const langLabel = lang === "en" ? "ಕನ್ನಡ" : "English";
+
+  return (
+    <div
+      style={{
+        minHeight: "100dvh",
+        fontFamily: "'Archivo',sans-serif",
+        WebkitFontSmoothing: "antialiased",
+        overflowX: "hidden",
+        background: tok.bg,
+        color: tok.paper,
+        transition: "background .3s, color .3s",
+      }}
+    >
+      {/* ── NAV ─────────────────────────────────────────────────────────── */}
+      <nav
+        className="discover-nav"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          height: 64,
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          background: tok.navBg,
+          backdropFilter: "blur(20px)",
+          WebkitBackdropFilter: "blur(20px)",
+          borderBottom: `1px solid ${tok.navBorder}`,
+        }}
+      >
+        {/* Left: logo + nav links */}
+        <div style={{ display: "flex", alignItems: "center", gap: 34 }}>
+          <Link to="/" style={{ textDecoration: "none" }}>
+            <NaadaLogo tok={tok} size={27} />
+          </Link>
+          <div className="discover-nav-links">
+            {[
+              { label: lang === "en" ? "What's on" : "ಏನಿದೆ", active: true },
+              { label: lang === "en" ? "Artists" : "ಕಲಾವಿದರು", active: false },
+              { label: lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು", active: false },
+              { label: lang === "en" ? "How it works" : "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ", active: false },
+            ].map(({ label, active }) => (
+              <span
+                key={label}
+                style={{
+                  color: active ? tok.navLinkActive : tok.navLinkInactive,
+                  borderBottom: active ? `2px solid ${tok.navActiveBorder}` : "none",
+                  paddingBottom: active ? 3 : 0,
+                  cursor: "pointer",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {label}
+              </span>
+            ))}
+          </div>
         </div>
-        <div style={{ display: "flex", gap: 24, alignItems: "center" }}>
-          <span style={{ fontSize: 13, color: "#111", fontVariationSettings: "'wdth' 90,'wght' 700", cursor: "default" }}>Discover</span>
-          {role !== "out" && (
-            <Link to="/tickets" style={{ fontSize: 13, color: "rgba(0,0,0,.35)", textDecoration: "none", fontVariationSettings: "'wdth' 90,'wght' 500" }}>
-              My Tickets
-            </Link>
+
+        {/* Right: city, lang toggle, log in, CTA */}
+        <div className="discover-nav-right" style={{ alignItems: "center" }}>
+          {/* City selector */}
+          <button
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 7,
+              minHeight: 44,
+              border: `1.5px solid ${isDark ? "rgba(243,233,214,.25)" : "rgba(36,28,21,.22)"}`,
+              background: "transparent",
+              borderRadius: 999,
+              padding: "0 15px",
+              fontSize: 15,
+              fontWeight: 600,
+              color: tok.paper,
+              cursor: "pointer",
+              fontFamily: "'Archivo',sans-serif",
+            }}
+          >
+            <span style={{ fontSize: 13, color: tok.signal }}>◎</span>
+            <span>{lang === "en" ? "Mysuru" : "ಮೈಸೂರು"}</span>
+          </button>
+
+          {/* Language toggle */}
+          <button
+            onClick={() => setLang(lang === "en" ? "kn" : "en")}
+            aria-label="Toggle language"
+            style={{
+              minHeight: 44,
+              border: `1.5px solid ${isDark ? "rgba(243,233,214,.25)" : "rgba(36,28,21,.22)"}`,
+              background: "transparent",
+              borderRadius: 999,
+              padding: "0 16px",
+              fontFamily: "'Anek Kannada',sans-serif",
+              fontSize: 16,
+              fontWeight: 600,
+              color: tok.paper,
+              cursor: "pointer",
+            }}
+          >
+            {langLabel}
+          </button>
+
+          {/* Theme toggle */}
+          <button
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            aria-label="Toggle theme"
+            style={{
+              minHeight: 40,
+              width: 40,
+              border: `1.5px solid ${isDark ? "rgba(243,233,214,.2)" : "rgba(36,28,21,.2)"}`,
+              background: "transparent",
+              borderRadius: 999,
+              fontSize: 17,
+              cursor: "pointer",
+              color: tok.paper,
+            }}
+          >
+            {isDark ? "☀" : "🌙"}
+          </button>
+
+          {/* Log in */}
+          {!account && (
+            <span
+              onClick={() => openAuth("Log in to Naada")}
+              style={{ fontSize: 15, fontWeight: 600, padding: "0 8px", cursor: "pointer", color: tok.paper }}
+            >
+              {lang === "en" ? "Log in" : "ಲಾಗಿನ್"}
+            </span>
           )}
-          {account ? (
+
+          {/* Find tonight's show CTA */}
+          <button
+            onClick={() => heroEvent && navigate(`/e/${heroEvent.id}`)}
+            style={{
+              minHeight: 46,
+              border: "none",
+              borderRadius: 999,
+              background: tok.signal,
+              color: "#F3E9D6",
+              fontFamily: "'Archivo',sans-serif",
+              fontSize: 15,
+              fontWeight: 700,
+              padding: "0 22px",
+              cursor: "pointer",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {lang === "en" ? "Find tonight's show" : "ಇಂದಿನ ಕಾರ್ಯಕ್ರಮ"}
+          </button>
+
+          {/* Account avatar */}
+          {account && (
             <Link
               to={role === "host" ? "/host" : role === "artist" ? "/artist" : "/tickets"}
-              aria-label={`Account — ${account.name}`}
-              style={{ width: 30, height: 30, borderRadius: "50%", background: "linear-gradient(135deg,#D4380D,#C42E08)", color: "#fff", fontSize: 11, fontWeight: 900, display: "flex", alignItems: "center", justifyContent: "center", textDecoration: "none", boxShadow: "0 2px 12px rgba(212,56,13,.35)" }}
+              style={{
+                width: 34,
+                height: 34,
+                borderRadius: "50%",
+                background: tok.signal,
+                color: "#F3E9D6",
+                fontSize: 13,
+                fontWeight: 800,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                textDecoration: "none",
+              }}
             >
-              {account.name.charAt(0)}
+              {(account as { name: string }).name.charAt(0)}
             </Link>
-          ) : (
-            <GradBorder radius={28} gradient="linear-gradient(135deg,rgba(212,56,13,.6),rgba(212,56,13,.2))" shadow="0 2px 8px rgba(212,56,13,.15)">
-              <button onClick={() => openAuth("Log in to Naada")} style={{ display: "block", background: "rgba(255,255,255,.65)", backdropFilter: "blur(8px)", border: "none", borderRadius: 27, padding: "7px 18px", fontFamily: "'Archivo',sans-serif", fontVariationSettings: "'wdth' 90,'wght' 700", fontSize: 13, color: "#C42E08", cursor: "pointer" }}>
-                Log in
-              </button>
-            </GradBorder>
           )}
         </div>
       </nav>
 
-      {/* ── HERO ─────────────────────────────────────────────────────────── */}
-      <section style={{ background: "radial-gradient(ellipse 55% 60% at 75% 40%,rgba(212,56,13,0.13) 0%,transparent 60%),radial-gradient(ellipse 40% 40% at 10% 80%,rgba(232,179,60,0.1) 0%,transparent 55%),linear-gradient(155deg,#FBF3E3 0%,#F6E8D0 35%,#EDD5B5 65%,#E4C9A0 100%)", paddingBottom: 36, overflow: "hidden" }}>
-        <div style={{ padding: "12px 32px 0" }}>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, letterSpacing: ".18em", textTransform: "uppercase", color: "rgba(17,17,17,.4)", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ display: "inline-block", width: 32, height: 1, background: "rgba(17,17,17,.2)" }} />
-            Mysuru, Karnataka · Grassroots Live Music
+      {/* ── HERO ────────────────────────────────────────────────────────── */}
+      <section
+        className="discover-hero"
+        style={{
+          background: isDark
+            ? "linear-gradient(155deg,#120E0B 0%,#1A1209 40%,#120E0B 100%)"
+            : "linear-gradient(155deg,#F7F0E2 0%,#FDEFD4 40%,#F7F0E2 100%)",
+        }}
+      >
+        {/* Left: copy + CTAs */}
+        <div>
+          {/* Kicker badge */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 9,
+              background: tok.badgeBg,
+              border: `1.5px solid ${tok.badgeBorder}`,
+              borderRadius: 999,
+              padding: "8px 16px",
+              fontSize: 14,
+              fontWeight: 600,
+              color: tok.badgeText,
+              marginBottom: 22,
+            }}
+          >
+            <PulsingDot color={tok.signal} />
+            {heroEvent
+              ? (lang === "en"
+                  ? `${seatsLeft(heroEvent)} seats left tonight`
+                  : `ಇಂದು ${seatsLeft(heroEvent)} ಆಸನಗಳು ಉಳಿದಿವೆ`)
+              : (lang === "en" ? "Live events near you" : "ನಿಮ್ಮ ಹತ್ತಿರ ಲೈವ್ ಕಾರ್ಯಕ್ರಮಗಳು")}
           </div>
 
-          <h1 aria-label="Live in the City of Palaces" style={{ fontVariationSettings: "'wdth' 80,'wght' 900", fontSize: "clamp(42px,5.5vw,66px)", lineHeight: 0.92, letterSpacing: "-.045em", textTransform: "uppercase", color: "#111", marginBottom: 28 }}>
-            <div>LIVE IN THE</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", marginTop: 4 }}>
-              <span>CITY OF</span>
-              <span style={{ position: "relative", padding: "0 6px" }}>
-                PALACES
-                <svg aria-hidden="true" style={{ position: "absolute", left: -14, top: -12, width: "calc(100% + 28px)", height: "calc(100% + 24px)", pointerEvents: "none", overflow: "visible" }} viewBox="0 0 240 64" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M16 34 C14 10 70 2 120 5 C170 8 226 14 228 34 C230 54 172 62 120 59 C68 56 12 56 16 34 Z" fill="none" stroke="#D4380D" strokeWidth="2.5" strokeLinecap="round" style={{ strokeDasharray: 600, strokeDashoffset: 600, animation: "naada-circle-draw 1.2s cubic-bezier(.4,0,.2,1) .3s forwards" }} />
-                </svg>
-              </span>
-            </div>
+          {/* Headline */}
+          <h1
+            style={{
+              fontFamily: "'Baloo Tamma 2',system-ui",
+              fontWeight: 800,
+              fontSize: "clamp(38px,4.8vw,70px)",
+              lineHeight: 1.28,
+              letterSpacing: "-.01em",
+              color: tok.paper,
+              marginBottom: 16,
+              maxWidth: 640,
+            }}
+          >
+            {lang === "en" ? (
+              <>
+                Small rooms.<br />
+                Real artists.<br />
+                <span style={{ color: tok.signal }}>No extra fees.</span>
+              </>
+            ) : (
+              <>
+                ಸಣ್ಣ ಸಭಾಂಗಣ.<br />
+                ನಿಜವಾದ ಕಲಾವಿದರು.<br />
+                <span style={{ color: tok.signal }}>ಹೆಚ್ಚುವರಿ ಶುಲ್ಕ ಇಲ್ಲ.</span>
+              </>
+            )}
           </h1>
 
-          {/* Search */}
-          <form onSubmit={handleSearch} role="search">
-            <GradBorder radius={50} gradient="linear-gradient(135deg,rgba(255,255,255,.9) 0%,rgba(212,56,13,.2) 50%,rgba(232,179,60,.3) 100%)" shadow="0 8px 32px rgba(100,60,20,.12)" style={{ maxWidth: 560 }}>
-              <div style={{ display: "flex", alignItems: "center", background: "rgba(255,255,255,0.72)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderRadius: 50, padding: "7px 7px 7px 22px" }}>
-                <span aria-hidden="true" style={{ color: "rgba(17,17,17,.3)", marginRight: 10, fontSize: 15 }}>⌕</span>
-                <input
-                  type="search"
-                  value={searchInput}
-                  placeholder="Search gigs, artists, venues…"
-                  aria-label="Search gigs, artists and venues"
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  style={{ flex: 1, border: "none", background: "transparent", fontFamily: "'Archivo',sans-serif", fontSize: 14, color: "#111", outline: "none", fontVariationSettings: "'wdth' 90,'wght' 400" }}
-                />
-                {urlQuery && (
-                  <button type="button" onClick={() => { setSearchInput(""); setSearchParams({}); }} aria-label="Clear search" style={{ border: "none", background: "transparent", color: "rgba(17,17,17,.4)", fontSize: 16, cursor: "pointer", padding: "0 8px" }}>×</button>
-                )}
-                <div style={{ width: 1, height: 22, background: "rgba(17,17,17,.1)", margin: "0 16px" }} />
-                <button type="submit" style={{ background: "linear-gradient(135deg,#D4380D 0%,#C42E08 100%)", color: "#fff", border: "none", borderRadius: 40, padding: "10px 24px", fontFamily: "'Archivo',sans-serif", fontVariationSettings: "'wdth' 90,'wght' 700", fontSize: 13, cursor: "pointer", whiteSpace: "nowrap", boxShadow: "0 4px 16px rgba(212,56,13,.4),inset 0 1px 0 rgba(255,255,255,.15)" }}>
-                  Search
-                </button>
-              </div>
-            </GradBorder>
-          </form>
+          {/* Kannada subtitle (shown alongside English headline always) */}
+          {lang === "en" && (
+            <div
+              style={{
+                fontFamily: "'Anek Kannada',sans-serif",
+                fontWeight: 600,
+                fontSize: 26,
+                lineHeight: 1.4,
+                color: tok.muted,
+                marginBottom: 20,
+              }}
+            >
+              ಸಣ್ಣ ಸಭಾಂಗಣ. ನಿಜವಾದ ಕಲಾವಿದರು.
+            </div>
+          )}
+
+          {/* Body copy */}
+          <p
+            style={{
+              fontSize: 18,
+              lineHeight: 1.6,
+              color: tok.muted,
+              maxWidth: 500,
+              margin: "0 0 32px",
+            }}
+          >
+            {lang === "en"
+              ? "Music, theatre, open mics and classical nights in Mysuru and Bengaluru. Book in your language, pay by UPI."
+              : "ಮೈಸೂರು ಮತ್ತು ಬೆಂಗಳೂರಿನಲ್ಲಿ ಸಂಗೀತ, ರಂಗಭೂಮಿ ಮತ್ತು ಕ್ಲಾಸಿಕಲ್ ರಾತ್ರಿಗಳು. ನಿಮ್ಮ ಭಾಷೆಯಲ್ಲಿ ಬುಕ್ ಮಾಡಿ."}
+          </p>
+
+          {/* CTAs */}
+          <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+            <button
+              onClick={() => heroEvent && navigate(`/e/${heroEvent.id}`)}
+              style={{
+                minHeight: 62,
+                border: "none",
+                borderRadius: 16,
+                background: tok.signal,
+                color: "#F3E9D6",
+                fontFamily: "'Archivo',sans-serif",
+                fontSize: 19,
+                fontWeight: 700,
+                padding: "0 32px",
+                cursor: "pointer",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 2,
+                lineHeight: 1.3,
+              }}
+            >
+              <span style={{ display: lang === "kn" ? "none" : "block" }}>Show me tonight's gigs</span>
+              <span
+                style={{
+                  fontFamily: "'Anek Kannada',sans-serif",
+                  fontWeight: 700,
+                  fontSize: lang === "kn" ? 19 : 14,
+                  opacity: lang === "kn" ? 1 : 0.8,
+                }}
+              >
+                ಇಂದಿನ ಕಾರ್ಯಕ್ರಮ ತೋರಿಸಿ
+              </span>
+            </button>
+
+            <button
+              onClick={() => { setActiveFilter(0); document.getElementById("this-week")?.scrollIntoView({ behavior: "smooth" }); }}
+              style={{
+                minHeight: 62,
+                border: `1.5px solid ${tok.btnSecBorder}`,
+                background: "transparent",
+                borderRadius: 16,
+                fontFamily: "'Archivo',sans-serif",
+                fontSize: 18,
+                fontWeight: 600,
+                color: tok.paper,
+                padding: "0 26px",
+                cursor: "pointer",
+              }}
+            >
+              {lang === "en" ? "Browse this week" : "ಈ ವಾರ ನೋಡಿ"}
+            </button>
+          </div>
+
+          {/* Trust micro-copy */}
+          <div style={{ fontSize: 14, color: tok.muted, marginTop: 16 }}>
+            {lang === "en"
+              ? "₹0 booking fee · UPI, card or cash at the door"
+              : "₹0 ಬುಕಿಂಗ್ ಶುಲ್ಕ · UPI, ಕಾರ್ಡ್ ಅಥವಾ ಬಾಗಿಲಲ್ಲಿ ನಗದು"}
+          </div>
         </div>
 
-        {/* Tonight strip */}
-        {tonightEvent && (
-          <div style={{ margin: "24px 32px 0" }}>
-            <GradBorder radius={16} gradient="linear-gradient(135deg,rgba(255,255,255,.85) 0%,rgba(30,168,116,.25) 60%,rgba(255,255,255,.5) 100%)" shadow="0 4px 20px rgba(100,60,20,.08)">
-              <div style={{ display: "flex", alignItems: "center", gap: 16, background: "rgba(255,255,255,0.6)", backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)", borderRadius: 15, padding: "14px 20px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, fontFamily: "'JetBrains Mono',monospace", fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#1EA874", fontWeight: 700, flexShrink: 0 }}>
-                  <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: "#1EA874", boxShadow: "0 0 8px rgba(30,168,116,.6)", display: "inline-block", animation: "naada-live-pulse 1.8s ease-in-out infinite" }} />
-                  Next up
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontVariationSettings: "'wdth' 78,'wght' 800", fontSize: 16, letterSpacing: "-.02em", textTransform: "uppercase", color: "#111", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                    {tonightEvent.name}
-                  </div>
-                  <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 9, color: "rgba(17,17,17,.4)", letterSpacing: ".05em", marginTop: 2 }}>
-                    {tonightVenue?.name}{tonightVenue?.area ? ` · ${tonightVenue.area}` : ""} · {tonightEvent.time} · {tonightEvent.tiers[0]?.price === 0 ? "Free entry" : `₹ ${tonightEvent.tiers[0]?.price}`}
-                  </div>
-                </div>
-                <GradBorder radius={32} gradient="linear-gradient(135deg,rgba(30,168,116,.6) 0%,rgba(30,168,116,.2) 100%)" shadow="none" style={{ flexShrink: 0 }}>
-                  <button onClick={() => navigate(`/e/${tonightEvent.id}`)} style={{ display: "block", background: "rgba(255,255,255,0.55)", backdropFilter: "blur(8px)", color: "#1EA874", border: "none", borderRadius: 31, padding: "9px 18px", fontFamily: "'Archivo',sans-serif", fontVariationSettings: "'wdth' 90,'wght' 700", fontSize: 12, cursor: "pointer", whiteSpace: "nowrap" }}>
-                    See event →
-                  </button>
-                </GradBorder>
-              </div>
-            </GradBorder>
+        {/* Right: hero photo */}
+        {heroEvent && (
+          <div className="discover-hero-photo">
+            <HeroPhotoPanel event={heroEvent} venue={heroVenue} tok={tok} />
           </div>
         )}
       </section>
 
-      {/* ── TICKER ───────────────────────────────────────────────────────── */}
+      {/* ── TICKER ──────────────────────────────────────────────────────── */}
       {tickerItems.length > 0 && (
-        <div role="marquee" aria-label="Areas and genres" style={{ background: "#D4380D", padding: "10px 0", overflow: "hidden" }}>
-          <div aria-hidden="true" style={{ display: "inline-flex", whiteSpace: "nowrap", animation: "naada-ticker 22s linear infinite" }}>
+        <div
+          role="marquee"
+          aria-label="Venues and genres"
+          style={{ background: tok.tickerBg, padding: "10px 0", overflow: "hidden" }}
+        >
+          <div
+            ref={tickerRef}
+            aria-hidden="true"
+            style={{ display: "inline-flex", whiteSpace: "nowrap", animation: "naada-ticker 28s linear infinite" }}
+          >
             {tickerItems.map((item, i) => (
-              <span key={i} style={{ fontVariationSettings: "'wdth' 90,'wght' 700", fontSize: 12, letterSpacing: ".1em", textTransform: "uppercase", color: "#fff", padding: "0 24px", whiteSpace: "nowrap", flexShrink: 0 }}>
-                {item}<span style={{ marginLeft: 24, opacity: 0.6 }}>·</span>
+              <span
+                key={i}
+                style={{
+                  fontWeight: 700,
+                  fontSize: 12,
+                  letterSpacing: ".1em",
+                  textTransform: "uppercase",
+                  color: "#F3E9D6",
+                  padding: "0 28px",
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                }}
+              >
+                {item}
+                <span style={{ marginLeft: 28, opacity: 0.55 }}>·</span>
               </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* ── CARDS SECTION ────────────────────────────────────────────────── */}
-      <section style={{ background: "#F5F3EF", padding: "32px 32px" }}>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
-          <div style={{ fontVariationSettings: "'wdth' 90,'wght' 900", fontSize: 11, letterSpacing: ".12em", textTransform: "uppercase", color: "#111" }}>
-            {urlQuery ? `Results for "${searchParams.get("q")}"` : "What's On"}
+      {/* ── TRUST STRIP ─────────────────────────────────────────────────── */}
+      <div
+        className="discover-trust"
+        style={{
+          borderTop: `1px solid ${tok.navBorder}`,
+          borderBottom: `1px solid ${tok.navBorder}`,
+          background: tok.surface,
+        }}
+      >
+        {[
+          { val: "₹0",      label: lang === "en" ? "Booking fee, always" : "ಯಾವಾಗಲೂ ₹0 ಬುಕಿಂಗ್ ಶುಲ್ಕ" },
+          { val: "UPI",     label: lang === "en" ? "GPay, PhonePe, Paytm" : "GPay, PhonePe, Paytm" },
+          { val: "ಕನ್ನಡ",  label: lang === "en" ? "Book in your language" : "ನಿಮ್ಮ ಭಾಷೆಯಲ್ಲಿ ಬುಕ್ ಮಾಡಿ", kannada: true },
+          { val: "2 cities", label: lang === "en" ? "Mysuru & Bengaluru" : "ಮೈಸೂರು & ಬೆಂಗಳೂರು" },
+        ].map(({ val, label, kannada }, i) => (
+          <div
+            key={i}
+            style={{
+              padding: "26px 32px",
+              borderRight: i < 3 ? `1px solid ${tok.stripBorder}` : "none",
+            }}
+          >
+            <div
+              style={{
+                fontFamily: kannada ? "'Anek Kannada',sans-serif" : "'Baloo Tamma 2',system-ui",
+                fontWeight: 800,
+                fontSize: 30,
+                lineHeight: 1,
+                color: tok.signal,
+              }}
+            >
+              {val}
+            </div>
+            <div style={{ fontSize: 14, color: tok.muted, marginTop: 5 }}>{label}</div>
           </div>
-          <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 10, letterSpacing: ".08em", textTransform: "uppercase", color: "rgba(0,0,0,.32)" }}>
-            {filtered.length} {filtered.length === 1 ? "event" : "events"}
-          </div>
-        </div>
+        ))}
+      </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "156px 1fr", gap: "0 28px" }}>
-
-          {/* Filter column */}
+      {/* ── THIS WEEK ────────────────────────────────────────────────────── */}
+      <section id="this-week" className="discover-section" style={{ background: tok.bg }}>
+        {/* Section header */}
+        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 28 }}>
           <div>
-            <div style={{ fontVariationSettings: "'wdth' 90,'wght' 800", fontSize: 18, letterSpacing: "-.02em", color: "#111", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
-              Browse
-              <span aria-hidden="true" style={{ flex: 1, height: 2, background: "linear-gradient(90deg,#D4380D,transparent)", borderRadius: 1 }} />
+            <div
+              style={{
+                fontFamily: "'Baloo Tamma 2',system-ui",
+                fontWeight: 800,
+                fontSize: 42,
+                lineHeight: 1.1,
+                color: tok.paper,
+              }}
+            >
+              {lang === "en" ? "This week" : "ಈ ವಾರ"}
             </div>
-
-            {filterTabs.map((label, i) => {
-              const isActive = activeFilter === i;
-              return (
-                <GradBorder
-                  key={label}
-                  radius={32}
-                  gradient={isActive
-                    ? "linear-gradient(135deg,rgba(212,56,13,.7) 0%,rgba(200,46,8,.5) 100%)"
-                    : "linear-gradient(135deg,rgba(255,255,255,.7) 0%,rgba(212,56,13,.08) 50%,rgba(232,179,60,.1) 100%)"}
-                  shadow={isActive ? "0 4px 16px rgba(212,56,13,.25)" : "0 2px 8px rgba(100,60,20,.06)"}
-                  style={{ display: "block", marginBottom: 7, cursor: "pointer" }}
-                >
-                  <button
-                    onClick={() => { setActiveFilter(i); setCarouselPos(0); }}
-                    aria-pressed={isActive}
-                    style={{ display: "block", width: "100%", background: isActive ? "rgba(255,255,255,0.18)" : "rgba(255,255,255,0.65)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)", border: "none", borderRadius: 31, padding: "8px 14px", fontFamily: "'Archivo',sans-serif", fontSize: 12, color: isActive ? "#fff" : "rgba(0,0,0,.55)", fontVariationSettings: isActive ? "'wdth' 90,'wght' 700" : "'wdth' 90,'wght' 600", textAlign: "left", cursor: "pointer" }}
-                  >
-                    {label}
-                  </button>
-                </GradBorder>
-              );
-            })}
-
-            {/* Carousel arrows */}
-            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
-              {([{ dir: -1, label: "←", ariaLabel: "Previous" }, { dir: 1, label: "→", ariaLabel: "Next" }] as const).map(({ dir, label, ariaLabel }) => {
-                const disabled = dir === -1 ? clampedPos === 0 : clampedPos >= carouselMax;
-                return (
-                  <GradBorder key={dir} radius={50} gradient={disabled ? "rgba(0,0,0,.05)" : "linear-gradient(135deg,rgba(255,255,255,.8) 0%,rgba(212,56,13,.2) 100%)"} shadow={disabled ? "none" : "0 2px 8px rgba(100,60,20,.08)"}>
-                    <button onClick={() => moveCarousel(dir)} disabled={disabled} aria-label={ariaLabel} style={{ width: 34, height: 34, borderRadius: "50%", background: "rgba(255,255,255,0.65)", backdropFilter: "blur(8px)", border: "none", color: "#111", fontSize: 14, cursor: disabled ? "not-allowed" : "pointer", display: "flex", alignItems: "center", justifyContent: "center", opacity: disabled ? 0.22 : 1 }}>
-                      {label}
-                    </button>
-                  </GradBorder>
-                );
-              })}
-            </div>
-
-            {/* Dots */}
-            {carouselMax > 0 && (
-              <div style={{ display: "flex", gap: 5, alignItems: "center", marginTop: 10 }}>
-                {Array.from({ length: Math.min(carouselMax + 1, 5) }).map((_, i) => {
-                  const active = i === Math.round((clampedPos / Math.max(carouselMax, 1)) * Math.min(carouselMax, 4));
-                  return (
-                    <div key={i} aria-hidden="true" style={{ height: 5, width: active ? 18 : 5, borderRadius: active ? 3 : "50%", background: active ? "#D4380D" : "rgba(0,0,0,.15)", transition: "all .25s" }} />
-                  );
-                })}
+            {lang === "en" && (
+              <div
+                style={{
+                  fontFamily: "'Anek Kannada',sans-serif",
+                  fontSize: 22,
+                  color: tok.muted,
+                  marginTop: 2,
+                }}
+              >
+                ಈ ವಾರ
               </div>
             )}
           </div>
-
-          {/* Carousel */}
-          <div style={{ overflow: "hidden" }}>
-            {filtered.length > 0 ? (
-              <div style={{ display: "flex", gap: 14, transform: `translateX(-${clampedPos * 210}px)`, transition: "transform .45s cubic-bezier(.4,0,.2,1)" }}>
-                {filtered.map((ev) => (
-                  <EventGlassCard
-                    key={ev.id}
-                    event={ev}
-                    soldCount={soldOf(ev)}
-                    capCount={capacityOf(ev)}
-                  />
-                ))}
-              </div>
-            ) : (
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", padding: "32px 0", gap: 12 }}>
-                <div style={{ fontVariationSettings: "'wdth' 90,'wght' 800", fontSize: 20, color: "#111", letterSpacing: "-.02em" }}>
-                  {urlQuery ? `Nothing matches "${searchParams.get("q")}"` : "Nothing here yet"}
-                </div>
-                <div style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(0,0,0,.4)", letterSpacing: ".05em" }}>
-                  Try a different filter or clear your search
-                </div>
-                {(urlQuery || activeFilter !== 0) && (
-                  <GradBorder radius={32} gradient="linear-gradient(135deg,rgba(212,56,13,.5),rgba(212,56,13,.2))" shadow="0 2px 8px rgba(212,56,13,.15)">
-                    <button onClick={() => { setActiveFilter(0); setSearchInput(""); setSearchParams({}); }} style={{ display: "block", background: "rgba(255,255,255,.65)", backdropFilter: "blur(8px)", border: "none", borderRadius: 31, padding: "9px 18px", fontFamily: "'Archivo',sans-serif", fontVariationSettings: "'wdth' 90,'wght' 700", fontSize: 13, color: "#C42E08", cursor: "pointer" }}>
-                      Clear filters
-                    </button>
-                  </GradBorder>
-                )}
-              </div>
-            )}
-          </div>
+          <span
+            style={{ fontSize: 16, fontWeight: 600, color: tok.signal, cursor: "pointer" }}
+            onClick={() => navigate("/events")}
+          >
+            {lang === "en" ? `See all ${filtered.length} →` : `ಎಲ್ಲಾ ${filtered.length} ನೋಡಿ →`}
+          </span>
         </div>
+
+        {/* Filter chips */}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 }}>
+          {filterTabs.map((label, i) => {
+            const isActive = activeFilter === i;
+            return (
+              <button
+                key={label}
+                onClick={() => setActiveFilter(i)}
+                aria-pressed={isActive}
+                style={{
+                  border: `1.5px solid ${isActive ? tok.signal : tok.cardBorder}`,
+                  background: isActive ? tok.signal : "transparent",
+                  borderRadius: 999,
+                  padding: "7px 16px",
+                  fontFamily: "'Archivo',sans-serif",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  color: isActive ? "#F3E9D6" : tok.muted,
+                  cursor: "pointer",
+                  transition: "all .15s",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {label}
+              </button>
+            );
+          })}
+
+          {/* Search bar */}
+          <form
+            onSubmit={handleSearch}
+            role="search"
+            style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                border: `1.5px solid ${tok.searchBorder}`,
+                background: tok.searchBg,
+                borderRadius: 999,
+                padding: "0 16px",
+                height: 40,
+              }}
+            >
+              <span style={{ color: tok.searchIcon, fontSize: 15 }}>⌕</span>
+              <input
+                type="search"
+                value={searchInput}
+                placeholder={lang === "en" ? "Search…" : "ಹುಡುಕಿ…"}
+                onChange={(e) => setSearchInput(e.target.value)}
+                style={{
+                  border: "none",
+                  background: "transparent",
+                  fontFamily: "'Archivo',sans-serif",
+                  fontSize: 14,
+                  color: tok.paper,
+                  outline: "none",
+                  width: 160,
+                }}
+              />
+              {urlQuery && (
+                <button
+                  type="button"
+                  onClick={() => { setSearchInput(""); setSearchParams({}); }}
+                  style={{ border: "none", background: "transparent", color: tok.muted, cursor: "pointer", fontSize: 16, padding: 0 }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+
+        {/* Cards grid */}
+        {filtered.length > 0 ? (
+          <div className="discover-cards">
+            {filtered.map((ev, i) => (
+              <EventCard
+                key={ev.id}
+                event={ev}
+                index={i}
+                tok={tok}
+                isDark={isDark}
+                lang={lang}
+                onGetTicket={handleGetTicket}
+              />
+            ))}
+          </div>
+        ) : (
+          <div style={{ padding: "48px 0", textAlign: "center" }}>
+            <div
+              style={{
+                fontFamily: "'Baloo Tamma 2',system-ui",
+                fontWeight: 700,
+                fontSize: 22,
+                color: tok.paper,
+                marginBottom: 8,
+              }}
+            >
+              {urlQuery ? `Nothing matches "${searchParams.get("q")}"` : "Nothing here yet"}
+            </div>
+            <div style={{ fontSize: 14, color: tok.muted, marginBottom: 20 }}>
+              Try a different filter or clear your search
+            </div>
+            {(urlQuery || activeFilter !== 0) && (
+              <button
+                onClick={() => { setActiveFilter(0); setSearchInput(""); setSearchParams({}); }}
+                style={{
+                  border: `1.5px solid ${tok.signal}`,
+                  background: "transparent",
+                  borderRadius: 999,
+                  padding: "10px 24px",
+                  fontFamily: "'Archivo',sans-serif",
+                  fontWeight: 600,
+                  fontSize: 14,
+                  color: tok.signal,
+                  cursor: "pointer",
+                }}
+              >
+                Clear filters
+              </button>
+            )}
+          </div>
+        )}
       </section>
 
-      {/* ── FOOTER ───────────────────────────────────────────────────────── */}
-      <footer style={{ borderTop: "1px solid rgba(100,60,20,.12)", padding: "24px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-        <div style={{ fontSize: 16, letterSpacing: "-.05em", textTransform: "uppercase", color: "#111", display: "flex", alignItems: "center" }}>
-          <span style={{ fontVariationSettings: "'wdth' 62,'wght' 900" }}>NAA</span>
-          <span style={{ color: "#D4380D", margin: "0 1px", fontVariationSettings: "'wdth' 62,'wght' 900" }}>·</span>
-          <span style={{ fontVariationSettings: "'wdth' 125,'wght' 900" }}>DA</span>
-        </div>
-        <p style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: 11, color: "rgba(0,0,0,.35)", letterSpacing: ".04em" }}>
-          Grassroots live music in Mysuru. Prototype — no real payments, no real accounts.
-        </p>
-      </footer>
+      {/* ── ROOTED IN KARNATAKA (dark theme only) ──────────────────────── */}
+      {isDark && (
+        <section className="discover-section" style={{ paddingTop: 0 }}>
+          <div style={{ marginBottom: 26 }}>
+            <div
+              style={{
+                fontFamily: "'Baloo Tamma 2',system-ui",
+                fontWeight: 800,
+                fontSize: 34,
+                lineHeight: 1.3,
+                color: tok.paper,
+              }}
+            >
+              {lang === "en" ? "Rooted in Karnataka" : "ಕರ್ನಾಟಕದ ಬೇರುಗಳಲ್ಲಿ"}
+            </div>
+            <div
+              style={{
+                fontFamily: "'Anek Kannada',sans-serif",
+                fontSize: 19,
+                color: tok.muted,
+                marginTop: 4,
+              }}
+            >
+              ಕರ್ನಾಟಕದ ಬೇರುಗಳು
+            </div>
+          </div>
+          <div className="discover-karnataka">
+            {[
+              {
+                src: "/mysore-palace.jpg",
+                label: lang === "en" ? "Mysore Palace" : "ಮೈಸೂರು ಅರಮನೆ",
+                credit: "Wikimedia Commons / CC BY-SA",
+              },
+              {
+                src: "/vidhana-soudha.jpg",
+                label: lang === "en" ? "Vidhana Soudha, Bengaluru" : "ವಿಧಾನ ಸೌಧ, ಬೆಂಗಳೂರು",
+                credit: "Wikimedia Commons / CC BY-SA",
+              },
+            ].map(({ src, label, credit }) => (
+              <div
+                key={label}
+                style={{
+                  position: "relative",
+                  height: 280,
+                  borderRadius: 8,
+                  overflow: "hidden",
+                  border: `1px solid ${tok.cardBorder}`,
+                }}
+              >
+                <img
+                  src={src}
+                  alt={label}
+                  style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                  crossOrigin="anonymous"
+                />
+                <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,transparent 50%,rgba(18,14,11,.7) 100%)" }} />
+                <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "14px 18px" }}>
+                  <div style={{ fontFamily: "'Baloo Tamma 2',system-ui", fontWeight: 700, fontSize: 16, color: "#F3E9D6" }}>{label}</div>
+                  <div style={{ fontSize: 11, color: "rgba(243,233,214,.5)", marginTop: 2 }}>{credit}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
+      {/* ── FOOTER CTA BAND ─────────────────────────────────────────────── */}
+      <div
+        className="discover-footer-cta"
+        style={{
+          background: tok.footerBandBg,
+          borderTop: `1px solid ${tok.footerBandBorder}`,
+          borderBottom: `1px solid ${tok.footerBandBorder}`,
+        }}
+      >
+        <div>
+          <div
+            style={{
+              fontFamily: "'Baloo Tamma 2',system-ui",
+              fontWeight: 800,
+              fontSize: 40,
+              lineHeight: 1.3,
+              color: tok.paper,
+            }}
+          >
+            {lang === "en" ? "Something is on tonight." : "ಇಂದು ರಾತ್ರಿ ಏನೋ ನಡೆಯುತ್ತಿದೆ."}
+          </div>
+          {lang === "en" && (
+            <div
+              style={{
+                fontFamily: "'Anek Kannada',sans-serif",
+                fontWeight: 600,
+                fontSize: 22,
+                color: tok.muted,
+                marginTop: 6,
+              }}
+            >
+              ಇಂದು ರಾತ್ರಿ ಏನೋ ನಡೆಯುತ್ತಿದೆ.
+            </div>
+          )}
+        </div>
+        <button
+          onClick={() => heroEvent && navigate(`/e/${heroEvent.id}`)}
+          style={{
+            flexShrink: 0,
+            minHeight: 64,
+            border: "none",
+            borderRadius: 16,
+            background: tok.signal,
+            color: "#F3E9D6",
+            fontFamily: "'Archivo',sans-serif",
+            fontSize: 20,
+            fontWeight: 700,
+            padding: "0 36px",
+            cursor: "pointer",
+          }}
+        >
+          {lang === "en" ? "Show me tonight's gigs" : "ಇಂದಿನ ಕಾರ್ಯಕ್ರಮ ತೋರಿಸಿ"}
+        </button>
+      </div>
+
+      {/* ── FOOTER ──────────────────────────────────────────────────────── */}
+      <footer
+        className="discover-footer"
+        style={{ background: tok.bg }}
+      >
+        <NaadaLogo tok={tok} size={19} />
+        <div style={{ display: "flex", gap: 24, fontSize: 14, color: tok.muted }}>
+          <span style={{ cursor: "pointer" }}>{lang === "en" ? "Artists" : "ಕಲಾವಿದರು"}</span>
+          <span style={{ cursor: "pointer" }}>{lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು"}</span>
+          <span style={{ cursor: "pointer" }}>{lang === "en" ? "Help · ಸಹಾಯ" : "ಸಹಾಯ"}</span>
+          <span style={{ cursor: "pointer" }}>{lang === "en" ? "Terms" : "ನಿಯಮಗಳು"}</span>
+        </div>
+        <span style={{ fontSize: 14, color: tok.muted }}>
+          {lang === "en" ? "Grassroots live music · Mysuru & Bengaluru" : "ಮೈಸೂರು ಮತ್ತು ಬೆಂಗಳೂರಿನಲ್ಲಿ ಸಂಗೀತ"}
+        </span>
+      </footer>
     </div>
   );
 }

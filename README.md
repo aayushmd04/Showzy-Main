@@ -1,4 +1,58 @@
-# Naada — clickable prototype
+# Naada
+
+Naada is a monorepo for the live-music marketplace frontend and API.
+
+## Structure
+
+```text
+apps/
+  frontend/   Vite + React + TypeScript application
+  backend/    Django + Django REST Framework API
+```
+
+## Setup
+
+Install frontend dependencies from the repository root:
+
+```bash
+npm install
+```
+
+Create and activate a backend virtual environment, then install Python dependencies:
+
+```bash
+cd apps/backend
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -r requirements.txt
+cd ../..
+```
+
+Copy `apps/backend/.env.example` to `apps/backend/.env` and fill in any local values that you need.
+
+## Development
+
+Run both applications:
+
+```bash
+npm run dev
+```
+
+The frontend is available at http://localhost:5173 and the API at http://localhost:8000.
+
+Run either application independently with `npm run dev:frontend` or `npm run dev:backend`.
+
+## Checks
+
+```bash
+npm run build
+npm run typecheck
+npm test
+npm run backend:check
+npm run backend:test
+```
+
+The frontend-specific documentation is in [apps/frontend/README.md](apps/frontend/README.md).# Naada — clickable prototype
 
 A front-end-only prototype of Naada, a web platform for grassroots live music in Bengaluru.
 Built from `naada-prototype-brief.md`.

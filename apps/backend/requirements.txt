@@ -1,0 +1,16 @@
+django==5.1.4
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.6.0
+pillow==11.1.0
+qrcode==8.0
+channels==4.2.0
+daphne==4.1.2
+channels-redis==4.2.1
+celery==5.4.0
+django-celery-beat==2.7.0
+psycopg2-binary==2.9.10
+python-decouple==3.8
+cryptography==44.0.2
+razorpay==1.4.2
+setuptools==69.5.1

@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+.vite
 *.local
 
 # Editor directories and files
@@ -29,3 +30,17 @@ dist-ssr
 
 # TypeScript build info
 *.tsbuildinfo
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+
+# Django local files
+apps/backend/.env
+apps/backend/db.sqlite3
+apps/backend/media/*
+apps/backend/staticfiles/

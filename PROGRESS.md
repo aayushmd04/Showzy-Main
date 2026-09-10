@@ -47,7 +47,7 @@ Constraints that apply to every task:
 - [x] C1/C2/C3 event create, save, publish against the API
 - [x] C4/C5 real door scanner
 - [x] C6 persist venue layout server-side
-- [ ] C7/C8 venue management + file upload primitive
+- [x] C7/C8 venue management + file upload primitive
 - [x] C9 gig application review
 
 ### Phase 3 — artist tools
@@ -57,9 +57,9 @@ Constraints that apply to every task:
 - [x] D5 availability
 
 ### Phase 4 — retention & discovery
-- [ ] E4/E5 notifications UI + emit on real events
+- [x] E4/E5 notifications UI + emit on real events
 - [x] E2/E3 server-side search and filters
-- [ ] E7/G10 per-event meta tags, prerender, sitemap
+- [x] E7/G10 per-event meta tags, prerender, sitemap
 - [ ] E8–E14 save, follow, reviews, transfer, map, ics
 - [ ] E12 Kannada
 - [ ] G11 websocket chat
@@ -72,6 +72,27 @@ Constraints that apply to every task:
 - [x] G2/G3 env-based API base, Docker, CI
 - [x] G5/G6/G7 Sentry, analytics, error boundary
 - [ ] G8/G9/G12/G14/G15 storage, redis, docs, splitting, PWA
+
+## Verified end to end (2026-09-10)
+- Frontend build clean; **82 frontend tests**, **64 backend tests**, all passing.
+- Live purchase against a running backend: OTP sign-in, order for 2 x Rs 249
+  + Rs 38 booking fee = Rs 536, mock gateway with Razorpay-shaped ids, real
+  HMAC verified, order confirmed, 2 tickets issued with QR images, receipt
+  email rendered with the real ticket numbers. A tampered signature is refused.
+- Every route walked in a browser: no crash, no blank screen, no broken image,
+  and each has its own title.
+- Production settings resolved against a Supabase pooler URL: Postgres,
+  sslmode=require, CONN_MAX_AGE=60, DEBUG off, OTP never echoed. Both boot
+  guards fire (SQLite refused, placeholder SECRET_KEY refused).
+
+## Still open (nothing here blocks a deploy)
+- F3 GST is still zero on every order. Needs a CA's input, not a code decision.
+- E12 Kannada is half-built — the toggle changes nav labels and little else.
+- Social link previews need the prerender step in DEPLOY.md; per-route meta
+  tags work today for search engines that run JavaScript.
+- G15 PWA / offline shell. The door scanner queues scans locally, so an
+  offline door already works; this would make the ticket itself openable.
+- E8-E11, E13-E14: save, follow, reviews, ticket transfer, maps, add-to-calendar.
 
 ## Deployment answers owed to the founder
 - Supabase = Postgres/storage only; it does not host Django. Recommendation and

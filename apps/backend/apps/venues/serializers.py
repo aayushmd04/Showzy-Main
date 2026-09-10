@@ -28,6 +28,9 @@ class VenueListSerializer(serializers.ModelSerializer):
             "city", "city_name", "area_name", "capacity",
             "stage_type", "is_verified", "is_featured",
             "primary_photo", "lat", "lng",
+            # The host's floor-plan editor loads from ?mine=true and needs the
+            # stored plan, not just the summary fields.
+            "layout",
         ]
 
     def get_primary_photo(self, obj):

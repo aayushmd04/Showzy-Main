@@ -265,6 +265,8 @@ export interface ApiVenue {
   city_name?: string;  // flat field from list endpoint
   capacity?: number;
   primary_photo?: string;
+  slug?: string;
+  layout?: { version?: number; elements?: unknown[] };
 }
 
 export interface ApiTier {
@@ -587,6 +589,8 @@ export function createTicketOrder(data: {
   event_id: string;
   items: Array<{ tier_id: string; quantity: number }>;
   promo_code?: string;
+  /** Optional floor-plan zone. Omitted for standing-room events. */
+  zone_id?: string;
 }): Promise<ApiTicketOrder> {
   return post<ApiTicketOrder>("/ticket-orders/", data);
 }
@@ -792,6 +796,11 @@ export function followArtist(id: string, following: boolean): Promise<{ followin
 
 // ─── Venues ───────────────────────────────────────────────────────────────────
 
+/** Venues this host owns, with their stored floor plan. */
+export async function getMyVenues(): Promise<ApiVenue[]> {
+  return unwrap(await get<ApiVenue[] | { results: ApiVenue[] }>("/venues/?mine=true"));
+}
+
 export function getVenue(slug: string): Promise<ApiVenue> {
   return get<ApiVenue>(`/venues/${slug}/`, false);
 }
@@ -886,6 +895,41 @@ export function updateNotificationPreferences(
   data: Partial<NotificationPreferences>,
 ): Promise<NotificationPreferences> {
   return patch<NotificationPreferences>("/notifications/preferences/", data);
+}
+
+// ─── Venue floor plan / zones ─────────────────────────────────────────────────
+
+/**
+ * One area of a venue's floor plan — a table, the VIP section, the dance floor.
+ * Zones live in host-authored JSON on the venue rather than as database rows,
+ * so `taken`/`available` are derived per event, never stored counters.
+ */
+export interface VenueZone {
+  id: string;
+  label: string;
+  type: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  capacity: number;
+  bookable: boolean;
+  taken: number;
+  available: number;
+}
+
+export interface EventZonesResponse {
+  event_id: string;
+  venue_name: string;
+  has_layout: boolean;
+  bookable_count: number;
+  places_available: number;
+  zones: VenueZone[];
+}
+
+/** Public — a buyer choosing a table has not signed in yet. */
+export function getEventZones(eventId: string): Promise<EventZonesResponse> {
+  return get<EventZonesResponse>(`/events/${eventId}/zones/`, false);
 }
 
 // ─── Site configuration ───────────────────────────────────────────────────────

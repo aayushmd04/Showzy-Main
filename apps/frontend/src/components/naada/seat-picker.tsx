@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Loader2, MapPin, RotateCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { API_BASE } from "@/lib/api";
+import { getEventZones } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 /**
@@ -99,8 +99,9 @@ export function useVenueZones(eventId: string, refreshToken = 0) {
     }
 
     setPhase("loading");
-    fetch(`${API_BASE}/events/${eventId}/zones/`, { headers: { Accept: "application/json" } })
-      .then((res) => (res.ok ? (res.json() as Promise<ZonesResponse>) : Promise.reject(res)))
+    // Through the shared client, so this inherits its error handling and the
+    // single base-URL configuration rather than reaching past it.
+    getEventZones(eventId)
       .then((body) => {
         if (!alive) return;
         setData(body);

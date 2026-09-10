@@ -3,6 +3,7 @@ import { Building2, Grid3X3, RotateCcw, Save, Trash2, Plus } from "lucide-react"
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
+import { ApiError, getMyVenues, updateVenue, type ApiVenue } from "@/lib/api";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,14 @@ const STORAGE_KEY = "naada_venue_layout";
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export function HostVenueLayoutScreen() {
+  /*
+   * The plan belongs to the venue on the server, not to this browser.
+   *
+   * It used to live only in localStorage, so a host's floor plan never reached
+   * the backend — buyers could never be shown it, staff could never see it, and
+   * clearing the browser threw the work away. localStorage stays, but only as a
+   * draft buffer for edits made while a save is failing.
+   */
   const [elements, setElements] = useState<LE[]>(() => {
     try {
       const s = localStorage.getItem(STORAGE_KEY);
@@ -81,6 +90,11 @@ export function HostVenueLayoutScreen() {
       return DEFAULT_LAYOUT;
     }
   });
+  const [venue, setVenue] = useState<ApiVenue | null>(null);
+  const [loadPhase, setLoadPhase] = useState<"loading" | "ready" | "no-venue" | "error">("loading");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const loadedRef = useRef(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [gridOn, setGridOn] = useState(true);
   const [savedMsg, setSavedMsg] = useState(false);
@@ -93,23 +107,69 @@ export function HostVenueLayoutScreen() {
 
   const sel = elements.find((e) => e.id === selected) ?? null;
 
+  // Load this host's venue and whatever plan it already has.
+  useEffect(() => {
+    let alive = true;
+    getMyVenues()
+      .then((venues) => {
+        if (!alive) return;
+        const mine = venues[0];
+        if (!mine) {
+          setLoadPhase("no-venue");
+          return;
+        }
+        setVenue(mine);
+        const stored = (mine as { layout?: { elements?: LE[] } }).layout;
+        if (stored?.elements?.length) setElements(stored.elements);
+        loadedRef.current = true;
+        setLoadPhase("ready");
+      })
+      .catch(() => {
+        if (alive) setLoadPhase("error");
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   // ── Persistence ──────────────────────────────────────────────────────────────
 
-  const save = useCallback(() => {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(elements));
-    } catch { /* storage full */ }
-    setSavedMsg(true);
-    setTimeout(() => setSavedMsg(false), 2200);
-  }, [elements]);
+  const persist = useCallback(
+    async (next: LE[]) => {
+      // Keep a local copy first, so an edit survives a failed request.
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+      } catch { /* storage full */ }
 
-  // Auto-save on change
+      if (!venue?.slug) return;
+      setSaving(true);
+      try {
+        await updateVenue(venue.slug, { layout: { version: 1, elements: next } });
+        setSaveError(null);
+        setSavedMsg(true);
+        setTimeout(() => setSavedMsg(false), 2200);
+      } catch (err) {
+        setSaveError(
+          err instanceof ApiError
+            ? err.detail
+            : "Couldn't save to the server. Your changes are kept here and will save when you're back online.",
+        );
+      } finally {
+        setSaving(false);
+      }
+    },
+    [venue],
+  );
+
+  const save = useCallback(() => { void persist(elements); }, [persist, elements]);
+
+  // Auto-save, debounced. Skipped until the stored plan has loaded, so an
+  // empty first render can never overwrite a real saved layout.
   useEffect(() => {
-    const t = setTimeout(() => {
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(elements)); } catch { /* ignore */ }
-    }, 800);
+    if (!loadedRef.current) return;
+    const t = setTimeout(() => { void persist(elements); }, 900);
     return () => clearTimeout(t);
-  }, [elements]);
+  }, [elements, persist]);
 
   // ── Element mutations ──────────────────────────────────────────────────────────
 
@@ -236,6 +296,29 @@ export function HostVenueLayoutScreen() {
             Drag zones onto the canvas to map your venue. Attendees see this before booking so
             they know exactly where they'll be.
           </p>
+
+          {loadPhase === "loading" && (
+            <p className="t-small mt-2 text-muted">Loading your venue…</p>
+          )}
+          {loadPhase === "ready" && venue && (
+            <p className="t-small mt-2 text-muted">
+              Saving to <span className="text-paper">{venue.name}</span>
+              {saving && " · saving…"}
+            </p>
+          )}
+          {loadPhase === "no-venue" && (
+            <p className="t-small mt-2 text-brass">
+              You don't have a venue yet, so this plan can only be kept in this browser.
+              Add your venue first and it'll save properly.
+            </p>
+          )}
+          {loadPhase === "error" && (
+            <p className="t-small mt-2 text-brass">
+              Couldn't reach the server. You can keep editing — changes are held here until
+              it's back.
+            </p>
+          )}
+          {saveError && <p className="t-small mt-2 text-fault">{saveError}</p>}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button size="sm" onClick={() => setGridOn((g) => !g)}>

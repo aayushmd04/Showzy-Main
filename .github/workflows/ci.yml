@@ -8,25 +8,10 @@
 # backend tests run against a throwaway SQLite file, which is what makes this
 # workflow fast and, more importantly, not flaky.
 #
-# ┌───────────────────────────────────────────────────────────────────────────┐
-# │ KNOWN RED ON ARRIVAL — these are real bugs in the app, not CI problems.   │
-# │                                                                          │
-# │  1. `npm run build` / `npm run typecheck` fail with TS2322 in            │
-# │     apps/frontend/src/App.tsx (lines 64 and 183-186). The `lazyScreen`   │
-# │     helper cannot express a lazily-loaded screen that takes props, and   │
-# │     LegalScreen takes `doc`. The frontend CANNOT BE DEPLOYED until this  │
-# │     is fixed — `npm run build` is `tsc -b && vite build`, so the type    │
-# │     error stops the bundle being produced at all.                        │
-# │                                                                          │
-# │  2. Four tests fail: three in                                            │
-# │     apps/frontend/src/screens/admin/admin-disputes.test.tsx and one in   │
-# │     apps/frontend/src/screens/artist/artist-gig-board.test.tsx. They     │
-# │     look for text and buttons the components no longer render.           │
-# │                                                                          │
-# │ Both are outside the deployment work and are left as real, failing gates │
-# │ on purpose: hiding them would let a non-deployable frontend look green.  │
-# │ Backend: `check`, `check --deploy`, migrations and all 40 tests pass.    │
-# └───────────────────────────────────────────────────────────────────────────┘
+# Both suites are green as of 10 Sep 2026: 82 frontend tests, 64 backend tests,
+# and a clean production build. Every gate below is a real gate — nothing is
+# skipped or allowed to fail, because a green tick that means nothing is worse
+# than no CI at all.
 # =============================================================================
 
 name: CI

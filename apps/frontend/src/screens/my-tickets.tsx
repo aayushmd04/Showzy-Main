@@ -16,6 +16,8 @@ export function MyTicketsScreen() {
   const { tickets, eventById, venueOf, emptyLists } = useStore();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");
 
+  const hasAnyTickets = !emptyLists && tickets.length > 0;
+
   const rows = emptyLists
     ? []
     : tickets.filter((t) => {
@@ -83,9 +85,23 @@ export function MyTicketsScreen() {
           </ul>
         ) : (
           <div className="mt-6">
+            {/* "No tickets yet" is a lie when they hold tickets that are simply
+                on the other tab. Say which shelf is empty. */}
             <EmptyState
-              headline="No tickets yet"
-              body="When you book a gig it'll show up here"
+              headline={
+                tab === "past"
+                  ? "Nothing here yet"
+                  : hasAnyTickets
+                    ? "Nothing coming up"
+                    : "No tickets yet"
+              }
+              body={
+                tab === "past"
+                  ? "Gigs you've been to will show up here afterwards."
+                  : hasAnyTickets
+                    ? "Your past gigs are on the other tab. Nothing booked ahead right now."
+                    : "When you book a gig it'll show up here."
+              }
               actionLabel="Find something on"
               onAction={() => navigate("/")}
             />

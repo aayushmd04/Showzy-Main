@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppStoreProvider, useStore } from "@/store/app-store";
+import * as fixtures from "@/data/fixtures";
 import { AuthSheetProvider } from "@/components/naada/auth-sheet";
 import * as api from "@/lib/api";
 import type { ApiEvent, ApiTicket } from "@/lib/api";
@@ -29,6 +30,22 @@ vi.mock("@/lib/api", async (importOriginal) => {
     verifyPayment: vi.fn(),
     validatePromo: vi.fn(),
   };
+});
+
+/*
+ * The store starts empty in the app, so a screen test that asserts on fixture
+ * content has to put it there deliberately.
+ */
+const fixtureSeed = () => ({
+  events: fixtures.events.map((e) => ({ ...e, tiers: e.tiers.map((t) => ({ ...t })) })),
+  artists: fixtures.artists.map((a) => ({ ...a })),
+  venues: fixtures.venues.map((v) => ({ ...v })),
+  bookings: fixtures.bookings.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),
+  tickets: fixtures.tickets.map((t) => ({ ...t })),
+  settlements: fixtures.settlements.map((s) => ({ ...s })),
+  messages: fixtures.messages.map((m) => ({ ...m })),
+  applications: fixtures.gigApplications.map((a) => ({ ...a })),
+  reviews: fixtures.reviews.map((r) => ({ ...r })),
 });
 
 const TIER = {
@@ -116,7 +133,7 @@ function Boot({
 function renderCheckout(props: Parameters<typeof Boot>[0]) {
   return render(
     <MemoryRouter initialEntries={["/checkout/pay"]}>
-      <AppStoreProvider>
+      <AppStoreProvider seed={fixtureSeed()}>
         <AuthSheetProvider>
           <Routes>
             <Route path="/checkout/pay" element={<Boot {...props} />} />

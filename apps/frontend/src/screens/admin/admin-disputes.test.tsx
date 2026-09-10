@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppStoreProvider } from "@/store/app-store";
+import * as fixtures from "@/data/fixtures";
 import * as api from "@/lib/api";
 import { AdminDisputesScreen } from "./admin-disputes";
 
@@ -27,6 +28,22 @@ vi.mock("@/lib/api", async (importOriginal) => {
  * something a test can decide, so the fixture follows the frontend's own
  * declared interface.
  */
+/*
+ * The store starts empty in the app, so a screen test that asserts on fixture
+ * content has to put it there deliberately.
+ */
+const fixtureSeed = () => ({
+  events: fixtures.events.map((e) => ({ ...e, tiers: e.tiers.map((t) => ({ ...t })) })),
+  artists: fixtures.artists.map((a) => ({ ...a })),
+  venues: fixtures.venues.map((v) => ({ ...v })),
+  bookings: fixtures.bookings.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),
+  tickets: fixtures.tickets.map((t) => ({ ...t })),
+  settlements: fixtures.settlements.map((s) => ({ ...s })),
+  messages: fixtures.messages.map((m) => ({ ...m })),
+  applications: fixtures.gigApplications.map((a) => ({ ...a })),
+  reviews: fixtures.reviews.map((r) => ({ ...r })),
+});
+
 const dispute = (over: Partial<ApiDispute> = {}): ApiDispute => ({
   id: "d1",
   booking_order: "bo-1",
@@ -52,7 +69,7 @@ type ApiDispute = {
 function renderScreen() {
   return render(
     <MemoryRouter initialEntries={["/admin/disputes"]}>
-      <AppStoreProvider>
+      <AppStoreProvider seed={fixtureSeed()}>
         <AdminDisputesScreen />
       </AppStoreProvider>
     </MemoryRouter>,

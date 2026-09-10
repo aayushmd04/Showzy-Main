@@ -8,16 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import {
-  artists as artistsFixture,
-  bookings as bookingsFixture,
-  events as eventsFixture,
-  gigApplications as gigApplicationsFixture,
-  messages as messagesFixture,
-  reviews as reviewsFixture,
-  settlements as settlementsFixture,
-  tickets as ticketsFixture,
   users,
-  venues as venuesFixture,
   MAX_COUNTERS,
   type ApplicationStatus,
   type Artist,
@@ -215,7 +206,32 @@ let toastSeq = 0;
 
 const HELD_STATES: BookingState[] = ["accepted", "funded", "performed", "released"];
 
-export function AppStoreProvider({ children }: { children: ReactNode }) {
+/** Test-only hook for seeding the store; production always starts empty. */
+export interface StoreSeed {
+  events?: NaadaEvent[];
+  artists?: Artist[];
+  venues?: Venue[];
+  bookings?: Booking[];
+  tickets?: Ticket[];
+  settlements?: Settlement[];
+  messages?: ChatMessage[];
+  applications?: GigApplication[];
+  reviews?: Review[];
+}
+
+const EMPTY_SEED: Required<StoreSeed> = {
+  events: [], artists: [], venues: [], bookings: [], tickets: [],
+  settlements: [], messages: [], applications: [], reviews: [],
+};
+
+export function AppStoreProvider({
+  children,
+  seed: seedProp,
+}: {
+  children: ReactNode;
+  seed?: StoreSeed;
+}) {
+  const seed = { ...EMPTY_SEED, ...seedProp };
   const [role, setRole] = useState<Role>("out");
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
   /*
@@ -266,41 +282,44 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       /* as above */
     }
   }, [lang]);
-  const [events, setEvents] = useState<NaadaEvent[]>(() =>
-    eventsFixture.map((e) => ({ ...e, tiers: e.tiers.map((t) => ({ ...t })) })),
-  );
-  const [artists, setArtists] = useState<Artist[]>(() => artistsFixture.map((a) => ({ ...a })));
-  const [venues, setVenues] = useState<Venue[]>(() => venuesFixture.map((v) => ({ ...v })));
-  const [bookings, setBookings] = useState<Booking[]>(() =>
-    bookingsFixture.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),
-  );
-  const [tickets, setTickets] = useState<Ticket[]>(() => ticketsFixture.map((t) => ({ ...t })));
-  const [settlements, setSettlements] = useState<Settlement[]>(() =>
-    settlementsFixture.map((s) => ({ ...s })),
-  );
-  const [messages, setMessages] = useState<ChatMessage[]>(() =>
-    messagesFixture.map((m) => ({ ...m })),
-  );
-  const [applications, setApplications] = useState<GigApplication[]>(() =>
-    gigApplicationsFixture.map((a) => ({ ...a })),
-  );
-  const [reviews, setReviews] = useState<Review[]>(() => reviewsFixture.map((r) => ({ ...r })));
+  /*
+   * Every list starts empty and is filled from the API.
+   *
+   * These used to be seeded from the fixture file, which meant a slow or
+   * failed API showed invented events, artists and tickets that looked
+   * completely real — a made-up gig with a made-up venue, indistinguishable
+   * from a listing someone could buy. An empty list and an honest empty state
+   * is the only truthful thing to show when we have no data.
+   *
+   * The fixtures remain for tests, which seed the store deliberately.
+   */
+  const [events, setEvents] = useState<NaadaEvent[]>(seed.events);
+  const [artists, setArtists] = useState<Artist[]>(seed.artists);
+  const [venues, setVenues] = useState<Venue[]>(seed.venues);
+  const [bookings, setBookings] = useState<Booking[]>(seed.bookings);
+  const [tickets, setTickets] = useState<Ticket[]>(seed.tickets);
+  const [settlements, setSettlements] = useState<Settlement[]>(seed.settlements);
+  const [messages, setMessages] = useState<ChatMessage[]>(seed.messages);
+  const [applications, setApplications] = useState<GigApplication[]>(seed.applications);
+  const [reviews, setReviews] = useState<Review[]>(seed.reviews);
   const [checkout, setCheckout] = useState<CheckoutDraft>(EMPTY_CHECKOUT);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [bankAdded, setBankAdded] = useState(false);
   const [emptyLists, setEmptyLists] = useState(false);
-  const [artistProfile, setArtistProfile] = useState<ArtistProfileDraft>(() => {
-    const rohan = artistsFixture[0];
-    return {
-      name: rohan.name,
-      genres: [...rohan.genres],
-      city: rohan.city,
-      bio: rohan.bio,
-      feeMin: rohan.feeMin,
-      feeMax: rohan.feeMax,
-      photo: false,
-      clips: 1,
-    };
+  /*
+   * Blank, not a fixture artist's details. This draft was pre-filled with a
+   * made-up performer, so a real musician opening their profile builder saw
+   * someone else's name, city and fee range already typed in.
+   */
+  const [artistProfile, setArtistProfile] = useState<ArtistProfileDraft>({
+    name: "",
+    genres: [],
+    city: "",
+    bio: "",
+    feeMin: 0,
+    feeMax: 0,
+    photo: false,
+    clips: 0,
   });
 
   /* ---- hydrate from API ---- */

@@ -2,9 +2,37 @@ import { renderHook, act } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
 import { AppStoreProvider, useStore } from "./app-store";
+import {
+  artists,
+  bookings,
+  events,
+  gigApplications,
+  messages,
+  reviews,
+  settlements,
+  tickets,
+  venues,
+} from "@/data/fixtures";
+
+/*
+ * The store starts empty in the app — a slow API must never show invented
+ * gigs — so these tests seed it explicitly with the fixture data they assert
+ * against. Deep-copied so one test's mutation cannot leak into the next.
+ */
+const seed = () => ({
+  events: events.map((e) => ({ ...e, tiers: e.tiers.map((t) => ({ ...t })) })),
+  artists: artists.map((a) => ({ ...a })),
+  venues: venues.map((v) => ({ ...v })),
+  bookings: bookings.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),
+  tickets: tickets.map((t) => ({ ...t })),
+  settlements: settlements.map((s) => ({ ...s })),
+  messages: messages.map((m) => ({ ...m })),
+  applications: gigApplications.map((a) => ({ ...a })),
+  reviews: reviews.map((r) => ({ ...r })),
+});
 
 function wrapper({ children }: { children: ReactNode }) {
-  return <AppStoreProvider>{children}</AppStoreProvider>;
+  return <AppStoreProvider seed={seed()}>{children}</AppStoreProvider>;
 }
 
 function setup() {

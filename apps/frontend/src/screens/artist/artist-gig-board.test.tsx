@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppStoreProvider } from "@/store/app-store";
+import * as fixtures from "@/data/fixtures";
 import * as api from "@/lib/api";
 import { ArtistGigBoardScreen } from "./artist-gig-board";
 
@@ -16,10 +17,26 @@ vi.mock("@/lib/api", async (importOriginal) => {
   return { ...actual, applyToGig: vi.fn() };
 });
 
+/*
+ * The store starts empty in the app, so a screen test that asserts on fixture
+ * content has to put it there deliberately.
+ */
+const fixtureSeed = () => ({
+  events: fixtures.events.map((e) => ({ ...e, tiers: e.tiers.map((t) => ({ ...t })) })),
+  artists: fixtures.artists.map((a) => ({ ...a })),
+  venues: fixtures.venues.map((v) => ({ ...v })),
+  bookings: fixtures.bookings.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),
+  tickets: fixtures.tickets.map((t) => ({ ...t })),
+  settlements: fixtures.settlements.map((s) => ({ ...s })),
+  messages: fixtures.messages.map((m) => ({ ...m })),
+  applications: fixtures.gigApplications.map((a) => ({ ...a })),
+  reviews: fixtures.reviews.map((r) => ({ ...r })),
+});
+
 function renderScreen() {
   return render(
     <MemoryRouter initialEntries={["/artist/gig-board"]}>
-      <AppStoreProvider>
+      <AppStoreProvider seed={fixtureSeed()}>
         <ArtistGigBoardScreen />
       </AppStoreProvider>
     </MemoryRouter>,

@@ -1,3 +1,4 @@
+import logging
 import random
 import string
 from django.utils import timezone
@@ -9,9 +10,15 @@ from rest_framework.decorators import api_view, permission_classes, throttle_cla
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.token_blacklist.models import (
+    BlacklistedToken,
+    OutstandingToken,
+)
 from datetime import timedelta
 
-from .models import OTPToken, UserDevice
+from .models import OTPToken, UserDevice, UserRole
+
+logger = logging.getLogger(__name__)
 from .serializers import (
     OTPRequestSerializer, OTPVerifySerializer,
     UserProfileSerializer, UserUpdateSerializer, UserDeviceSerializer
@@ -128,7 +135,7 @@ def verify_otp(request):
     }, status=status.HTTP_200_OK)
 
 
-class MeView(generics.RetrieveUpdateAPIView):
+class MeView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
@@ -138,6 +145,118 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+    def perform_update(self, serializer):
+        user = serializer.save()
+        # Selecting the artist role has to actually make the user bookable.
+        # Setting User.role alone left them invisible to search and to hosts,
+        # so signing up as an artist produced a dead account.
+        if user.role == UserRole.ARTIST:
+            from apps.artists.models import Artist
+
+            Artist.objects.get_or_create(
+                user=user,
+                defaults={
+                    "stage_name": user.display_name or user.full_name or user.email.split("@")[0],
+                    "bio": user.bio or "",
+                },
+            )
+
+    def destroy(self, request, *args, **kwargs):
+        """Erasure request under the DPDP Act, 2023.
+
+        Soft delete rather than a hard one: ticket and payment rows must survive
+        for tax and dispute purposes. Identifying fields are scrubbed and the
+        email is released so the address can be reused, while the row that
+        financial records point at stays intact.
+        """
+        user = request.user
+        stamp = timezone.now().strftime("%Y%m%d%H%M%S")
+
+        user.email = f"deleted+{user.pk}.{stamp}@naada.invalid"
+        user.phone = None
+        user.full_name = "Deleted user"
+        user.display_name = ""
+        user.bio = ""
+        user.website = ""
+        user.instagram = ""
+        user.avatar = None
+        user.is_active = False
+        user.save(update_fields=[
+            "email", "phone", "full_name", "display_name", "bio",
+            "website", "instagram", "avatar", "is_active",
+        ])
+        user.soft_delete()
+
+        # Drop push targets and sign every device out.
+        UserDevice.objects.filter(user=user).delete()
+        for token in OutstandingToken.objects.filter(user=user):
+            BlacklistedToken.objects.get_or_create(token=token)
+
+        return Response(
+            {"detail": "Your account has been deleted."},
+            status=status.HTTP_200_OK,
+        )
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def export_my_data(request):
+    """Everything we hold on the requesting user, as JSON.
+
+    The access right under the DPDP Act, 2023. Deliberately assembled by hand
+    rather than dumped from the ORM so that adding a model does not silently
+    start leaking a new field.
+    """
+    user = request.user
+    data = {
+        "exported_at": timezone.now().isoformat(),
+        "account": UserProfileSerializer(user).data,
+        "tickets": [],
+        "ticket_orders": [],
+        "saved_events": [],
+    }
+
+    try:
+        from apps.tickets.models import Ticket, Order
+
+        data["tickets"] = [
+            {
+                "ticket_number": t.ticket_number,
+                "event": t.event.title,
+                "tier": t.tier.name if t.tier else None,
+                "status": t.status,
+                "checked_in_at": t.checked_in_at.isoformat() if t.checked_in_at else None,
+                "purchased_at": t.created_at.isoformat(),
+            }
+            for t in Ticket.objects.filter(user=user).select_related("event", "tier")
+        ]
+        data["ticket_orders"] = [
+            {
+                "id": str(o.id),
+                "event": o.event.title,
+                "status": o.status,
+                "total_amount": str(o.total_amount),
+                "created_at": o.created_at.isoformat(),
+            }
+            for o in Order.objects.filter(user=user).select_related("event")
+        ]
+    except Exception:  # pragma: no cover - export must never 500
+        logger.exception("Partial data export for user %s", user.pk)
+
+    try:
+        from apps.events.models import EventSave
+
+        data["saved_events"] = [
+            {"event": s.event.title, "saved_at": s.created_at.isoformat()}
+            for s in EventSave.objects.filter(user=user).select_related("event")
+        ]
+    except Exception:  # pragma: no cover
+        logger.exception("Saved-events export failed for user %s", user.pk)
+
+    response = Response(data)
+    response["Content-Disposition"] = 'attachment; filename="naada-my-data.json"'
+    return response
 
 
 @api_view(["POST"])

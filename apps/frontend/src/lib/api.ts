@@ -226,6 +226,18 @@ export async function updateMe(data: {
   return patch<MeResponse>("/auth/me/", data);
 }
 
+/** Erasure request under the DPDP Act. Irreversible. */
+export async function deleteMyAccount(): Promise<{ detail: string }> {
+  const res = await request<{ detail: string }>("DELETE", "/auth/me/");
+  tokens.clear();
+  return res;
+}
+
+/** Access request under the DPDP Act — everything we hold, as JSON. */
+export function exportMyData(): Promise<Record<string, unknown>> {
+  return get<Record<string, unknown>>("/auth/me/export/");
+}
+
 /**
  * Blacklist the refresh token server-side before dropping it. Clearing
  * localStorage alone left the refresh token valid for its full 30-day life,

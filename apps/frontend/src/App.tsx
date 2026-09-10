@@ -1,17 +1,18 @@
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { MotionConfig } from "motion/react";
 
 import { AppStoreProvider } from "@/store/app-store";
-import { AuthSheetProvider } from "@/components/naada/auth-sheet";
+import { AuthSheetProvider, useAuthSheet } from "@/components/naada/auth-sheet";
 import { BriefComposerProvider } from "@/components/naada/brief-composer";
 import { DevSwitcher } from "@/components/naada/dev-switcher";
+import { ErrorBoundary } from "@/components/naada/error-boundary";
 import { RequireRole } from "@/components/naada/require-role";
 import { Toaster } from "@/components/ui/toaster";
 import { useStore } from "@/store/app-store";
-import { getMe } from "@/lib/api";
-import { tokens } from "@/lib/api";
+import { getMe, tokens, AUTH_EXPIRED_EVENT } from "@/lib/api";
 
+// Public screens load eagerly — they are the first thing every visitor sees.
 import { DiscoverScreen } from "@/screens/discover";
 import { EventScreen } from "@/screens/event";
 import { ArtistProfileScreen } from "@/screens/artist-profile";
@@ -22,32 +23,53 @@ import { CheckoutDetailsScreen } from "@/screens/checkout-details";
 import { CheckoutPayScreen } from "@/screens/checkout-pay";
 import { TicketDetailScreen } from "@/screens/ticket-detail";
 import { MyTicketsScreen } from "@/screens/my-tickets";
-import { BookingThreadScreen } from "@/screens/booking-thread";
 import { NotFoundScreen } from "@/screens/not-found";
-import { KeyboardLabScreen } from "@/screens/keyboard-lab";
 
-import { HostHomeLetterpressScreen } from "@/screens/host/host-home-letterpress";
-import { HostVenueLayoutScreen } from "@/screens/host/host-venue-layout";
-import { HostEventsScreen } from "@/screens/host/host-events";
-import { HostEventManagerScreen } from "@/screens/host/host-event-manager";
-import { HostEventEditorScreen } from "@/screens/host/host-event-editor";
-import { HostArtistSearchScreen } from "@/screens/host/host-artist-search";
-import { HostBookingsScreen } from "@/screens/host/host-bookings";
-import { HostSettlementsScreen } from "@/screens/host/host-settlements";
-import { HostDoorScannerScreen } from "@/screens/host/host-door-scanner";
+/*
+ * Console, admin and legal screens are split out. They were statically
+ * imported, so a first-time visitor looking at one gig downloaded the entire
+ * host console, artist console and admin tooling before the page could paint.
+ */
+/**
+ * Named-export equivalent of React.lazy. The `any` is load-bearing: it is the
+ * constraint that lets C be inferred as the real component type, so props
+ * survive. Narrowing it erases them and every prop becomes a type error.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyScreen<K extends string, C extends React.ComponentType<any>>(
+  loader: () => Promise<Record<K, C>>,
+  key: K,
+): React.LazyExoticComponent<C> {
+  return lazy(async () => ({ default: (await loader())[key] }));
+}
 
-import { ArtistHomeScreen } from "@/screens/artist/artist-home";
-import { ArtistGigBoardScreen } from "@/screens/artist/artist-gig-board";
-import { ArtistOffersScreen } from "@/screens/artist/artist-offers";
-import { ArtistGigsScreen } from "@/screens/artist/artist-gigs";
-import { ArtistEarningsScreen } from "@/screens/artist/artist-earnings";
-import { ArtistProfileBuilderScreen } from "@/screens/artist/artist-profile-builder";
+const HostHomeLetterpressScreen = lazyScreen(() => import("@/screens/host/host-home-letterpress"), "HostHomeLetterpressScreen");
+const HostVenueLayoutScreen = lazyScreen(() => import("@/screens/host/host-venue-layout"), "HostVenueLayoutScreen");
+const HostEventsScreen = lazyScreen(() => import("@/screens/host/host-events"), "HostEventsScreen");
+const HostEventManagerScreen = lazyScreen(() => import("@/screens/host/host-event-manager"), "HostEventManagerScreen");
+const HostEventEditorScreen = lazyScreen(() => import("@/screens/host/host-event-editor"), "HostEventEditorScreen");
+const HostArtistSearchScreen = lazyScreen(() => import("@/screens/host/host-artist-search"), "HostArtistSearchScreen");
+const HostBookingsScreen = lazyScreen(() => import("@/screens/host/host-bookings"), "HostBookingsScreen");
+const HostSettlementsScreen = lazyScreen(() => import("@/screens/host/host-settlements"), "HostSettlementsScreen");
+const HostDoorScannerScreen = lazyScreen(() => import("@/screens/host/host-door-scanner"), "HostDoorScannerScreen");
 
-import { AdminHomeScreen } from "@/screens/admin/admin-home";
-import { AdminVerificationScreen } from "@/screens/admin/admin-verification";
-import { AdminDisputesScreen } from "@/screens/admin/admin-disputes";
-import { AdminLedgerScreen } from "@/screens/admin/admin-ledger";
-import { AdminMessagesScreen } from "@/screens/admin/admin-messages";
+const ArtistHomeScreen = lazyScreen(() => import("@/screens/artist/artist-home"), "ArtistHomeScreen");
+const ArtistGigBoardScreen = lazyScreen(() => import("@/screens/artist/artist-gig-board"), "ArtistGigBoardScreen");
+const ArtistOffersScreen = lazyScreen(() => import("@/screens/artist/artist-offers"), "ArtistOffersScreen");
+const ArtistGigsScreen = lazyScreen(() => import("@/screens/artist/artist-gigs"), "ArtistGigsScreen");
+const ArtistEarningsScreen = lazyScreen(() => import("@/screens/artist/artist-earnings"), "ArtistEarningsScreen");
+const ArtistProfileBuilderScreen = lazyScreen(() => import("@/screens/artist/artist-profile-builder"), "ArtistProfileBuilderScreen");
+
+const AdminHomeScreen = lazyScreen(() => import("@/screens/admin/admin-home"), "AdminHomeScreen");
+const AdminVerificationScreen = lazyScreen(() => import("@/screens/admin/admin-verification"), "AdminVerificationScreen");
+const AdminDisputesScreen = lazyScreen(() => import("@/screens/admin/admin-disputes"), "AdminDisputesScreen");
+const AdminLedgerScreen = lazyScreen(() => import("@/screens/admin/admin-ledger"), "AdminLedgerScreen");
+const AdminMessagesScreen = lazyScreen(() => import("@/screens/admin/admin-messages"), "AdminMessagesScreen");
+
+const BookingThreadScreen = lazyScreen(() => import("@/screens/booking-thread"), "BookingThreadScreen");
+const KeyboardLabScreen = lazyScreen(() => import("@/screens/keyboard-lab"), "KeyboardLabScreen");
+const SettingsScreen = lazyScreen(() => import("@/screens/settings"), "SettingsScreen");
+const LegalScreen = lazyScreen(() => import("@/screens/legal"), "LegalScreen");
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -64,27 +86,28 @@ const ROLE_MAP: Record<string, import("@/data/fixtures").Role> = {
   admin: "admin",
 };
 
-/** Loads public event/artist data on mount and restores session if token exists. */
+/** Loads public event/artist data on mount and restores session if a token exists. */
 function AppBootstrap() {
   const { hydrateFromApi, setRole, setCurrentUser } = useStore();
 
   useEffect(() => {
-    // Always load public data (events, artists) for guest browsing
     hydrateFromApi().catch(() => {
       // Backend not running — fixtures stay in place, no error shown
     });
 
-    // Restore session if token exists in localStorage
     if (tokens.access) {
       getMe()
         .then((user) => {
-          const role = ROLE_MAP[user.role] ?? "listener";
-          setRole(role);
-          setCurrentUser({ id: user.id, email: user.email, full_name: user.full_name, role: user.role });
+          setRole(ROLE_MAP[user.role] ?? "listener");
+          setCurrentUser({
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            role: user.role,
+          });
           hydrateFromApi().catch(console.error);
         })
         .catch(() => {
-          // Token expired — clear it silently
           tokens.clear();
         });
     }
@@ -94,95 +117,134 @@ function AppBootstrap() {
   return null;
 }
 
+/**
+ * A refresh that fails means the session is genuinely over. Prompt for sign-in
+ * rather than leaving the user on a screen whose every request quietly fails.
+ */
+function SessionWatch() {
+  const { open } = useAuthSheet();
+  const { setRole, setCurrentUser, toast } = useStore();
+
+  useEffect(() => {
+    const onExpired = () => {
+      setRole("out");
+      setCurrentUser(null);
+      toast("Your session ended — sign in to pick up where you left off", "fault");
+      open("Sign in to continue");
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(AUTH_EXPIRED_EVENT, onExpired);
+  }, [open, setRole, setCurrentUser, toast]);
+
+  return null;
+}
+
+function ScreenFallback() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-ink">
+      <p className="t-micro text-muted" role="status">
+        Loading…
+      </p>
+    </div>
+  );
+}
+
 const host = (element: React.ReactNode) => (
-  <RequireRole roles={["host"]} suggest="host">
-    {element}
-  </RequireRole>
+  <RequireRole roles={["host"]} suggest="host">{element}</RequireRole>
 );
 
 const artist = (element: React.ReactNode) => (
-  <RequireRole roles={["artist"]} suggest="artist">
-    {element}
-  </RequireRole>
+  <RequireRole roles={["artist"]} suggest="artist">{element}</RequireRole>
 );
 
 const admin = (element: React.ReactNode) => (
-  <RequireRole roles={["admin"]} suggest="admin">
-    {element}
-  </RequireRole>
+  <RequireRole roles={["admin"]} suggest="admin">{element}</RequireRole>
 );
 
 export default function App() {
   return (
-    <MotionConfig reducedMotion="user">
-      <BrowserRouter>
-        <AppStoreProvider>
-          <AppBootstrap />
-          <AuthSheetProvider>
-            <BriefComposerProvider>
-              <ScrollToTop />
-              <Routes>
-                {/* Public */}
-                <Route path="/" element={<DiscoverScreen />} />
-                <Route path="/e/:id" element={<EventScreen />} />
-                <Route path="/a/:id" element={<ArtistProfileScreen />} />
-                <Route path="/artists" element={<ArtistsScreen />} />
-                <Route path="/venues" element={<VenuesScreen />} />
-                <Route path="/how-it-works" element={<HowItWorksScreen />} />
-                <Route path="/checkout/details" element={<CheckoutDetailsScreen />} />
-                <Route path="/checkout/pay" element={<CheckoutPayScreen />} />
-                <Route path="/ticket/:code" element={<TicketDetailScreen />} />
-                <Route path="/tickets" element={<MyTicketsScreen />} />
+    <ErrorBoundary>
+      <MotionConfig reducedMotion="user">
+        <BrowserRouter>
+          <AppStoreProvider>
+            <AppBootstrap />
+            <AuthSheetProvider>
+              <SessionWatch />
+              <BriefComposerProvider>
+                <ScrollToTop />
+                <Suspense fallback={<ScreenFallback />}>
+                  <Routes>
+                    {/* Public */}
+                    <Route path="/" element={<DiscoverScreen />} />
+                    <Route path="/e/:id" element={<EventScreen />} />
+                    <Route path="/a/:id" element={<ArtistProfileScreen />} />
+                    <Route path="/artists" element={<ArtistsScreen />} />
+                    <Route path="/venues" element={<VenuesScreen />} />
+                    <Route path="/how-it-works" element={<HowItWorksScreen />} />
+                    <Route path="/checkout/details" element={<CheckoutDetailsScreen />} />
+                    <Route path="/checkout/pay" element={<CheckoutPayScreen />} />
+                    <Route path="/ticket/:code" element={<TicketDetailScreen />} />
+                    <Route path="/tickets" element={<MyTicketsScreen />} />
+                    <Route path="/settings" element={<SettingsScreen />} />
 
-                {/* Host console */}
-                <Route path="/host" element={host(<HostHomeLetterpressScreen />)} />
-                <Route path="/host/venue" element={host(<HostVenueLayoutScreen />)} />
-                <Route path="/host/venue/layout" element={host(<HostVenueLayoutScreen />)} />
-                <Route path="/host/events" element={host(<HostEventsScreen />)} />
-                <Route path="/host/events/:id" element={host(<HostEventManagerScreen />)} />
-                <Route path="/host/events/:id/edit" element={host(<HostEventEditorScreen />)} />
-                <Route path="/host/events/:id/door" element={host(<HostDoorScannerScreen />)} />
-                <Route path="/host/artists" element={host(<HostArtistSearchScreen />)} />
-                <Route path="/host/bookings" element={host(<HostBookingsScreen />)} />
-                <Route path="/host/settlements" element={host(<HostSettlementsScreen />)} />
+                    {/* Legal — Razorpay merchant approval requires these to resolve */}
+                    <Route path="/terms" element={<LegalScreen doc="terms" />} />
+                    <Route path="/privacy" element={<LegalScreen doc="privacy" />} />
+                    <Route path="/refunds" element={<LegalScreen doc="refunds" />} />
+                    <Route path="/contact" element={<LegalScreen doc="contact" />} />
 
-                {/* Artist console */}
-                <Route path="/artist" element={artist(<ArtistHomeScreen />)} />
-                <Route path="/artist/gig-board" element={artist(<ArtistGigBoardScreen />)} />
-                <Route path="/artist/offers" element={artist(<ArtistOffersScreen />)} />
-                <Route path="/artist/gigs" element={artist(<ArtistGigsScreen />)} />
-                <Route path="/artist/earnings" element={artist(<ArtistEarningsScreen />)} />
-                <Route path="/artist/profile" element={artist(<ArtistProfileBuilderScreen />)} />
+                    {/* Host console */}
+                    <Route path="/host" element={host(<HostHomeLetterpressScreen />)} />
+                    <Route path="/host/venue" element={host(<HostVenueLayoutScreen />)} />
+                    <Route path="/host/venue/layout" element={host(<HostVenueLayoutScreen />)} />
+                    <Route path="/host/events" element={host(<HostEventsScreen />)} />
+                    <Route path="/host/events/new" element={host(<HostEventEditorScreen />)} />
+                    <Route path="/host/events/:id" element={host(<HostEventManagerScreen />)} />
+                    <Route path="/host/events/:id/edit" element={host(<HostEventEditorScreen />)} />
+                    <Route path="/host/events/:id/door" element={host(<HostDoorScannerScreen />)} />
+                    <Route path="/host/artists" element={host(<HostArtistSearchScreen />)} />
+                    <Route path="/host/bookings" element={host(<HostBookingsScreen />)} />
+                    <Route path="/host/settlements" element={host(<HostSettlementsScreen />)} />
 
-                {/* Admin / ops console */}
-                <Route path="/admin" element={admin(<AdminHomeScreen />)} />
-                <Route path="/admin/verification" element={admin(<AdminVerificationScreen />)} />
-                <Route path="/admin/disputes" element={admin(<AdminDisputesScreen />)} />
-                <Route path="/admin/ledger" element={admin(<AdminLedgerScreen />)} />
-                <Route path="/admin/messages" element={admin(<AdminMessagesScreen />)} />
+                    {/* Artist console */}
+                    <Route path="/artist" element={artist(<ArtistHomeScreen />)} />
+                    <Route path="/artist/gig-board" element={artist(<ArtistGigBoardScreen />)} />
+                    <Route path="/artist/offers" element={artist(<ArtistOffersScreen />)} />
+                    <Route path="/artist/gigs" element={artist(<ArtistGigsScreen />)} />
+                    <Route path="/artist/earnings" element={artist(<ArtistEarningsScreen />)} />
+                    <Route path="/artist/profile" element={artist(<ArtistProfileBuilderScreen />)} />
 
-                {/* Shared by host, artist and admin (read-only) */}
-                <Route
-                  path="/bookings/:id"
-                  element={
-                    <RequireRole roles={["host", "artist", "admin"]} suggest="host">
-                      <BookingThreadScreen />
-                    </RequireRole>
-                  }
-                />
+                    {/* Admin / ops console */}
+                    <Route path="/admin" element={admin(<AdminHomeScreen />)} />
+                    <Route path="/admin/verification" element={admin(<AdminVerificationScreen />)} />
+                    <Route path="/admin/disputes" element={admin(<AdminDisputesScreen />)} />
+                    <Route path="/admin/ledger" element={admin(<AdminLedgerScreen />)} />
+                    <Route path="/admin/messages" element={admin(<AdminMessagesScreen />)} />
 
-                {/* Component lab */}
-                <Route path="/lab/keyboard" element={<KeyboardLabScreen />} />
+                    {/* Shared by host, artist and admin (read-only) */}
+                    <Route
+                      path="/bookings/:id"
+                      element={
+                        <RequireRole roles={["host", "artist", "admin"]} suggest="host">
+                          <BookingThreadScreen />
+                        </RequireRole>
+                      }
+                    />
 
-                <Route path="*" element={<NotFoundScreen />} />
-              </Routes>
+                    {/* Component lab */}
+                    <Route path="/lab/keyboard" element={<KeyboardLabScreen />} />
 
-              <Toaster />
-              <DevSwitcher />
-            </BriefComposerProvider>
-          </AuthSheetProvider>
-        </AppStoreProvider>
-      </BrowserRouter>
-    </MotionConfig>
+                    <Route path="*" element={<NotFoundScreen />} />
+                  </Routes>
+                </Suspense>
+
+                <Toaster />
+                <DevSwitcher />
+              </BriefComposerProvider>
+            </AuthSheetProvider>
+          </AppStoreProvider>
+        </BrowserRouter>
+      </MotionConfig>
+    </ErrorBoundary>
   );
 }

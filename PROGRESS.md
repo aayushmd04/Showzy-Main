@@ -79,8 +79,21 @@ Constraints that apply to every task:
   + Rs 38 booking fee = Rs 536, mock gateway with Razorpay-shaped ids, real
   HMAC verified, order confirmed, 2 tickets issued with QR images, receipt
   email rendered with the real ticket numbers. A tampered signature is refused.
-- Every route walked in a browser: no crash, no blank screen, no broken image,
-  and each has its own title.
+- Every route walked in a browser — public, host, artist, admin, legal, 404:
+  no crash, no blank screen, no broken image, and each has its own title.
+- Bought a ticket through the real screens: event page at Rs 369 -> checkout at
+  the same Rs 369 -> mock gateway -> ticket JAZ-00001 with the server's real
+  scannable QR and "Paid Rs 369". Scanned that QR at the door endpoint: admitted,
+  ticket marked used, and a second scan of the same code correctly refused.
+
+## Known limits of today's verification
+- The service worker could not be registered inside the embedded test browser,
+  which blocks them. The script parses, is served as text/javascript, and its
+  registration is wrapped so a failure is a silent no-op — the page rendered
+  perfectly with registration failing, which is the fallback proving itself.
+  Worth confirming on a real phone before relying on the offline ticket.
+- Docker images were never built; Docker is not installed on this machine. The
+  Dockerfiles and compose file are syntax-checked only.
 - Production settings resolved against a Supabase pooler URL: Postgres,
   sslmode=require, CONN_MAX_AGE=60, DEBUG off, OTP never echoed. Both boot
   guards fire (SQLite refused, placeholder SECRET_KEY refused).
@@ -90,8 +103,6 @@ Constraints that apply to every task:
 - E12 Kannada is half-built — the toggle changes nav labels and little else.
 - Social link previews need the prerender step in DEPLOY.md; per-route meta
   tags work today for search engines that run JavaScript.
-- G15 PWA / offline shell. The door scanner queues scans locally, so an
-  offline door already works; this would make the ticket itself openable.
 - E8-E11, E13-E14: save, follow, reviews, ticket transfer, maps, add-to-calendar.
 
 ## Deployment answers owed to the founder

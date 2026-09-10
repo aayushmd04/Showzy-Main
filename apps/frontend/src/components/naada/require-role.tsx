@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { useStore } from "@/store/app-store";
 import type { Role } from "@/data/fixtures";
 
-const WHO: Record<Role, string> = {
-  out: "Logged out",
-  listener: "Meera (listener)",
-  artist: "Rohan (artist)",
-  host: "Sonal (host)",
-  admin: "Priya (admin)",
+const ROLE_LABEL: Record<Role, string> = {
+  out: "signed out",
+  listener: "someone booking tickets",
+  artist: "an artist",
+  host: "a host",
+  admin: "an admin",
 };
 
 /**
@@ -26,20 +26,24 @@ export function RequireRole({
   suggest: Role;
   children: ReactNode;
 }) {
-  const { role, setRole } = useStore();
+  const { role, setRole, currentUser } = useStore();
   if (roles.includes(role)) return <>{children}</>;
+
+  const who = currentUser?.full_name
+    ? `${currentUser.full_name} — ${ROLE_LABEL[role]}`
+    : ROLE_LABEL[role];
 
   return (
     <div className="theme-light mx-auto flex min-h-dvh w-full max-w-[560px] flex-col items-center justify-center px-4 text-center" style={{ background: "#F4F1EB" }}>
       <p className="t-micro">Role required</p>
       <h1 className="t-h1 mt-3">This is the {suggest} console</h1>
       <p className="t-body mt-3 text-muted">
-        You're currently viewing as {WHO[role]}. Switch roles to carry on — the dev switcher in the
+        You're currently {who}. Switch roles to carry on — the dev switcher in the
         bottom-right corner does the same thing at any time.
       </p>
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         <Button variant="primary" onClick={() => setRole(suggest)}>
-          View as {WHO[suggest]}
+          View as {ROLE_LABEL[suggest]}
         </Button>
         <Link to="/" className="btn btn-secondary">
           Back to Discover

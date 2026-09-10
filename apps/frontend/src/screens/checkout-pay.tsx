@@ -59,6 +59,12 @@ export function CheckoutPayScreen() {
   const [promoState, setPromoState] = useState<api.PromoValidation | null>(null);
   const [promoChecking, setPromoChecking] = useState(false);
   const [mockSheet, setMockSheet] = useState<api.InitiatePaymentResponse | null>(null);
+  /*
+   * The server owns the real arithmetic — booking fee and any GST. Until an
+   * order exists we can only estimate; once it does, its numbers are the ones
+   * being charged, so they replace the estimate everywhere.
+   */
+  const [placed, setPlaced] = useState<api.ApiTicketOrder | null>(null);
   const cancelled = useRef(false);
 
   useEffect(() => () => { cancelled.current = true; }, []);
@@ -80,7 +86,13 @@ export function CheckoutPayScreen() {
   // Booking fee is the server's to decide, so quote it the same way the event
   // page does and reconcile against the real order once it exists.
   const estimatedFee = isFree ? 0 : CONVENIENCE_FEE * qty;
-  const total = Math.max(0, ticketTotal - discount + estimatedFee);
+  const serverFee = placed ? Number(placed.platform_fee) : null;
+  const serverTax = placed ? Number(placed.taxes) : null;
+  const fee = serverFee ?? estimatedFee;
+  const tax = serverTax ?? 0;
+  const total = placed
+    ? Number(placed.total_amount)
+    : Math.max(0, ticketTotal - discount + estimatedFee);
 
   const finish = useCallback(
     async (eventId: string) => {
@@ -172,6 +184,8 @@ export function CheckoutPayScreen() {
         items: [{ tier_id: tierId, quantity: qty }],
         promo_code: promoState?.valid ? promo.trim() : undefined,
       });
+
+      setPlaced(order);
 
       // 2. Ask the backend to open a payment against it.
       const intent = await api.initiatePayment({ order_id: order.id });
@@ -296,10 +310,16 @@ export function CheckoutPayScreen() {
                   <dd className="t-mono text-[14px] text-live">−{money(discount)}</dd>
                 </div>
               )}
-              {estimatedFee > 0 && (
+              {fee > 0 && (
                 <div className="flex justify-between gap-4">
                   <dt className="t-small text-muted">Booking fee</dt>
-                  <dd className="t-mono text-[14px]">{money(estimatedFee)}</dd>
+                  <dd className="t-mono text-[14px]">{money(fee)}</dd>
+                </div>
+              )}
+              {tax > 0 && (
+                <div className="flex justify-between gap-4">
+                  <dt className="t-small text-muted">GST</dt>
+                  <dd className="t-mono text-[14px]">{money(tax)}</dd>
                 </div>
               )}
               <div className="flex justify-between gap-4 border-t border-line pt-2">
@@ -353,7 +373,10 @@ export function CheckoutPayScreen() {
             </h2>
             <p className="t-body mt-2 text-paper/90">{error}</p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button variant="primary" onClick={() => { setPhase("review"); setError(null); }}>
+              <Button
+                variant="primary"
+                onClick={() => { setPhase("review"); setError(null); setPlaced(null); }}
+              >
                 Try again
               </Button>
               <Button onClick={() => navigate(`/e/${event.id}`)}>Back to event</Button>

@@ -247,6 +247,19 @@ RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET", default="placeholder_secret"
 # Set to 0 to sell at face value.
 CONVENIENCE_FEE = config("CONVENIENCE_FEE", default=19, cast=int)
 
+# ── GST ───────────────────────────────────────────────────────────────────────
+# Zero by default, so nothing changes until a rate is set deliberately. The
+# correct rate and treatment for event ticketing in India is a question for a
+# CA; see apps/tickets/tax.py for what each of these does.
+#
+#   GST_RATE_FEE          — % on Naada's booking fee (a service we supply)
+#   GST_RATE_TICKET       — % on ticket face value (the organiser's supply)
+#   GST_TICKET_EXEMPT_BELOW — per-ticket price under which tickets are exempt
+GST_RATE_FEE = config("GST_RATE_FEE", default=0, cast=float)
+GST_RATE_TICKET = config("GST_RATE_TICKET", default=0, cast=float)
+GST_TICKET_EXEMPT_BELOW = config("GST_TICKET_EXEMPT_BELOW", default=0, cast=float)
+GSTIN = config("GSTIN", default="")
+
 # ── OTP settings ─────────────────────────────────────────────────────────────
 OTP_LENGTH = config("OTP_LENGTH", default=6, cast=int)
 OTP_EXPIRY_MINUTES = config("OTP_EXPIRY_MINUTES", default=10, cast=int)

@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from datetime import timedelta
 
 from .models import Order, OrderItem, Ticket, TicketTier, PromoCode, TicketTransfer
+from .tax import compute_gst
 from .serializers import (
     OrderSerializer, TicketSerializer, CreateOrderSerializer,
     PromoCodeValidateSerializer,
@@ -74,7 +75,14 @@ def create_order(request):
         fee_per_ticket = Decimal(str(getattr(django_settings, "CONVENIENCE_FEE", 0)))
         platform_fee = fee_per_ticket * paid_qty if subtotal > 0 else Decimal("0")
 
-        total = subtotal - discount + platform_fee
+        # GST is zero until a rate is configured — see apps/tickets/tax.py.
+        gst = compute_gst(
+            ticket_subtotal=subtotal - discount,
+            booking_fee=platform_fee,
+            ticket_count=sum(d["qty"] for d in order_items_data),
+        )
+
+        total = subtotal - discount + platform_fee + gst["total"]
         expires = timezone.now() + timedelta(minutes=15)
 
         order = Order.objects.create(
@@ -85,7 +93,7 @@ def create_order(request):
             subtotal=subtotal,
             discount_amount=discount,
             platform_fee=platform_fee,
-            taxes=Decimal("0"),
+            taxes=gst["total"],
             total_amount=total,
             ip_address=request.META.get("REMOTE_ADDR"),
             user_agent=request.META.get("HTTP_USER_AGENT", "")[:300],
@@ -185,4 +193,66 @@ def validate_promo(request):
         "discount_value": float(promo.discount_value),
         "discount_amount": float(discount),
         "new_total": float(amount - discount),
+    })
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def order_invoice(request, pk):
+    """A tax invoice for one confirmed order.
+
+    Charging GST obliges you to issue one of these, so it is generated from the
+    order rather than reconstructed later. Returns JSON the frontend renders and
+    the buyer can print; it deliberately re-derives the split from the stored
+    total rather than recomputing rates, so an invoice always matches what was
+    actually charged even if a rate changes afterwards.
+    """
+    from decimal import Decimal, ROUND_HALF_UP
+
+    order = generics.get_object_or_404(Order, pk=pk, user=request.user)
+    if order.status != Order.Status.CONFIRMED:
+        return Response(
+            {"detail": "An invoice is available once the order is confirmed."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    taxes = order.taxes or Decimal("0")
+    half = (taxes / 2).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    return Response({
+        "invoice_number": f"NAADA-{str(order.id)[:8].upper()}",
+        "issued_at": (order.confirmed_at or order.created_at).isoformat(),
+        "seller": {
+            "name": getattr(django_settings, "INVOICE_SELLER_NAME", "Naada"),
+            "address": getattr(django_settings, "INVOICE_SELLER_ADDRESS", ""),
+            "gstin": getattr(django_settings, "GSTIN", ""),
+        },
+        "buyer": {
+            "name": order.user.name,
+            "email": order.user.email,
+        },
+        "event": {
+            "title": order.event.title,
+            "starts_at": order.event.start_datetime.isoformat(),
+            "venue": getattr(order.event.venue, "name", ""),
+        },
+        "lines": [
+            {
+                "description": f"{i.tier.name if i.tier else 'General'} admission",
+                "quantity": i.quantity,
+                "unit_price": str(i.unit_price),
+                "amount": str(i.total_price),
+            }
+            for i in order.items.select_related("tier")
+        ],
+        "subtotal": str(order.subtotal),
+        "discount": str(order.discount_amount),
+        "booking_fee": str(order.platform_fee),
+        "cgst": str(half),
+        "sgst": str(taxes - half),
+        "taxes_total": str(taxes),
+        "total": str(order.total_amount),
+        "currency": order.currency,
+        # True only once a rate is configured; until then this is a receipt.
+        "is_tax_invoice": taxes > 0,
     })

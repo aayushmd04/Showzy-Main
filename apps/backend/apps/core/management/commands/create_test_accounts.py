@@ -7,7 +7,7 @@ prints them.
 Idempotent: re-running updates roles rather than duplicating anyone.
 """
 
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth import get_user_model
 from django.db import transaction
 
@@ -26,7 +26,7 @@ ACCOUNTS = [
 
 
 class Command(BaseCommand):
-    help = "Create or refresh one test account per role and print how to sign in."
+    help = "Create or refresh test accounts and print how to sign in."
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -35,13 +35,39 @@ class Command(BaseCommand):
             help="Use your own domain instead of naada.test, e.g. --domain gmail.com "
                  "with a +tag so real codes reach a real inbox.",
         )
+        parser.add_argument(
+            "--email",
+            action="append",
+            dest="emails",
+            help=(
+                "Seed an explicit email address. Pass this three times in "
+                "artist, normal-user, venue-host order."
+            ),
+        )
 
     @transaction.atomic
     def handle(self, *args, **options):
         domain = options.get("domain")
+        emails = options.get("emails")
+        if emails:
+            if len(emails) != 3:
+                raise CommandError("Pass --email exactly three times.")
+            if any("@" not in email for email in emails):
+                raise CommandError("Each --email value must be a valid email address.")
+            domains = [email.rsplit("@", 1)[-1].lower() for email in emails]
+            if len(set(domains)) != 3:
+                raise CommandError("The three --email values must use different domains.")
+
         rows = []
 
-        for email, name, role, purpose in ACCOUNTS:
+        accounts = (
+            [ACCOUNTS[1], ACCOUNTS[0], ACCOUNTS[2]]
+            if emails
+            else ACCOUNTS
+        )
+        for index, (email, name, role, purpose) in enumerate(accounts):
+            if emails:
+                email = emails[index].lower()
             if domain:
                 local = email.split("@")[0]
                 email = f"{local}@{domain}"

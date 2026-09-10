@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { Wordmark } from "./wordmark";
+import { NotificationBell } from "./notification-bell";
 import { useStore } from "@/store/app-store";
 import { cn } from "@/lib/utils";
 
@@ -163,6 +164,8 @@ export function ConsoleShell({
           </nav>
 
           {actions}
+
+          <NotificationBell />
 
           <div className="flex shrink-0 items-center gap-2 border border-line px-2 py-1.5" title={displayName}>
             <span className="grid size-7 place-items-center bg-surface-2 font-display text-[13px] font-bold text-paper">

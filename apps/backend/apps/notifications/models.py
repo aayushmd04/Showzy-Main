@@ -17,6 +17,11 @@ class NotificationType(models.TextChoices):
     REFUND_INITIATED = "refund_initiated", "Refund Initiated"
     REFUND_SUCCESS = "refund_success", "Refund Success"
     NEW_MESSAGE = "new_message", "New Message"
+    BOOKING_OFFER = "booking_offer", "Booking Offer Received"
+    BOOKING_OFFER_ACCEPTED = "booking_offer_accepted", "Booking Offer Accepted"
+    BOOKING_OFFER_DECLINED = "booking_offer_declined", "Booking Offer Declined"
+    BOOKING_OFFER_WITHDRAWN = "booking_offer_withdrawn", "Booking Offer Withdrawn"
+    GIG_APPLICATION_REVIEWED = "gig_application_reviewed", "Gig Application Reviewed"
     ARTIST_NEW_EVENT = "artist_new_event", "Artist Posted New Event"
     TICKET_TRANSFER_RECEIVED = "ticket_transfer_received", "Ticket Transfer Received"
     OTP_SENT = "otp_sent", "OTP Sent"
@@ -38,6 +43,11 @@ class NotificationPreference(TimeStampedModel):
     event_reminder_push = models.BooleanField(default=True)
     event_reminder_hours_before = models.PositiveSmallIntegerField(default=24)
     new_message_push = models.BooleanField(default=True)
+    # Offers, offer replies and gig-application decisions. Default on: a
+    # working musician who misses an offer email loses the gig.
+    booking_activity_email = models.BooleanField(default=True)
+    # A gig you hold a ticket for was cancelled, moved or re-venued.
+    event_change_email = models.BooleanField(default=True)
     artist_new_event_email = models.BooleanField(default=False)
     artist_new_event_push = models.BooleanField(default=True)
     marketing_email = models.BooleanField(default=False)

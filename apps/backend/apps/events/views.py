@@ -1,3 +1,5 @@
+import logging
+
 from django.utils import timezone
 from rest_framework import generics, permissions, status, filters
 from rest_framework.decorators import api_view, permission_classes
@@ -7,6 +9,45 @@ from .serializers import (
     EventListSerializer, EventDetailSerializer,
     EventCreateUpdateSerializer, EventReviewSerializer,
 )
+
+logger = logging.getLogger(__name__)
+
+
+def _notify(fn, *args, **kwargs):
+    """Tell ticket holders about a change, without risking the change itself.
+
+    Best-effort by design: the edit the organiser made has already been saved,
+    and a failed notification must not undo it.
+    """
+    try:
+        fn(*args, **kwargs)
+    except Exception:
+        logger.exception("Event notification %s failed", getattr(fn, "__name__", fn))
+
+
+def _announce(event, before):
+    from apps.notifications import dispatch
+
+    if (
+        before["status"] != EventStatus.CANCELLED
+        and event.status == EventStatus.CANCELLED
+    ):
+        dispatch.event_cancelled(event)
+        return
+
+    dispatch.event_changed(
+        event,
+        time_changed=before["start_datetime"] != event.start_datetime,
+        venue_changed=before["venue_id"] != event.venue_id,
+    )
+
+
+def _snapshot(event):
+    return {
+        "status": event.status,
+        "start_datetime": event.start_datetime,
+        "venue_id": event.venue_id,
+    }
 
 
 class IsOrganizerOrReadOnly(permissions.BasePermission):
@@ -101,8 +142,20 @@ class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
+    def perform_update(self, serializer):
+        # Read the old values off the unsaved instance — after save() they're gone.
+        before = _snapshot(serializer.instance)
+        serializer.save()
+        event = serializer.instance
+        event.refresh_from_db()
+        _notify(_announce, event, before)
+
     def perform_destroy(self, instance):
         instance.soft_delete()
+        # A deleted event is a cancelled event to anyone holding a ticket for it.
+        from apps.notifications import dispatch
+
+        _notify(dispatch.event_cancelled, instance)
 
 
 @api_view(["POST", "DELETE"])

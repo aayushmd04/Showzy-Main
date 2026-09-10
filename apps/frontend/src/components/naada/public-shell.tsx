@@ -6,6 +6,7 @@ import { type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
+import { NotificationBell } from "@/components/naada/notification-bell";
 
 // Design tokens — mirrors discover.tsx exactly
 const T = {
@@ -148,6 +149,9 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 My Tickets
               </Link>
             )}
+
+            {/* Renders nothing at all when signed out — no bell, no request. */}
+            <NotificationBell />
 
             {/* Account avatar or Sign in */}
             {isLoggedIn ? (

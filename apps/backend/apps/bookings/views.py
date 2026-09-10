@@ -28,6 +28,19 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+def _notify(fn, *args, **kwargs):
+    """Fire a notification without letting it take the transaction down with it.
+
+    A booking that succeeded but whose notification failed is still a booking.
+    Every call site below is past the point of no return, so raising here would
+    roll back work that has already really happened.
+    """
+    try:
+        fn(*args, **kwargs)
+    except Exception:
+        logger.exception("Notification %s failed", getattr(fn, "__name__", fn))
+
+
 # ─── Organizer ──────────────────────────────────────────────────────────────
 
 @api_view(["GET", "POST"])
@@ -128,6 +141,13 @@ def review_application(request, pk):
     app.reviewed_at = timezone.now()
     app.reviewed_by = request.user
     app.save(update_fields=["status", "reviewed_at", "reviewed_by"])
+
+    # The artist applied and then heard nothing — until now the decision was
+    # invisible to the only person it was about.
+    from apps.notifications.dispatch import gig_application_reviewed
+
+    _notify(gig_application_reviewed, app)
+
     return Response(GigApplicationSerializer(app).data)
 
 
@@ -235,6 +255,11 @@ def make_offer(request, convo_id):
         message_type=BookingMessage.MsgType.OFFER,
         linked_offer=offer,
     )
+
+    from apps.notifications.dispatch import offer_made
+
+    _notify(offer_made, offer, request.user)
+
     return Response(OfferSerializer(offer).data, status=201)
 
 
@@ -301,6 +326,10 @@ def accept_offer(request, offer_id):
     except Exception as exc:
         logger.warning("Could not schedule kyc_nudge (no broker?): %s", exc)
 
+    from apps.notifications.dispatch import offer_answered
+
+    _notify(offer_answered, offer, request.user)
+
     return Response(BookingOrderSerializer(order).data, status=201)
 
 
@@ -319,6 +348,11 @@ def reject_offer(request, offer_id):
     offer.responded_by = request.user
     offer.responded_at = timezone.now()
     offer.save(update_fields=["status", "responded_by", "responded_at"])
+
+    from apps.notifications.dispatch import offer_answered
+
+    _notify(offer_answered, offer, request.user)
+
     return Response(OfferSerializer(offer).data)
 
 

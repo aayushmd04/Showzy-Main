@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 from .models import OTPToken, UserDevice
+from apps.core.urlfields import ForgivingURLField, SocialHandleField
 
 User = get_user_model()
 
@@ -25,6 +26,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
 
 class UserUpdateSerializer(serializers.ModelSerializer):
+    website = ForgivingURLField()
+    instagram = SocialHandleField(platform="Instagram", hosts=("instagram.com",), max_length=60)
+
     class Meta:
         model = User
         fields = ["full_name", "display_name", "phone", "avatar", "bio",

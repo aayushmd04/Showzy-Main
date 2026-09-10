@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from .models import Artist, ArtistPhoto, ArtistFollower
 from apps.core.serializers import GenreSerializer
+from apps.core.urlfields import ForgivingURLField, SocialHandleField
 
 #: Ceiling on stored blackout dates. A year of blocked dates is already an
 #: artist who is not taking bookings; beyond that it is a client bug.
@@ -172,6 +173,14 @@ class ArtistDetailSerializer(serializers.ModelSerializer):
 
 class ArtistCreateUpdateSerializer(serializers.ModelSerializer):
     availability = ArtistAvailabilityField(required=False)
+    # Nobody types "https://". These accept what a person actually writes and
+    # normalise it, rather than refusing a perfectly good address.
+    website = ForgivingURLField()
+    youtube = ForgivingURLField()
+    spotify = ForgivingURLField()
+    soundcloud = ForgivingURLField()
+    apple_music = ForgivingURLField()
+    instagram = SocialHandleField(platform="Instagram", hosts=("instagram.com",))
     # Accepted under the same names the read serializers emit, so a client can
     # round-trip a profile without renaming half its fields.
     fee_range_min = serializers.DecimalField(

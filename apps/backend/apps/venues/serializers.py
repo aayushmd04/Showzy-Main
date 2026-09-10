@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Venue, VenuePhoto, VenueHours, VenueOperatorAccess
 from apps.core.serializers import CitySerializer, AreaSerializer
+from apps.core.urlfields import ForgivingURLField, SocialHandleField
 
 
 class VenuePhotoSerializer(serializers.ModelSerializer):
@@ -53,6 +54,13 @@ class VenueDetailSerializer(serializers.ModelSerializer):
 
 
 class VenueCreateUpdateSerializer(serializers.ModelSerializer):
+    # Same forgiveness as artist profiles: a venue owner typing "myvenue.in"
+    # should not be told it is invalid.
+    website = ForgivingURLField()
+    facebook = ForgivingURLField()
+    google_maps_url = ForgivingURLField()
+    instagram = SocialHandleField(platform="Instagram", hosts=("instagram.com",))
+    twitter = SocialHandleField(platform="X", hosts=("twitter.com", "x.com"))
     class Meta:
         model = Venue
         exclude = ["owner", "is_deleted", "deleted_at", "is_verified", "is_featured", "slug"]

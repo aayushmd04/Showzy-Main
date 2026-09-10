@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { TODAY } from "@/lib/format";
+import { getCities, type ApiCity } from "@/lib/api";
 import type { NaadaEvent } from "@/data/fixtures";
 
 // ─── Design tokens per theme ─────────────────────────────────────────────────
@@ -408,8 +409,34 @@ export function DiscoverScreen() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [searchInput, setSearchInput]   = useState(searchParams.get("q") ?? "");
   const [activeFilter, setActiveFilter] = useState(0);
-  const [cityFilter, setCityFilter]     = useState<"all" | "mysuru" | "bengaluru">("all");
+  const [cityFilter, setCityFilter]     = useState("all");
+  const [cities, setCities]             = useState<ApiCity[]>([]);
   const tickerRef = useRef<HTMLDivElement>(null);
+
+  // Cities come from the API. They used to be hardcoded, matched by substrings
+  // like "gokulam" and "koramangala", so launching in a third city meant
+  // editing React and any venue in an unlisted area was unreachable by filter.
+  useEffect(() => {
+    getCities()
+      .then(setCities)
+      .catch(() => setCities([]));
+  }, []);
+
+  const cityOptions = useMemo(
+    () => ["all", ...cities.map((c) => c.name)],
+    [cities],
+  );
+
+  const cycleCity = () => {
+    const i = cityOptions.indexOf(cityFilter);
+    setCityFilter(cityOptions[(i + 1) % cityOptions.length] ?? "all");
+  };
+
+  const cityLabel = (value: string) => {
+    if (value === "all") return lang === "en" ? "All cities" : "ಎಲ್ಲಾ ನಗರಗಳು";
+    const match = cities.find((c) => c.name === value);
+    return lang === "kn" ? match?.name_kn || value : value;
+  };
 
   const isDark = theme === "dark";
   const tok    = isDark ? T.dark : T.light;
@@ -432,11 +459,7 @@ export function DiscoverScreen() {
       .filter((e) => {
         if (cityFilter === "all") return true;
         const ev = e as NaadaEvent & { _cityName?: string };
-        const city = (ev._cityName ?? "").toLowerCase();
-        const vArea = (venueOf(e)?.area ?? "").toLowerCase();
-        if (cityFilter === "mysuru") return city.includes("mys") || vArea.includes("gokulam") || vArea.includes("vv mohalla") || vArea.includes("jayalakshmi");
-        if (cityFilter === "bengaluru") return city.includes("beng") || city.includes("blr") || vArea.includes("koramangala") || vArea.includes("indiranagar") || vArea.includes("jayanagar");
-        return true;
+        return (ev._cityName ?? "").toLowerCase() === cityFilter.toLowerCase();
       })
       .sort((a, b) => a.date.localeCompare(b.date));
   }, [events, cityFilter, venueOf]);
@@ -559,10 +582,13 @@ export function DiscoverScreen() {
         <div className="discover-nav-right" style={{ alignItems: "center" }}>
           {/* City selector — cycles All → Mysuru → Bengaluru → All */}
           <button
-            onClick={() => setCityFilter(
-              cityFilter === "all" ? "mysuru" : cityFilter === "mysuru" ? "bengaluru" : "all"
-            )}
-            title={cityFilter === "all" ? "Showing all cities" : cityFilter === "mysuru" ? "Showing Mysuru events" : "Showing Bengaluru events"}
+            onClick={cycleCity}
+            disabled={cityOptions.length <= 1}
+            title={
+              cityFilter === "all"
+                ? "Showing all cities"
+                : `Showing ${cityFilter} events`
+            }
             style={{
               display: "flex",
               alignItems: "center",
@@ -581,13 +607,7 @@ export function DiscoverScreen() {
             }}
           >
             <span style={{ fontSize: 13, color: tok.signal }}>◎</span>
-            <span>
-              {cityFilter === "all"
-                ? lang === "en" ? "All cities" : "ಎಲ್ಲಾ ನಗರಗಳು"
-                : cityFilter === "mysuru"
-                ? lang === "en" ? "Mysuru" : "ಮೈಸೂರು"
-                : lang === "en" ? "Bengaluru" : "ಬೆಂಗಳೂರು"}
-            </span>
+            <span>{cityLabel(cityFilter)}</span>
           </button>
 
           {/* Language toggle */}

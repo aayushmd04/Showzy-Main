@@ -1,8 +1,12 @@
 from rest_framework import generics, permissions, status
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, parser_classes, permission_classes
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
-from .models import Artist, ArtistFollower
-from .serializers import ArtistListSerializer, ArtistDetailSerializer, ArtistCreateUpdateSerializer
+from .models import Artist, ArtistFollower, ArtistPhoto
+from .serializers import (
+    ArtistListSerializer, ArtistDetailSerializer, ArtistCreateUpdateSerializer,
+    ArtistPhotoSerializer,
+)
 
 
 class IsArtistOwnerOrReadOnly(permissions.BasePermission):
@@ -48,11 +52,34 @@ class ArtistListCreateView(generics.ListCreateAPIView):
 
 
 class ArtistDetailView(generics.RetrieveUpdateAPIView):
-    queryset = Artist.objects.filter(is_active=True, is_deleted=False)
+    queryset = (
+        Artist.objects.filter(is_active=True, is_deleted=False)
+        .select_related("city")
+        .prefetch_related("genres", "photos")
+    )
     permission_classes = [IsArtistOwnerOrReadOnly]
 
     def get_serializer_class(self):
         return ArtistCreateUpdateSerializer if self.request.method in ["PUT", "PATCH"] else ArtistDetailSerializer
+
+    def update(self, request, *args, **kwargs):
+        """Answer a write with the same shape a read returns.
+
+        DRF would otherwise echo the write serializer, whose genres are bare
+        ids and whose fees use the internal ``booking_fee_*`` names — so every
+        client had to re-fetch the profile to redraw it after saving.
+        """
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        # Re-read through the queryset: the prefetched genres on `instance` are
+        # the pre-save set once the m2m has been rewritten.
+        fresh = self.get_queryset().get(pk=instance.pk)
+        return Response(
+            ArtistDetailSerializer(fresh, context=self.get_serializer_context()).data
+        )
 
 
 @api_view(["GET"])
@@ -73,6 +100,71 @@ def my_artist_profile(request):
         )
 
     return Response(ArtistDetailSerializer(artist, context={"request": request}).data)
+
+
+def _own_artist_or_error(request, pk):
+    """Resolve an artist the caller is allowed to modify.
+
+    Returns ``(artist, None)`` or ``(None, Response)`` — the same ownership
+    rule ``IsArtistOwnerOrReadOnly`` applies to the detail endpoint, spelled
+    out here because function views get no object-permission hook.
+    """
+    artist = generics.get_object_or_404(Artist, pk=pk, is_deleted=False)
+    if artist.user_id is None or artist.user_id != request.user.id:
+        return None, Response(
+            {"detail": "You can only change photos on your own artist profile."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return artist, None
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+@parser_classes([MultiPartParser, FormParser])
+def upload_artist_photo(request, pk):
+    """Attach a photo to an artist profile. Mirrors ``upload_venue_photo``."""
+    artist, error = _own_artist_or_error(request, pk)
+    if error:
+        return error
+    serializer = ArtistPhotoSerializer(data=request.data, context={"request": request})
+    serializer.is_valid(raise_exception=True)
+    # The first photo an artist uploads is their cover; nothing else would be.
+    is_primary = serializer.validated_data.get("is_primary") or not artist.photos.exists()
+    serializer.save(artist=artist, is_primary=is_primary)
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def set_primary_artist_photo(request, pk, photo_id):
+    """Promote one photo to the profile cover. ``ArtistPhoto.save`` demotes the rest."""
+    artist, error = _own_artist_or_error(request, pk)
+    if error:
+        return error
+    photo = generics.get_object_or_404(ArtistPhoto, pk=photo_id, artist=artist)
+    photo.is_primary = True
+    photo.save()
+    return Response(ArtistPhotoSerializer(photo, context={"request": request}).data)
+
+
+@api_view(["POST", "DELETE"])
+@permission_classes([permissions.IsAuthenticated])
+def delete_artist_photo(request, pk, photo_id):
+    """Remove a photo. POST is accepted alongside DELETE so browser clients
+    that only speak GET/POST/PATCH can still undo a bad upload."""
+    artist, error = _own_artist_or_error(request, pk)
+    if error:
+        return error
+    photo = generics.get_object_or_404(ArtistPhoto, pk=photo_id, artist=artist)
+    was_primary = photo.is_primary
+    photo.delete()
+    if was_primary:
+        # Never leave a profile with photos but no cover — the card would go blank.
+        replacement = artist.photos.first()
+        if replacement:
+            replacement.is_primary = True
+            replacement.save()
+    return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST", "DELETE"])

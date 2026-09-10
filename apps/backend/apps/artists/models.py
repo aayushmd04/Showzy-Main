@@ -22,6 +22,13 @@ class Artist(TimeStampedModel, SoftDeleteModel):
     booking_fee_max = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     booking_notes = models.TextField(blank=True)
 
+    # Hosts open almost every conversation with "are you free on the 14th?".
+    # A dict is proportionate: the artist marks the dates they cannot play and
+    # adds a line of context. Shape (enforced in ArtistAvailabilityField):
+    #   {"blackout_dates": ["2026-08-14", ...], "notes": "Touring in July."}
+    # An empty dict means "no dates blocked", which is also the default.
+    availability = models.JSONField(default=dict, blank=True)
+
     instagram = models.CharField(max_length=80, blank=True)
     youtube = models.URLField(blank=True)
     spotify = models.URLField(blank=True)

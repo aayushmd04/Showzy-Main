@@ -47,6 +47,13 @@ class Venue(TimeStampedModel, SoftDeleteModel):
     policies = models.JSONField(default=dict, blank=True)
     amenities = models.JSONField(default=list, blank=True)
 
+    # Floor plan authored in the host console's layout designer. Shape:
+    # {"version": 1, "elements": [{id, type, x, y, w, h, label, capacity}, ...]}
+    # Percentages of the canvas, so it renders at any size. Stored server-side
+    # rather than in the host's browser because door staff and ticket buyers
+    # both need to see it, and seat-level ticketing reads capacity from it.
+    layout = models.JSONField(default=dict, blank=True)
+
     contact_phone = models.CharField(max_length=20, blank=True)
     contact_email = models.EmailField(blank=True)
     website = models.URLField(blank=True)

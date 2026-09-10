@@ -46,6 +46,9 @@ class VenueDetailSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Venue
+        # Everything but the soft-delete bookkeeping, so `layout` (the floor
+        # plan the host designs) is read back here and written through
+        # VenueCreateUpdateSerializer below without a bespoke endpoint.
         exclude = ["is_deleted", "deleted_at"]
 
 

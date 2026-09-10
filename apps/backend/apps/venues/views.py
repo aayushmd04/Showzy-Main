@@ -29,10 +29,19 @@ class VenueListCreateView(generics.ListCreateAPIView):
         qs = Venue.objects.filter(is_active=True, is_deleted=False).select_related("city", "area")
         city = self.request.query_params.get("city")
         featured = self.request.query_params.get("featured")
+        mine = self.request.query_params.get("mine")
         if city:
             qs = qs.filter(city__slug=city)
         if featured:
             qs = qs.filter(is_featured=True)
+        if mine and mine.lower() not in ("0", "false"):
+            # The host console needs "which venues are mine?" to decide between
+            # the venue editor and the create form. Anonymous callers asking for
+            # `mine` get nothing rather than everyone else's venues.
+            if self.request.user.is_authenticated:
+                qs = qs.filter(owner=self.request.user)
+            else:
+                qs = qs.none()
         return qs.prefetch_related("photos")
 
 

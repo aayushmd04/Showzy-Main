@@ -197,8 +197,18 @@ export function PublicShell({ children }: { children: ReactNode }) {
       <footer style={{ borderTop: `1px solid ${tok.footerBorder}`, background: tok.footerBg, marginTop: 64 }}>
         <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 16, padding: "32px 24px" }}>
           <NaadaLogo tok={tok} />
+          {/* Terms, Privacy, Refunds and Contact must be reachable from the
+              site itself — a payment gateway's merchant review checks for them,
+              and a buyer looking for a refund policy should not have to guess
+              the URL. */}
           <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-            {NAV_LINKS.slice(1).map(({ label, path }) => (
+            {[
+              ...NAV_LINKS.slice(1),
+              { label: "Terms", path: "/terms" },
+              { label: "Privacy", path: "/privacy" },
+              { label: "Refunds", path: "/refunds" },
+              { label: "Contact", path: "/contact" },
+            ].map(({ label, path }) => (
               <Link key={path} to={path} style={{ fontSize: 13, color: tok.muted, textDecoration: "none" }}>{label}</Link>
             ))}
           </div>

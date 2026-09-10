@@ -1240,7 +1240,10 @@ export function DiscoverScreen() {
           <Link to="/artists"      style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Artists" : "ಕಲಾವಿದರು"}</Link>
           <Link to="/venues"       style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು"}</Link>
           <Link to="/how-it-works" style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "How it works" : "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ"}</Link>
-          <span style={{ cursor: "pointer" }}>{lang === "en" ? "Terms" : "ನಿಯಮಗಳು"}</span>
+          <Link to="/terms" style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Terms" : "ನಿಯಮಗಳು"}</Link>
+          <Link to="/privacy" style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Privacy" : "ಗೌಪ್ಯತೆ"}</Link>
+          <Link to="/refunds" style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Refunds" : "ಮರುಪಾವತಿ"}</Link>
+          <Link to="/contact" style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Contact" : "ಸಂಪರ್ಕ"}</Link>
         </div>
         <span style={{ fontSize: 14, color: tok.muted }}>
           {lang === "en" ? "Grassroots live music · Mysuru & Bengaluru" : "ಮೈಸೂರು ಮತ್ತು ಬೆಂಗಳೂರಿನಲ್ಲಿ ಸಂಗೀತ"}

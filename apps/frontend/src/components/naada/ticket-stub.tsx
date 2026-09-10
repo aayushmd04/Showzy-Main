@@ -12,12 +12,19 @@ import { cn } from "@/lib/utils";
  */
 export function TicketStub({
   code,
+  qrImageUrl,
   children,
   stub,
   className,
   tone = "surface",
 }: {
   code: string;
+  /**
+   * The server-rendered QR. Required for a ticket anyone will actually scan —
+   * QrBlock is a decorative pattern, not a readable code, so a door scanner
+   * gets nothing from it.
+   */
+  qrImageUrl?: string;
   children: ReactNode;
   stub?: ReactNode;
   className?: string;
@@ -66,7 +73,15 @@ export function TicketStub({
           {stub ?? (
             <>
               <div className="size-[104px] shrink-0 border border-line bg-paper p-1.5 sm:size-[116px]">
-                <QrBlock code={code} />
+                {qrImageUrl ? (
+                  <img
+                    src={qrImageUrl}
+                    alt={`QR code for ticket ${code}`}
+                    className="size-full object-contain"
+                  />
+                ) : (
+                  <QrBlock code={code} />
+                )}
               </div>
               <p
                 className={cn(

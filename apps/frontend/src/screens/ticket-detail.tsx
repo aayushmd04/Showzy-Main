@@ -9,6 +9,8 @@ import { Modal } from "@/components/ui/modal";
 import { Pill } from "@/components/ui/pill";
 import { useStore } from "@/store/app-store";
 import { dateListingFull, money } from "@/lib/format";
+import { CONVENIENCE_FEE } from "@/data/fixtures";
+import { usePageMeta } from "@/lib/use-meta";
 import { NotFoundScreen } from "./not-found";
 
 /** Section 7.7 — the signature screen. */
@@ -23,10 +25,26 @@ export function TicketDetailScreen() {
   const ticket = ticketByCode(code);
   const event = ticket ? eventById(ticket.eventId) : undefined;
 
+  usePageMeta({
+    title: ticket ? `Ticket ${ticket.code}` : "Ticket",
+    description: event ? `Your ticket for ${event.name}.` : undefined,
+  });
+
   if (!ticket || !event) return <NotFoundScreen />;
 
   const venue = venueOf(event);
-  const paid = ticket.price + ticket.fee;
+
+  /*
+   * The tickets endpoint carries no price, so a server-issued ticket arrives
+   * with zero. Reading that literally made every paid ticket announce "Free
+   * entry". Take the amount from the event's own tier instead, and say nothing
+   * about price when the tier can't be found rather than guessing.
+   */
+  const tierOnEvent = event.tiers.find((t) => t.name === ticket.tier);
+  const tierPrice = tierOnEvent?.price ?? (ticket.price || null);
+  // Paid tickets carry the same per-ticket booking fee the order charged.
+  const bookingFee = tierPrice ? CONVENIENCE_FEE : 0;
+  const paid = tierPrice === null ? null : tierPrice + bookingFee;
 
   return (
     <PublicShell>
@@ -54,7 +72,10 @@ export function TicketDetailScreen() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: reduce ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }}
         >
-          <TicketStub code={ticket.code}>
+          <TicketStub
+            code={ticket.code}
+            qrImageUrl={(ticket as { _qrImageUrl?: string })._qrImageUrl}
+          >
             <p className="t-display break-words text-[clamp(24px,5vw,34px)]">{event.name}</p>
             <p className="t-body mt-2 text-muted">
               {venue?.name} · {venue?.area}
@@ -71,15 +92,17 @@ export function TicketDetailScreen() {
               {ticket.code}
             </p>
 
-            <p className="t-mono mt-5 text-[15px]">
-              {ticket.price === 0 ? (
-                <span className="text-live">Free entry</span>
-              ) : (
-                <>
-                  Paid <span className="font-medium">{money(paid)}</span>
-                </>
-              )}
-            </p>
+            {paid !== null && (
+              <p className="t-mono mt-5 text-[15px]">
+                {paid === 0 ? (
+                  <span className="text-live">Free entry</span>
+                ) : (
+                  <>
+                    Paid <span className="font-medium">{money(paid)}</span>
+                  </>
+                )}
+              </p>
+            )}
             {ticket.status === "cancelled" && (
               <p className="t-small mt-3 text-fault">
                 Cancelled. Refunds take 5–7 working days.

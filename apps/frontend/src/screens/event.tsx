@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Check, Share2 } from "lucide-react";
 import { PublicShell } from "@/components/naada/public-shell";
@@ -8,7 +8,9 @@ import { Pill } from "@/components/ui/pill";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { useStore } from "@/store/app-store";
 import { usePageMeta } from "@/lib/use-meta";
-import { CONVENIENCE_FEE } from "@/data/fixtures";
+import { getEvent } from "@/lib/api";
+import { adaptEvent } from "@/lib/adapters";
+import { CONVENIENCE_FEE, type NaadaEvent } from "@/data/fixtures";
 import { dateBody, dateListingFull, money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { NotFoundScreen } from "./not-found";
@@ -22,13 +24,45 @@ export function EventScreen() {
   const navigate = useNavigate();
   const { eventById, venueOf, artistById, startCheckout, toast, role } = useStore();
   const { open: openAuth } = useAuthSheet();
-  const event = eventById(id);
+
+  /*
+   * The events *list* endpoint returns ticket_tiers as null, so the adapter
+   * synthesises a single placeholder tier with no server id. An event opened
+   * from the store alone therefore had nothing orderable on it — the buy button
+   * refused every purchase as "sample data". Only the detail endpoint carries
+   * real tiers, so fetch it and prefer it.
+   */
+  const stored = eventById(id);
+  const [detail, setDetail] = useState<NaadaEvent | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    setDetail(null);
+    if (!id) return;
+    getEvent(id)
+      .then((raw) => {
+        if (alive) setDetail(adaptEvent(raw));
+      })
+      .catch(() => {
+        // Offline or unknown id — the stored copy still renders the page.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [id]);
+
+  const event = detail ?? stored;
 
   const firstAvailable = useMemo(
     () => event?.tiers.find((t) => t.sold < t.capacity)?.name ?? null,
     [event],
   );
-  const [selected, setSelected] = useState<string | null>(firstAvailable);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  // Tiers arrive with the detail fetch, so the default selection has to follow.
+  useEffect(() => {
+    setSelected((current) => current ?? firstAvailable);
+  }, [firstAvailable]);
 
   // Before the early return — hooks can't sit behind a conditional.
   const metaVenue = event ? venueOf(event) : undefined;

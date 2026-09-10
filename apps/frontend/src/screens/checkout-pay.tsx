@@ -65,6 +65,13 @@ export function CheckoutPayScreen() {
 
   const event = checkout.eventId ? eventById(checkout.eventId) : undefined;
   const tier = event?.tiers.find((t) => t.name === checkout.tierName);
+  /*
+   * The store holds events from the *list* endpoint, whose tiers are
+   * synthesised and carry no server id. The real id was captured on the event
+   * screen (which fetches the detail) and threaded through the draft, so trust
+   * that over anything re-derived from the store here.
+   */
+  const tierId = checkout.tierId ?? tier?.id ?? null;
   const qty = checkout.qty || 1;
 
   const ticketTotal = (tier?.price ?? 0) * qty;
@@ -147,10 +154,10 @@ export function CheckoutPayScreen() {
       openAuth("Sign in to complete your booking");
       return;
     }
-    if (!tier.id) {
+    if (!tierId) {
       setPhase("failed");
       setError(
-        "This event is sample data and can't be booked. Events created through the host console can.",
+        "We couldn't find the ticket type to book. Go back to the event and choose it again.",
       );
       return;
     }
@@ -162,7 +169,7 @@ export function CheckoutPayScreen() {
       // 1. Reserve inventory server-side. This is what actually holds the seat.
       const order = await api.createTicketOrder({
         event_id: event.id,
-        items: [{ tier_id: tier.id, quantity: qty }],
+        items: [{ tier_id: tierId, quantity: qty }],
         promo_code: promoState?.valid ? promo.trim() : undefined,
       });
 

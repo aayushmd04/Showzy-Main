@@ -252,7 +252,7 @@ describe("CheckoutPayScreen", () => {
 
     await user.click(await screen.findByRole("button", { name: "Pay ₹518" }));
 
-    expect(await screen.findByText(/sample data and can't be booked/i)).toBeInTheDocument();
+    expect(await screen.findByText(/couldn't find the ticket type/i)).toBeInTheDocument();
     expect(api.createTicketOrder).not.toHaveBeenCalled();
   });
 

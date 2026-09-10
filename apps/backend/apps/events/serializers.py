@@ -23,14 +23,29 @@ class EventPhotoSerializer(serializers.ModelSerializer):
 class EventReviewSerializer(serializers.ModelSerializer):
     reviewer_name = serializers.CharField(source="reviewer.name", read_only=True)
     reviewer_avatar = serializers.ImageField(source="reviewer.avatar", read_only=True)
+    is_mine = serializers.SerializerMethodField()
 
     class Meta:
         model = EventReview
         fields = [
             "id", "reviewer_name", "reviewer_avatar", "rating",
-            "comment", "is_verified_attendee", "created_at",
+            "comment", "is_verified_attendee", "is_mine", "created_at",
         ]
         read_only_fields = ["id", "is_verified_attendee", "created_at"]
+
+    def get_is_mine(self, obj):
+        """Lets a client show "your review" instead of offering a blank form.
+
+        One review per person per event is a database constraint, so without
+        this the UI has no way to tell whose row is whose — reviewer_name is
+        not an identity.
+        """
+        request = self.context.get("request")
+        return bool(
+            request
+            and request.user.is_authenticated
+            and obj.reviewer_id == request.user.id
+        )
 
 
 class EventListSerializer(serializers.ModelSerializer):

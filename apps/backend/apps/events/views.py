@@ -193,14 +193,30 @@ def publish_event(request, pk):
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def create_review(request, pk):
+    """Leave — or correct — this user's one review of the event.
+
+    ``EventReview`` is unique per (event, reviewer). Blindly creating a second
+    one raised IntegrityError straight out of the view, which reached the
+    client as a 500 and an HTML debug page. Someone fixing a typo in their own
+    review is a normal thing to do, so re-posting updates the existing row
+    instead of blowing up.
+    """
     event = generics.get_object_or_404(Event, pk=pk, is_deleted=False)
-    has_ticket = event.tickets.filter(user=request.user, status="valid").exists() or \
-                 event.tickets.filter(user=request.user, status="used").exists()
-    serializer = EventReviewSerializer(data=request.data)
+    has_ticket = event.tickets.filter(
+        user=request.user, status__in=["valid", "used"]
+    ).exists()
+
+    existing = EventReview.objects.filter(event=event, reviewer=request.user).first()
+    serializer = EventReviewSerializer(
+        existing, data=request.data, context={"request": request}
+    )
     serializer.is_valid(raise_exception=True)
     serializer.save(
         event=event,
         reviewer=request.user,
         is_verified_attendee=has_ticket,
     )
-    return Response(serializer.data, status=status.HTTP_201_CREATED)
+    return Response(
+        serializer.data,
+        status=status.HTTP_200_OK if existing else status.HTTP_201_CREATED,
+    )

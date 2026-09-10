@@ -177,7 +177,9 @@ function EventCard({
   lang: "en" | "kn";
   onGetTicket: (eventId: string) => void;
 }) {
-  const photo = gigPhoto(index);
+  // Prefer the event's own image; the rotating set is the fallback so cards
+  // never repeat the same five photos when real ones exist.
+  const photo = (event as NaadaEvent & { _posterImage?: string })._posterImage ?? gigPhoto(index);
   const pct   = soldPct(event);
   const left  = seatsLeft(event);
   const sold  = isSoldOut(event);

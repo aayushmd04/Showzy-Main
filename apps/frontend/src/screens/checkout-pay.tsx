@@ -1,81 +1,274 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { PublicShell } from "@/components/naada/public-shell";
 import { Button } from "@/components/ui/button";
-import { StateToggle } from "@/components/naada/state-toggle";
+import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/app-store";
-import { CONVENIENCE_FEE } from "@/data/fixtures";
+import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { dateListing, money } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import * as api from "@/lib/api";
+import { ApiError } from "@/lib/api";
 
-/**
- * Section 7.6. Payments are fake: 800ms spinner, then success. There is no
- * payment SDK anywhere in this prototype, and a "simulate failure" link keeps
- * the error state demoable.
- */
+type Phase =
+  | "review"       // showing the order, nothing reserved yet
+  | "reserving"    // creating the order server-side
+  | "paying"       // gateway sheet is open
+  | "verifying"    // confirming the payment with our backend
+  | "failed";
 
-const STATES = ["ready", "processing", "success", "failed"] as const;
-type PayState = (typeof STATES)[number];
+const RAZORPAY_SDK = "https://checkout.razorpay.com/v1/checkout.js";
 
-const METHODS = [
-  { id: "upi", label: "UPI" },
-  { id: "card", label: "Card" },
-  { id: "netbanking", label: "Netbanking" },
-];
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
+
+interface RazorpayCtor {
+  new (options: Record<string, unknown>): { open: () => void };
+}
+
+function loadRazorpay(): Promise<RazorpayCtor> {
+  const existing = (window as unknown as { Razorpay?: RazorpayCtor }).Razorpay;
+  if (existing) return Promise.resolve(existing);
+
+  return new Promise((resolve, reject) => {
+    const tag = document.createElement("script");
+    tag.src = RAZORPAY_SDK;
+    tag.async = true;
+    tag.onload = () => {
+      const ctor = (window as unknown as { Razorpay?: RazorpayCtor }).Razorpay;
+      ctor ? resolve(ctor) : reject(new Error("Razorpay SDK loaded but unavailable"));
+    };
+    tag.onerror = () => reject(new Error("Could not reach the payment provider"));
+    document.body.appendChild(tag);
+  });
+}
 
 export function CheckoutPayScreen() {
   const navigate = useNavigate();
-  const { checkout, eventById, completePurchase } = useStore();
-  const [state, setState] = useState<PayState>("ready");
-  const [method, setMethod] = useState("upi");
+  const { checkout, eventById, currentUser, hydrateFromApi, clearCheckout, toast, role } =
+    useStore();
+  const { open: openAuth } = useAuthSheet();
+
+  const [phase, setPhase] = useState<Phase>("review");
+  const [error, setError] = useState<string | null>(null);
+  const [promo, setPromo] = useState("");
+  const [promoState, setPromoState] = useState<api.PromoValidation | null>(null);
+  const [promoChecking, setPromoChecking] = useState(false);
+  const [mockSheet, setMockSheet] = useState<api.InitiatePaymentResponse | null>(null);
+  const cancelled = useRef(false);
+
+  useEffect(() => () => { cancelled.current = true; }, []);
 
   const event = checkout.eventId ? eventById(checkout.eventId) : undefined;
   const tier = event?.tiers.find((t) => t.name === checkout.tierName);
+  const qty = checkout.qty || 1;
 
-  useEffect(() => {
-    if (state !== "processing") return;
-    const timer = window.setTimeout(() => {
-      const ticket = completePurchase();
-      navigate(`/ticket/${ticket.code}?new=1`, { replace: true });
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [state, completePurchase, navigate]);
+  const ticketTotal = (tier?.price ?? 0) * qty;
+  const discount = promoState?.valid ? promoState.discount_amount ?? 0 : 0;
+  const total = Math.max(0, ticketTotal - discount);
+  const isFree = ticketTotal === 0;
+
+  const finish = useCallback(
+    async (eventId: string) => {
+      await hydrateFromApi().catch(() => {});
+      clearCheckout();
+      // The server issues the ticket number; find the newest one for this event.
+      try {
+        const mine = await api.getMyTickets();
+        const match = mine.results
+          .filter((t) => t.event?.id === eventId)
+          .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+        if (match) {
+          navigate(`/ticket/${match.ticket_number}?new=1`, { replace: true });
+          return;
+        }
+      } catch {
+        /* fall through to the list */
+      }
+      navigate("/tickets", { replace: true });
+    },
+    [hydrateFromApi, clearCheckout, navigate],
+  );
+
+  const confirm = useCallback(
+    async (orderId: string, eventId: string, payload: {
+      gateway_order_id: string;
+      gateway_payment_id: string;
+      gateway_signature: string;
+    }) => {
+      setPhase("verifying");
+      try {
+        await api.verifyPayment({ order_id: orderId, ...payload });
+        await finish(eventId);
+      } catch (err) {
+        if (cancelled.current) return;
+        setPhase("failed");
+        setError(
+          err instanceof ApiError
+            ? err.detail
+            : "We could not confirm the payment. If money left your account, it will be returned.",
+        );
+      }
+    },
+    [finish],
+  );
+
+  const checkPromo = async () => {
+    if (!promo.trim() || !event) return;
+    setPromoChecking(true);
+    try {
+      const result = await api.validatePromo({
+        code: promo.trim(),
+        event_id: event.id,
+        order_amount: ticketTotal,
+      });
+      setPromoState(result);
+      toast(result.valid ? "Promo applied" : result.detail ?? "That code didn't work",
+            result.valid ? "success" : "fault");
+    } catch {
+      setPromoState({ valid: false, detail: "Could not check that code" });
+      toast("Could not check that code", "fault");
+    } finally {
+      setPromoChecking(false);
+    }
+  };
+
+  const pay = async () => {
+    if (!event || !tier) return;
+
+    if (role === "out") {
+      openAuth("Sign in to complete your booking");
+      return;
+    }
+    if (!tier.id) {
+      setPhase("failed");
+      setError(
+        "This event is sample data and can't be booked. Events created through the host console can.",
+      );
+      return;
+    }
+
+    setError(null);
+    setPhase("reserving");
+
+    try {
+      // 1. Reserve inventory server-side. This is what actually holds the seat.
+      const order = await api.createTicketOrder({
+        event_id: event.id,
+        items: [{ tier_id: tier.id, quantity: qty }],
+        promo_code: promoState?.valid ? promo.trim() : undefined,
+      });
+
+      // 2. Ask the backend to open a payment against it.
+      const intent = await api.initiatePayment({ order_id: order.id });
+
+      // Free and complimentary orders are confirmed by the backend immediately.
+      if (intent.status === "success") {
+        await finish(event.id);
+        return;
+      }
+
+      if (intent.is_mock) {
+        // No Razorpay account yet: the backend signs a simulated payment with
+        // the same HMAC the live gateway uses, so verification runs for real.
+        setMockSheet(intent);
+        setPhase("paying");
+        return;
+      }
+
+      // 3. Live Razorpay.
+      const Razorpay = await loadRazorpay();
+      setPhase("paying");
+      const rzp = new Razorpay({
+        key: intent.razorpay_key,
+        order_id: intent.gateway_order_id,
+        amount: intent.amount,
+        currency: intent.currency ?? "INR",
+        name: "Naada",
+        description: `${event.name} · ${tier.name}`,
+        prefill: {
+          name: currentUser?.full_name ?? checkout.guest.name,
+          email: currentUser?.email ?? checkout.guest.email,
+          contact: checkout.guest.phone,
+        },
+        theme: { color: "#D4380D" },
+        handler: (res: RazorpayResponse) =>
+          confirm(order.id, event.id, {
+            gateway_order_id: res.razorpay_order_id,
+            gateway_payment_id: res.razorpay_payment_id,
+            gateway_signature: res.razorpay_signature,
+          }),
+        modal: {
+          ondismiss: () => {
+            if (cancelled.current) return;
+            setPhase("review");
+            toast("Payment cancelled — your seats are held for a few more minutes");
+          },
+        },
+      });
+      rzp.open();
+    } catch (err) {
+      if (cancelled.current) return;
+      setPhase("failed");
+      setError(err instanceof ApiError ? err.detail : (err as Error).message);
+    }
+  };
+
+  const completeMock = async (outcome: "success" | "failure") => {
+    if (!mockSheet || !event) return;
+    setMockSheet(null);
+    if (outcome === "failure") {
+      setPhase("failed");
+      setError("The payment was declined. No money was taken.");
+      return;
+    }
+    setPhase("verifying");
+    try {
+      const signed = await api.completeMockPayment({
+        order_id: mockSheet.order_id,
+        gateway_order_id: mockSheet.gateway_order_id ?? "",
+      });
+      await confirm(mockSheet.order_id, event.id, signed);
+    } catch (err) {
+      if (cancelled.current) return;
+      setPhase("failed");
+      setError(err instanceof ApiError ? err.detail : "Simulated payment failed");
+    }
+  };
 
   if (!event || !tier) return <Navigate to="/" replace />;
 
-  const fee = tier.price > 0 ? CONVENIENCE_FEE : 0;
-  const total = tier.price + fee;
+  const busy = phase === "reserving" || phase === "verifying";
 
   return (
     <PublicShell>
       <div className="mx-auto w-full max-w-[560px] px-4 py-8 md:py-12">
-        <div className="flex items-center justify-between gap-3">
-          <p className="t-micro">Step 2 of 2</p>
-          <StateToggle value={state} options={STATES} onChange={setState} />
-        </div>
+        <p className="t-micro">Step 2 of 2</p>
+        <h1 className="t-h1 mt-2">{isFree ? "Confirm your spot" : "Payment"}</h1>
 
-        <h1 className="t-h1 mt-2">Payment</h1>
-
+        {/* ── Order summary ─────────────────────────────────────────── */}
         <section className="mt-6 border border-line bg-surface">
           <h2 className="t-micro border-b border-line px-4 py-3">Order</h2>
           <div className="px-4 py-4">
             <p className="t-h3">{event.name}</p>
             <p className="t-small mt-1 text-muted">
-              {dateListing(event.date)} · {tier.name} × {checkout.qty}
+              {dateListing(event.date)} · {tier.name} × {qty}
             </p>
 
             <dl className="mt-4 space-y-1.5 border-t border-line pt-4">
               <div className="flex justify-between gap-4">
-                <dt className="t-small text-muted">Ticket</dt>
+                <dt className="t-small text-muted">Tickets</dt>
                 <dd className="t-mono text-[14px]">
-                  {tier.price === 0 ? "FREE" : money(tier.price)}
+                  {ticketTotal === 0 ? "FREE" : money(ticketTotal)}
                 </dd>
               </div>
-              {fee > 0 && (
+              {discount > 0 && (
                 <div className="flex justify-between gap-4">
-                  <dt className="t-small text-muted">Convenience fee</dt>
-                  <dd className="t-mono text-[14px]">{money(fee)}</dd>
+                  <dt className="t-small text-live">Promo discount</dt>
+                  <dd className="t-mono text-[14px] text-live">−{money(discount)}</dd>
                 </div>
               )}
               <div className="flex justify-between gap-4 border-t border-line pt-2">
@@ -88,74 +281,120 @@ export function CheckoutPayScreen() {
           </div>
         </section>
 
-        {state === "failed" ? (
-          <section className="mt-6 border border-fault bg-surface p-5">
-            <h2 className="t-h2 text-fault">Payment didn't go through</h2>
-            <p className="t-body mt-2 text-paper/90">
-              No money was taken. Your seats are held for 8 more minutes.
-            </p>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Button variant="primary" onClick={() => setState("processing")}>
-                Try again
+        {/* ── Promo code ────────────────────────────────────────────── */}
+        {!isFree && phase === "review" && (
+          <section className="mt-4">
+            <label htmlFor="promo" className="t-micro">
+              Promo code
+            </label>
+            <div className="mt-2 flex gap-2">
+              <Input
+                id="promo"
+                value={promo}
+                onChange={(e) => {
+                  setPromo(e.target.value.toUpperCase());
+                  setPromoState(null);
+                }}
+                placeholder="NAADA10"
+                className="t-mono flex-1"
+                autoComplete="off"
+              />
+              <Button
+                type="button"
+                onClick={checkPromo}
+                disabled={!promo.trim() || promoChecking}
+              >
+                {promoChecking ? "Checking…" : "Apply"}
               </Button>
-              <Button onClick={() => setState("ready")}>Change payment method</Button>
             </div>
-          </section>
-        ) : (
-          <section className="mt-6">
-            <h2 className="t-micro">Pay with</h2>
-            <div className="mt-3 grid grid-cols-3 gap-2" role="radiogroup" aria-label="Payment method">
-              {METHODS.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={method === m.id}
-                  onClick={() => setMethod(m.id)}
-                  className={cn(
-                    "flex min-h-11 items-center justify-center gap-2 border px-3 text-[14px] transition-colors",
-                    method === m.id
-                      ? "border-paper bg-surface-2 text-paper"
-                      : "border-line text-muted hover:text-paper",
-                  )}
-                >
-                  <span aria-hidden="true">{method === m.id ? "◉" : "○"}</span>
-                  {m.label}
-                </button>
-              ))}
-            </div>
-
-            <Button
-              variant="primary"
-              full
-              className="mt-6"
-              disabled={state === "processing"}
-              onClick={() => setState("processing")}
-            >
-              {state === "processing" ? (
-                <>
-                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
-                  Processing
-                </>
-              ) : (
-                `Pay ${total === 0 ? "nothing — reserve" : money(total)}`
-              )}
-            </Button>
-
-            <button
-              type="button"
-              onClick={() => setState("failed")}
-              className="t-small mx-auto mt-4 block text-muted link-underline hover:text-paper"
-            >
-              Simulate a failed payment
-            </button>
+            {promoState && !promoState.valid && (
+              <p className="t-small mt-2 text-fault">{promoState.detail}</p>
+            )}
           </section>
         )}
 
-        <p className="t-small mt-8 text-center text-muted">
-          Prototype only. No payment provider is connected and no card details are collected.
-        </p>
+        {/* ── Failure ───────────────────────────────────────────────── */}
+        {phase === "failed" && (
+          <section className="mt-6 border border-fault bg-surface p-5">
+            <h2 className="t-h2 flex items-center gap-2 text-fault">
+              <AlertCircle className="size-5" aria-hidden="true" />
+              Payment didn't go through
+            </h2>
+            <p className="t-body mt-2 text-paper/90">{error}</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Button variant="primary" onClick={() => { setPhase("review"); setError(null); }}>
+                Try again
+              </Button>
+              <Button onClick={() => navigate(`/e/${event.id}`)}>Back to event</Button>
+            </div>
+          </section>
+        )}
+
+        {/* ── Pay ───────────────────────────────────────────────────── */}
+        {phase !== "failed" && (
+          <section className="mt-6">
+            <Button variant="primary" full disabled={busy || phase === "paying"} onClick={pay}>
+              {phase === "reserving" ? (
+                <><Loader2 className="size-4 animate-spin" aria-hidden="true" />Holding your seats…</>
+              ) : phase === "verifying" ? (
+                <><Loader2 className="size-4 animate-spin" aria-hidden="true" />Confirming payment…</>
+              ) : phase === "paying" ? (
+                <><Loader2 className="size-4 animate-spin" aria-hidden="true" />Waiting for payment…</>
+              ) : total === 0 ? (
+                "Reserve my spot"
+              ) : (
+                `Pay ${money(total)}`
+              )}
+            </Button>
+
+            <p className="t-small mt-4 flex items-center justify-center gap-1.5 text-muted">
+              <Lock className="size-3.5" aria-hidden="true" />
+              Payment is processed securely. Naada never sees your card details.
+            </p>
+          </section>
+        )}
       </div>
+
+      {/* ── Simulated payment sheet ─────────────────────────────────── */}
+      {mockSheet && (
+        <div
+          className="fixed inset-0 z-[200] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="mock-pay-title"
+        >
+          <div className="w-full max-w-[420px] border border-line bg-surface p-6">
+            <div className="flex items-center gap-2 border-b border-line pb-3">
+              <ShieldCheck className="size-4 text-signal" aria-hidden="true" />
+              <h2 id="mock-pay-title" className="t-h3">Test payment</h2>
+            </div>
+            <p className="t-small mt-3 text-muted">
+              Naada isn't connected to a live payment provider yet, so this stands in for
+              the real sheet. Everything either side of it is real — the order, the
+              signature check, and the ticket you get at the end.
+            </p>
+            <dl className="mt-4 flex justify-between border-t border-line pt-3">
+              <dt className="t-small text-muted">Amount</dt>
+              <dd className="t-mono text-[17px]">{money(total)}</dd>
+            </dl>
+            <div className="mt-5 flex flex-col gap-2">
+              <Button variant="primary" full onClick={() => completeMock("success")}>
+                Approve payment
+              </Button>
+              <Button full onClick={() => completeMock("failure")}>
+                Decline payment
+              </Button>
+              <button
+                type="button"
+                onClick={() => { setMockSheet(null); setPhase("review"); }}
+                className="t-small mt-1 text-muted transition-colors hover:text-paper"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </PublicShell>
   );
 }

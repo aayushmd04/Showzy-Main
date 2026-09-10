@@ -1,34 +1,45 @@
-import { afterEach } from "vitest";
-import { cleanup } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
+import { afterEach, vi } from "vitest";
+import { cleanup } from "@testing-library/react";
 
-// Belt-and-braces: unmount whatever the previous test rendered (including
-// anything portalled straight onto document.body, like <Modal>) before the
-// next test starts, so component instances never bleed into each other.
 afterEach(() => {
   cleanup();
+  localStorage.clear();
 });
 
-/**
- * jsdom doesn't implement matchMedia. `motion/react`'s `useReducedMotion` (used
- * on nearly every screen) calls it on mount, so every component test needs
- * this shim regardless of what it's actually testing.
- *
- * Reports `prefers-reduced-motion: reduce` as matched, which every animated
- * component in this app treats as "skip the animation" (`transition={{
- * duration: reduce ? 0 : ... }}`). Without this, modals and lists animate on
- * their real timers and assertions race the exit transition.
- */
-if (!window.matchMedia) {
-  window.matchMedia = (query: string): MediaQueryList =>
-    ({
-      matches: query.includes("prefers-reduced-motion"),
+// Screens animate with motion and observe layout; happy-dom ships neither.
+if (!("matchMedia" in window)) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
       media: query,
       onchange: null,
-      addListener: () => {},
-      removeListener: () => {},
-      addEventListener: () => {},
-      removeEventListener: () => {},
-      dispatchEvent: () => false,
-    }) as MediaQueryList;
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    }),
+  });
+}
+
+for (const name of ["IntersectionObserver", "ResizeObserver"] as const) {
+  if (!(name in window)) {
+    Object.defineProperty(window, name, {
+      writable: true,
+      value: class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+        takeRecords() {
+          return [];
+        }
+      },
+    });
+  }
+}
+
+if (!window.scrollTo) {
+  Object.defineProperty(window, "scrollTo", { writable: true, value: vi.fn() });
 }

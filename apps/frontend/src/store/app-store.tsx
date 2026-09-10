@@ -38,7 +38,7 @@ import {
   type Venue,
 } from "@/data/fixtures";
 import { detectContactInfo } from "@/lib/contact-filter";
-import { ticketCode } from "@/lib/format";
+
 import * as api from "@/lib/api";
 import type { ApiVenue } from "@/lib/api";
 import {
@@ -65,6 +65,8 @@ export interface Toast {
 export interface CheckoutDraft {
   eventId: string | null;
   tierName: string | null;
+  /** Server tier id. Null when the event came from fixtures, which cannot be ordered. */
+  tierId: string | null;
   qty: number;
   guest: { name: string; phone: string; email: string };
   isGuest: boolean;
@@ -84,6 +86,7 @@ export interface ArtistProfileDraft {
 const EMPTY_CHECKOUT: CheckoutDraft = {
   eventId: null,
   tierName: null,
+  tierId: null,
   qty: 1,
   guest: { name: "", phone: "", email: "" },
   isGuest: false,
@@ -148,10 +151,10 @@ interface AppStore {
   capacityOf: (event: NaadaEvent) => number;
 
   /* actions */
-  startCheckout: (eventId: string, tierName: string) => void;
+  startCheckout: (eventId: string, tierName: string, tierId?: string, qty?: number) => void;
   setGuestDetails: (guest: CheckoutDraft["guest"], isGuest: boolean) => void;
   clearCheckout: () => void;
-  completePurchase: () => Ticket;
+
   cancelTicket: (code: string) => void;
   checkIn: (eventId: string, code: string) => "ok" | "duplicate" | "invalid";
   setEmptyLists: (value: boolean) => void;
@@ -377,9 +380,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   );
 
   /* ---- checkout ---- */
-  const startCheckout = useCallback((eventId: string, tierName: string) => {
-    setCheckout({ ...EMPTY_CHECKOUT, eventId, tierName });
-  }, []);
+  const startCheckout = useCallback(
+    (eventId: string, tierName: string, tierId?: string, qty = 1) => {
+      setCheckout({ ...EMPTY_CHECKOUT, eventId, tierName, tierId: tierId ?? null, qty });
+    },
+    [],
+  );
 
   const setGuestDetails = useCallback(
     (guest: CheckoutDraft["guest"], isGuest: boolean) =>
@@ -388,36 +394,6 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   );
 
   const clearCheckout = useCallback(() => setCheckout(EMPTY_CHECKOUT), []);
-
-  const completePurchase = useCallback((): Ticket => {
-    const event = events.find((e) => e.id === checkout.eventId);
-    const tier = event?.tiers.find((t) => t.name === checkout.tierName);
-    const holder = checkout.guest.name.trim() || users.listener.name;
-    const created: Ticket = {
-      id: `t${Date.now()}`,
-      code: ticketCode(),
-      eventId: event?.id ?? "e2",
-      tier: tier?.name ?? "General",
-      price: tier?.price ?? 0,
-      fee: (tier?.price ?? 0) > 0 ? 19 : 0,
-      holder,
-      status: "valid",
-    };
-    setTickets((prev) => [created, ...prev]);
-    setEvents((prev) =>
-      prev.map((e) =>
-        e.id === created.eventId
-          ? {
-              ...e,
-              tiers: e.tiers.map((t) =>
-                t.name === created.tier ? { ...t, sold: Math.min(t.sold + 1, t.capacity) } : t,
-              ),
-            }
-          : e,
-      ),
-    );
-    return created;
-  }, [checkout, events]);
 
   const cancelTicket = useCallback((code: string) => {
     setTickets((prev) =>
@@ -755,7 +731,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       startCheckout,
       setGuestDetails,
       clearCheckout,
-      completePurchase,
+
       cancelTicket,
       checkIn,
       setEmptyLists,
@@ -790,7 +766,7 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       checkout, artistProfile, bankAdded, emptyLists, toasts, toast, dismissToast,
       eventById, artistById, venueById, bookingById, ticketByCode, messagesFor, reviewsFor,
       venueOf, soldOf, capacityOf, startCheckout, setGuestDetails, clearCheckout,
-      completePurchase, cancelTicket, checkIn, updateEvent, setEventStatus, addTier, removeTier,
+      cancelTicket, checkIn, updateEvent, setEventStatus, addTier, removeTier,
       sendBrief, counterBooking, acceptBooking, declineBooking, fundBooking, setBookingState,
       setSettlementStatus, updateArtistProfile, countersUsed, sendMessage, setArtistKycStatus,
       resolveDispute, reviewFlaggedMessage, applyToGig, setApplicationStatus, submitReview,

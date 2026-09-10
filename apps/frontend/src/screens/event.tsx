@@ -50,7 +50,7 @@ export function EventScreen() {
 
   const getTicket = () => {
     if (!tier) return;
-    startCheckout(event.id, tier.name);
+    startCheckout(event.id, tier.name, tier.id);
     if (role === "out") {
       openAuth(isFree ? "Sign in to reserve" : "Sign in to book", {
         allowGuest: true,

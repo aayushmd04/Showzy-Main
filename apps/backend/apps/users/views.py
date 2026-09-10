@@ -54,13 +54,18 @@ def request_otp(request):
     )
 
     # Send email (console backend locally, SMTP in prod)
+    # The code stays out of the subject: subject lines show in lock-screen
+    # previews and are retained in mail-relay logs far more widely than bodies.
+    expiry_minutes = getattr(django_settings, "OTP_EXPIRY_MINUTES", 10)
     send_mail(
-        subject=f"Your Naada OTP: {raw_otp}",
+        subject="Your Naada sign-in code",
         message=f"""Hi,
 
 Your Naada one-time password is: {raw_otp}
 
-It expires in 10 minutes. Do not share this with anyone.
+It expires in {expiry_minutes} minutes. Do not share this with anyone.
+
+If you didn't ask to sign in, you can ignore this email.
 
 — Naada Team""",
         from_email=django_settings.DEFAULT_FROM_EMAIL,
@@ -69,8 +74,10 @@ It expires in 10 minutes. Do not share this with anyone.
     )
 
     resp = {"detail": f"OTP sent to {email}. Check your email."}
-    # In DEBUG mode, include the OTP in the response so developers can test without email SMTP
-    if django_settings.DEBUG:
+    # Echo the OTP only where a setting explicitly allows it (local dev). Keying
+    # this off DEBUG alone meant one misconfigured deploy would hand any caller
+    # a valid OTP for any email address; production forces this to False.
+    if getattr(django_settings, "OTP_DEBUG_RESPONSE", False):
         resp["debug_otp"] = raw_otp
     return Response(resp, status=status.HTTP_200_OK)
 

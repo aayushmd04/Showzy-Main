@@ -5,7 +5,7 @@ import { Pill, statusLabel } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
 import { Poster } from "@/components/naada/poster";
 import { dateListing, money } from "@/lib/format";
-import { getMyEvents, type ApiEvent } from "@/lib/api";
+import { getMyEvents } from "@/lib/api";
 import { adaptEvent } from "@/lib/adapters";
 import type { NaadaEvent } from "@/data/fixtures";
 

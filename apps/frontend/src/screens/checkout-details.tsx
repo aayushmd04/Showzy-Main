@@ -10,13 +10,13 @@ import { dateListing } from "@/lib/format";
 /** Section 7.5 — guest details. Consent is required; the CTA stays disabled until it is ticked. */
 export function CheckoutDetailsScreen() {
   const navigate = useNavigate();
-  const { checkout, eventById, setGuestDetails } = useStore();
+  const { checkout, eventById, setGuestDetails, currentUser } = useStore();
   const { open: openAuth } = useAuthSheet();
   const event = checkout.eventId ? eventById(checkout.eventId) : undefined;
 
-  const [name, setName] = useState("Meera Raghavan");
-  const [phone, setPhone] = useState("+91 98450 11223");
-  const [email, setEmail] = useState("meera@example.com");
+  const [name, setName] = useState(currentUser?.full_name ?? "");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState(currentUser?.email ?? "");
   const [consent, setConsent] = useState(false);
 
   if (!event) return <Navigate to="/" replace />;
@@ -82,7 +82,7 @@ export function CheckoutDetailsScreen() {
             />
             <span className="t-small">
               I agree to Naada storing these details to issue and verify my ticket.{" "}
-              <a href="#privacy" className="link-underline text-paper">
+              <a href="/privacy" className="link-underline text-paper">
                 Privacy policy →
               </a>
             </span>

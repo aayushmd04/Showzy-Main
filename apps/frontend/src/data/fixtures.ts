@@ -51,6 +51,8 @@ export interface Artist {
 }
 
 export interface Tier {
+  /** Server tier id. Absent on fixture data; required to place a real order. */
+  id?: string;
   name: string;
   price: number;
   capacity: number;

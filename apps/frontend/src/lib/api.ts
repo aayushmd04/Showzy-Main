@@ -601,6 +601,24 @@ export function verifyPayment(data: {
   return post("/payments/verify/", data);
 }
 
+/**
+ * Stands in for the browser half of a real gateway while Naada has no merchant
+ * account. The backend mints a payment id and signs it with the same HMAC the
+ * live gateway uses, so the caller then goes through the ordinary
+ * `verifyPayment` path — the signature check is genuinely exercised rather
+ * than skipped. Only available while the mock gateway is selected.
+ */
+export function completeMockPayment(data: {
+  order_id: string;
+  gateway_order_id: string;
+}): Promise<{
+  gateway_order_id: string;
+  gateway_payment_id: string;
+  gateway_signature: string;
+}> {
+  return post("/payments/mock/complete/", data);
+}
+
 export function requestRefund(data: {
   payment_id: string;
   reason: string;

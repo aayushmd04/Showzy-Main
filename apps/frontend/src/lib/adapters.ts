@@ -41,6 +41,7 @@ export function adaptEvent(e: ApiEvent): NaadaEvent {
     lineup: [],
     tiers: e.ticket_tiers
       ? e.ticket_tiers.map((t) => ({
+          id: t.id,
           name: t.name,
           price: parseFloat(t.price),
           capacity: t.total_quantity,

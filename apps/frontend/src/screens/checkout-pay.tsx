@@ -77,10 +77,10 @@ export function CheckoutPayScreen() {
       clearCheckout();
       // The server issues the ticket number; find the newest one for this event.
       try {
+        // `event` is a bare UUID here, and the endpoint already returns newest
+        // first, so the first match is the ticket just issued.
         const mine = await api.getMyTickets();
-        const match = mine.results
-          .filter((t) => t.event?.id === eventId)
-          .sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+        const match = mine.results.find((t) => t.event === eventId);
         if (match) {
           navigate(`/ticket/${match.ticket_number}?new=1`, { replace: true });
           return;

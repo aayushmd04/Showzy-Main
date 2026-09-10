@@ -366,16 +366,28 @@ export function getVenues(): Promise<ApiVenueList> {
 
 // ─── Tickets ──────────────────────────────────────────────────────────────────
 
+/**
+ * Mirrors TicketSerializer exactly. The shape is flat — `event` is a bare UUID
+ * and the event/venue/tier names come through as sibling fields, not nested
+ * objects. Getting this wrong made the adapter throw on real data, so tickets
+ * silently never loaded.
+ */
 export interface ApiTicket {
   id: string;
   ticket_number: string;
   qr_data: string;
-  qr_image_url: string;
-  event: ApiEvent;
-  tier: { name: string; price: string };
+  qr_image_url: string | null;
+  event: string;
+  event_title: string;
+  event_date: string;
+  venue_name: string | null;
+  tier_name: string | null;
+  holder_name: string;
+  holder_email: string;
+  holder_phone: string;
+  seat_label: string | null;
   status: string;
-  checked_in_at?: string;
-  created_at: string;
+  checked_in_at?: string | null;
 }
 
 export function getMyTickets(): Promise<{ results: ApiTicket[] }> {
@@ -942,6 +954,23 @@ export async function getAllPages<T>(
     if (!data.next) break;
   }
   return out;
+}
+
+/*
+ * Whole-catalogue variants. The store used the single-page calls, so the
+ * product silently stopped at 20 events and 20 artists with no error and no
+ * empty state — event 21 simply did not exist to any user.
+ */
+export function getAllEvents(params = ""): Promise<ApiEvent[]> {
+  return getAllPages<ApiEvent>(`/events/${params}`, false);
+}
+
+export function getAllArtists(params = ""): Promise<ApiArtist[]> {
+  return getAllPages<ApiArtist>(`/artists/${params}`, false);
+}
+
+export function getAllVenues(): Promise<ApiVenue[]> {
+  return getAllPages<ApiVenue>("/venues/", false);
 }
 
 /** Build an events query string from discover's filter state. */

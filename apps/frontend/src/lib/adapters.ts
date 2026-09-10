@@ -99,16 +99,27 @@ export function adaptTicket(t: ApiTicket): Ticket {
   return {
     id: t.id,
     code: t.ticket_number,
-    eventId: t.event.id,
-    tier: t.tier.name,
-    price: parseFloat(t.tier.price),
-    fee: parseFloat(t.tier.price) > 0 ? 19 : 0,
-    holder: "Me",
+    eventId: t.event,
+    tier: t.tier_name ?? "General",
+    // The ticket endpoint carries no price; the event's tier is the source of
+    // truth for what was paid, and the order history for the actual amount.
+    price: 0,
+    fee: 0,
+    holder: t.holder_name || "Me",
     status: t.status === "used" ? "checked_in" : t.status === "cancelled" ? "cancelled" : "valid",
     checkedInAt: t.checked_in_at ?? undefined,
-    _qrImageUrl: t.qr_image_url,
+    _qrImageUrl: t.qr_image_url ?? undefined,
     _qrData: t.qr_data,
-  } as Ticket & { _qrImageUrl: string; _qrData: string };
+    _eventTitle: t.event_title,
+    _eventDate: t.event_date,
+    _venueName: t.venue_name ?? undefined,
+  } as Ticket & {
+    _qrImageUrl?: string;
+    _qrData: string;
+    _eventTitle: string;
+    _eventDate: string;
+    _venueName?: string;
+  };
 }
 
 // ─── Bookings / Orders ────────────────────────────────────────────────────────

@@ -259,10 +259,12 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
   /* ---- hydrate from API ---- */
   const hydrateFromApi = useCallback(async () => {
     try {
+      // Walk every page. These used the single-page endpoints, which capped
+      // the entire catalogue at 20 events and 20 artists.
       const [eventsData, artistsData, venuesData] = await Promise.allSettled([
-        api.getEvents(),
-        api.getArtists(),
-        api.getVenues(),
+        api.getAllEvents().then((results) => ({ results })),
+        api.getAllArtists().then((results) => ({ results })),
+        api.getAllVenues().then((results) => ({ results })),
       ]);
 
       if (eventsData.status === "fulfilled") {
@@ -308,21 +310,32 @@ export function AppStoreProvider({ children }: { children: ReactNode }) {
       ]);
 
       if (ticketsData.status === "fulfilled") {
-        const adapted = ticketsData.value.results.map(adaptTicket);
-        // Merge events from tickets that weren't in the public list
-        const ticketEvents = ticketsData.value.results.map((t) => adaptEvent(t.event));
+        const rows = ticketsData.value.results;
+        setTickets(rows.map(adaptTicket));
+
+        // A ticket may be for an event no longer in the public list — a past
+        // gig, or one since unpublished. The ticket carries enough flat detail
+        // to render "My tickets" without a second round trip per event.
         setEvents((prev) => {
           const ids = new Set(prev.map((e) => e.id));
           const merged = [...prev];
-          for (const e of ticketEvents) {
-            if (!ids.has(e.id)) {
-              merged.push(e);
-              ids.add(e.id);
-            }
+          for (const t of rows) {
+            if (ids.has(t.event)) continue;
+            merged.push({
+              id: t.event,
+              name: t.event_title,
+              venueId: "",
+              date: (t.event_date ?? "").slice(0, 10),
+              doors: "",
+              status: "completed",
+              genres: [],
+              lineup: [],
+              tiers: [],
+            } as unknown as NaadaEvent);
+            ids.add(t.event);
           }
           return merged;
         });
-        setTickets(adapted);
       }
 
       if (ordersData.status === "fulfilled") {

@@ -73,3 +73,42 @@ class SocialHandleTests(SimpleTestCase):
     def test_a_handle_with_illegal_characters_is_rejected(self):
         with self.assertRaises(ValidationError):
             self.field.to_internal_value("not a handle!")
+
+
+class IndianPhoneTests(SimpleTestCase):
+    """One phone number must be one stored value.
+
+    The column is unique, but every spelling used to store separately — so the
+    same line could back three accounts and uniqueness meant nothing.
+    """
+
+    def setUp(self):
+        from apps.core.urlfields import IndianPhoneField
+        self.field = IndianPhoneField()
+
+    def test_every_way_of_typing_one_number_normalises_the_same(self):
+        for value in (
+            "+91 98450 11223",
+            "9845011223",
+            "+91-98450-11223",
+            "098450 11223",
+            "919845011223",
+            "(+91) 98450-11223",
+        ):
+            self.assertEqual(self.field.to_internal_value(value), "+919845011223", value)
+
+    def test_blank_stays_blank(self):
+        self.assertEqual(self.field.to_internal_value(""), "")
+
+    def test_a_landline_style_prefix_is_rejected(self):
+        # Indian mobiles start 6-9; 1-5 is not a mobile.
+        with self.assertRaises(ValidationError):
+            self.field.to_internal_value("1234567890")
+
+    def test_too_few_digits_is_rejected_with_an_example(self):
+        with self.assertRaises(ValidationError) as ctx:
+            self.field.to_internal_value("98450")
+        self.assertIn("10 digits", str(ctx.exception))
+
+    def test_another_country_in_full_international_form_is_kept(self):
+        self.assertEqual(self.field.to_internal_value("+442079460958"), "+442079460958")

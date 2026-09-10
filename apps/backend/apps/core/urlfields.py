@@ -90,3 +90,61 @@ class SocialHandleField(serializers.CharField):
                 "A handle can only use letters, numbers, dots, dashes and underscores."
             )
         return value
+
+
+class IndianPhoneField(serializers.CharField):
+    """Normalise a phone number to E.164 so one number is one value.
+
+    The column is `unique=True` and documents E.164, but nothing enforced it —
+    "+91 98450 11223", "9845011223" and "+91-98450-11223" all stored happily as
+    three different strings for the same phone. Uniqueness was uniqueness of
+    typing, not of number, so the same person could hold three accounts on one
+    line and an organiser trying to reach a buyer got whichever spelling they
+    happened to use.
+
+    Accepts what people type — spaces, dashes, brackets, a leading zero, a bare
+    ten digits — and stores +91XXXXXXXXXX. Numbers already in international
+    form for other countries are kept as they are.
+    """
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault("required", False)
+        kwargs.setdefault("allow_blank", True)
+        kwargs.setdefault("allow_null", True)
+        kwargs.setdefault("max_length", 20)
+        super().__init__(**kwargs)
+
+    def to_internal_value(self, data):
+        raw = str(super().to_internal_value(data)).strip()
+        if not raw:
+            return ""
+
+        digits = re.sub(r"[^\d+]", "", raw)
+        plus = digits.startswith("+")
+        digits = digits.lstrip("+")
+
+        if not digits.isdigit():
+            raise serializers.ValidationError("Enter a phone number, digits only.")
+
+        # Another country's number, given in full — leave it alone.
+        if plus and not digits.startswith("91"):
+            if not 8 <= len(digits) <= 15:
+                raise serializers.ValidationError("That number doesn't look right.")
+            return f"+{digits}"
+
+        if digits.startswith("91") and len(digits) == 12:
+            local = digits[2:]
+        elif digits.startswith("0") and len(digits) == 11:
+            local = digits[1:]
+        elif len(digits) == 10:
+            local = digits
+        else:
+            raise serializers.ValidationError(
+                "An Indian mobile number is 10 digits, like 98450 11223."
+            )
+
+        if local[0] not in "6789":
+            raise serializers.ValidationError(
+                "An Indian mobile number starts with 6, 7, 8 or 9."
+            )
+        return f"+91{local}"

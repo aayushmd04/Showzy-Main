@@ -1,9 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
 import { CalendarPlus, Download } from "lucide-react";
 import { PublicShell } from "@/components/naada/public-shell";
 import { TicketStub } from "@/components/naada/ticket-stub";
+import { ReviewForm } from "@/components/naada/review-form";
+import { buildIcs, downloadIcs } from "@/components/naada/calendar-ics";
+import {
+  eventHasHappened,
+  loadEventDetail,
+  type EventDetail,
+} from "@/components/naada/event-data";
+import { actionError } from "@/components/naada/api-message";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Pill } from "@/components/ui/pill";
@@ -25,6 +33,32 @@ export function TicketDetailScreen() {
   const ticket = ticketByCode(code);
   const event = ticket ? eventById(ticket.eventId) : undefined;
 
+  /*
+   * The calendar file needs a real end time, the venue's area and the event's
+   * own description — none of which the tickets endpoint carries. So fetch the
+   * event itself rather than inventing a duration.
+   */
+  const eventId = ticket?.eventId ?? "";
+  const [detail, setDetail] = useState<EventDetail | null>(null);
+  const [detailError, setDetailError] = useState("");
+
+  useEffect(() => {
+    let alive = true;
+    if (!eventId) return;
+    setDetail(null);
+    setDetailError("");
+    loadEventDetail(eventId)
+      .then((data) => {
+        if (alive) setDetail(data);
+      })
+      .catch((err) => {
+        if (alive) setDetailError(actionError(err, "load this event's details"));
+      });
+    return () => {
+      alive = false;
+    };
+  }, [eventId]);
+
   usePageMeta({
     title: ticket ? `Ticket ${ticket.code}` : "Ticket",
     description: event ? `Your ticket for ${event.name}.` : undefined,
@@ -45,6 +79,54 @@ export function TicketDetailScreen() {
   // Paid tickets carry the same per-ticket booking fee the order charged.
   const bookingFee = tierPrice ? CONVENIENCE_FEE : 0;
   const paid = tierPrice === null ? null : tierPrice + bookingFee;
+
+  const isPast = eventHasHappened(detail?.start_datetime);
+  const canReview = isPast && ticket.status !== "cancelled";
+
+  const addToCalendar = () => {
+    if (!detail) {
+      toast(
+        detailError ||
+          "Still loading this event's times — give it a second and tap again.",
+        detailError ? "fault" : "default",
+      );
+      return;
+    }
+    const place = [detail.venue?.name, detail.venue?.area_name, detail.venue?.city_name]
+      .filter(Boolean)
+      .join(", ");
+
+    const ics = buildIcs({
+      // Per ticket, so a re-download replaces the entry instead of doubling it.
+      uid: `ticket-${ticket.id}@naada`,
+      title: detail.title,
+      start: detail.start_datetime,
+      end: detail.end_datetime,
+      location: place,
+      description: [
+        `${ticket.tier} · ${ticket.holder}`,
+        `Ticket ${ticket.code} — show the QR at the door.`,
+        detail.doors_open_at
+          ? `Doors ${new Date(detail.doors_open_at).toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}.`
+          : "",
+        `${window.location.origin}/ticket/${ticket.code}`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      url: `${window.location.origin}/e/${detail.id}`,
+    });
+
+    const ok = downloadIcs(`naada-${ticket.code}.ics`, ics);
+    toast(
+      ok
+        ? "Calendar file downloaded — open it to add the gig"
+        : "Your browser blocked the download. Allow downloads for this site and try again.",
+      ok ? "default" : "fault",
+    );
+  };
 
   return (
     <PublicShell>
@@ -112,10 +194,12 @@ export function TicketDetailScreen() {
         </motion.div>
 
         <div className="mt-5 flex flex-wrap gap-2">
-          <Button onClick={() => toast("Added to your calendar")}>
-            <CalendarPlus className="size-4" aria-hidden="true" />
-            Add to calendar
-          </Button>
+          {!isPast && (
+            <Button onClick={addToCalendar} disabled={!detail && !detailError}>
+              <CalendarPlus className="size-4" aria-hidden="true" />
+              Add to calendar
+            </Button>
+          )}
           <Button onClick={() => toast("Downloads aren't in this prototype")}>
             <Download className="size-4" aria-hidden="true" />
             Download
@@ -133,6 +217,35 @@ export function TicketDetailScreen() {
             My tickets
           </Link>
         </div>
+
+        {detailError && !isPast && (
+          <p className="t-small mt-3 text-fault" role="alert">
+            {detailError}
+          </p>
+        )}
+
+        {/* The night is over and this person held a ticket for it — the one
+            moment they are most likely to say something. */}
+        {canReview && detail && (
+          <section className="mt-10 border-t border-line pt-6">
+            <h2 className="t-micro">You were there</h2>
+            <p className="t-body mt-2 max-w-[52ch] text-muted">
+              Rate {detail.title}. Your ticket marks the review as coming from
+              someone who actually turned up.
+            </p>
+            <ReviewForm
+              className="mt-4"
+              eventId={detail.id}
+              existing={detail.reviews?.find((r) => r.is_mine) ?? null}
+            />
+            <Link
+              to={`/e/${detail.id}`}
+              className="t-small mt-3 inline-flex min-h-11 items-center text-muted underline underline-offset-4 transition-colors hover:text-signal"
+            >
+              Read what everyone else said
+            </Link>
+          </section>
+        )}
 
         <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Cancel this ticket?">
           <p className="t-body text-paper/90">

@@ -6,9 +6,17 @@ import { Poster } from "@/components/naada/poster";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
+import { SaveButton } from "@/components/naada/save-button";
+import { EventReviews } from "@/components/naada/event-reviews";
+import { ReviewForm } from "@/components/naada/review-form";
+import {
+  eventHasHappened,
+  loadEventDetail,
+  type EventDetail,
+  type EventReview,
+} from "@/components/naada/event-data";
 import { useStore } from "@/store/app-store";
 import { usePageMeta } from "@/lib/use-meta";
-import { getEvent } from "@/lib/api";
 import { adaptEvent } from "@/lib/adapters";
 import { CONVENIENCE_FEE, type NaadaEvent } from "@/data/fixtures";
 import { dateBody, dateListingFull, money } from "@/lib/format";
@@ -22,7 +30,8 @@ import { NotFoundScreen } from "./not-found";
 export function EventScreen() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const { eventById, venueOf, artistById, startCheckout, toast, role } = useStore();
+  const { eventById, venueOf, artistById, startCheckout, toast, role, currentUser } =
+    useStore();
   const { open: openAuth } = useAuthSheet();
 
   /*
@@ -33,15 +42,21 @@ export function EventScreen() {
    * real tiers, so fetch it and prefer it.
    */
   const stored = eventById(id);
+  const [raw, setRaw] = useState<EventDetail | null>(null);
   const [detail, setDetail] = useState<NaadaEvent | null>(null);
 
   useEffect(() => {
     let alive = true;
     setDetail(null);
+    setRaw(null);
     if (!id) return;
-    getEvent(id)
-      .then((raw) => {
-        if (alive) setDetail(adaptEvent(raw));
+    // Authenticated when there's a token, so `is_saved` and each review's
+    // `is_mine` come back true for the person actually reading the page.
+    loadEventDetail(id)
+      .then((data) => {
+        if (!alive) return;
+        setRaw(data);
+        setDetail(adaptEvent(data));
       })
       .catch(() => {
         // Offline or unknown id — the stored copy still renders the page.
@@ -52,6 +67,26 @@ export function EventScreen() {
   }, [id]);
 
   const event = detail ?? stored;
+
+  const reviews = raw?.reviews ?? [];
+  const myReview = reviews.find((r) => r.is_mine) ?? null;
+  // A review is only offered on a night that has already happened. The server
+  // decides who counts as a verified attendee.
+  const canReview = Boolean(raw && currentUser && eventHasHappened(raw.start_datetime));
+
+  const absorbReview = (saved: EventReview) => {
+    setRaw((current) =>
+      current
+        ? {
+            ...current,
+            reviews: [
+              { ...saved, is_mine: true },
+              ...current.reviews.filter((r) => r.id !== saved.id && !r.is_mine),
+            ],
+          }
+        : current,
+    );
+  };
 
   const firstAvailable = useMemo(
     () => event?.tiers.find((t) => t.sold < t.capacity)?.name ?? null,
@@ -143,10 +178,18 @@ export function EventScreen() {
                 {soldOut && <Pill>Sold out</Pill>}
               </div>
 
-              <Button className="mt-5" size="sm" onClick={share}>
-                <Share2 className="size-4" aria-hidden="true" />
-                Share
-              </Button>
+              <div className="mt-5 flex flex-wrap gap-2">
+                <Button size="sm" onClick={share}>
+                  <Share2 className="size-4" aria-hidden="true" />
+                  Share
+                </Button>
+                <SaveButton
+                  variant="button"
+                  size="sm"
+                  eventId={event.id}
+                  eventName={event.name}
+                />
+              </div>
             </div>
           </div>
 
@@ -200,6 +243,34 @@ export function EventScreen() {
               </p>
             </div>
           </section>
+
+          {/* Reviews only make sense once there is something to review, or
+              something someone already said. */}
+          {raw && (reviews.length > 0 || eventHasHappened(raw.start_datetime)) && (
+            <section className="mt-10 border-t border-line pt-6">
+              <h2 className="t-micro">What people said</h2>
+              <EventReviews reviews={reviews} />
+
+              {canReview && (
+                <ReviewForm
+                  className="mt-6"
+                  eventId={raw.id}
+                  existing={myReview}
+                  onSaved={absorbReview}
+                />
+              )}
+
+              {!currentUser && eventHasHappened(raw.start_datetime) && (
+                <button
+                  type="button"
+                  onClick={() => openAuth("Sign in to review this night")}
+                  className="t-small mt-4 min-h-11 text-muted underline underline-offset-4 transition-colors hover:text-signal"
+                >
+                  Were you there? Sign in to add your review.
+                </button>
+              )}
+            </section>
+          )}
         </div>
 
         {/* Right rail — sticky on desktop, fixed bottom bar on mobile */}

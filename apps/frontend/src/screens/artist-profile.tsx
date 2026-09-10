@@ -4,6 +4,7 @@ import { CalendarX, CheckCircle2, Instagram, Youtube, Globe } from "lucide-react
 import { PublicShell } from "@/components/naada/public-shell";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/store/app-store";
+import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { useBriefComposer } from "@/components/naada/brief-composer";
 import { followArtist } from "@/lib/api";
 import { dateCompact, dateListing } from "@/lib/format";
@@ -30,6 +31,7 @@ export function ArtistProfileScreen() {
   const { id = "" } = useParams();
   const { events, venueOf, role, currentUser, toast } = useStore();
   const { open: openBrief } = useBriefComposer();
+  const { open: openAuth } = useAuthSheet();
 
   const [artist, setArtist] = useState<ArtistDetail | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "missing" | "error">("loading");
@@ -62,32 +64,58 @@ export function ArtistProfileScreen() {
     void load();
   }, [load]);
 
-  const toggleFollow = async () => {
-    if (!artist) return;
+  /**
+   * Optimistic: the button and the follower count move on the tap, and both go
+   * back if the server refuses. Waiting on a round trip reads as a dead button.
+   */
+  const sendFollow = useCallback(
+    async (target: ArtistDetail, next: boolean) => {
+      const wasFollowing = !next;
+      setFollowBusy(true);
+      setFollowError("");
+      setFollowing(next);
+      setArtist((a) =>
+        a ? { ...a, follower_count: Math.max(0, (a.follower_count ?? 0) + (next ? 1 : -1)) } : a,
+      );
+      try {
+        const res = await followArtist(target.id, next);
+        // Trust the server's answer over the guess.
+        setFollowing(res.following);
+        toast(
+          res.following
+            ? `Following ${target.stage_name}`
+            : `Unfollowed ${target.stage_name}`,
+        );
+      } catch (err) {
+        setFollowing(wasFollowing);
+        setArtist((a) =>
+          a
+            ? { ...a, follower_count: Math.max(0, (a.follower_count ?? 0) + (next ? -1 : 1)) }
+            : a,
+        );
+        setFollowError(apiMessage(err, "That didn't go through. Try again."));
+      } finally {
+        setFollowBusy(false);
+      }
+    },
+    [toast],
+  );
+
+  const toggleFollow = () => {
+    if (!artist || followBusy) return;
+    const next = !following;
     if (!currentUser) {
-      setFollowError("Sign in to follow artists and hear when they announce a date.");
+      // A 401 here would look like a broken button. Ask for the sign-in, then
+      // finish the follow they actually asked for.
+      openAuth(`Sign in to follow ${artist.stage_name || "this artist"}`, {
+        onDone: (outcome) => {
+          if (outcome !== "authed") return;
+          void sendFollow(artist, next);
+        },
+      });
       return;
     }
-    const next = !following;
-    setFollowBusy(true);
-    setFollowError("");
-    try {
-      const res = await followArtist(artist.id, next);
-      setFollowing(res.following);
-      setArtist((a) =>
-        a
-          ? {
-              ...a,
-              follower_count: Math.max(0, (a.follower_count ?? 0) + (res.following ? 1 : -1)),
-            }
-          : a,
-      );
-      toast(res.following ? `Following ${artist.stage_name}` : `Unfollowed ${artist.stage_name}`);
-    } catch (err) {
-      setFollowError(apiMessage(err, "That didn't go through. Try again."));
-    } finally {
-      setFollowBusy(false);
-    }
+    void sendFollow(artist, next);
   };
 
   if (state === "missing") return <NotFoundScreen />;
@@ -183,8 +211,15 @@ export function ArtistProfileScreen() {
                 Book this artist
               </Button>
             ) : (
-              <Button onClick={() => void toggleFollow()} disabled={followBusy}>
-                {followBusy ? "…" : following ? "Following" : "Follow"}
+              <Button
+                onClick={toggleFollow}
+                disabled={followBusy}
+                aria-pressed={following}
+                aria-label={
+                  following ? `Unfollow ${name}` : `Follow ${name}`
+                }
+              >
+                {following ? "Following" : "Follow"}
               </Button>
             )}
             {followError && (

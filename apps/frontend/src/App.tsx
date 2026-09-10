@@ -71,6 +71,7 @@ const KeyboardLabScreen = lazyScreen(() => import("@/screens/keyboard-lab"), "Ke
 const SettingsScreen = lazyScreen(() => import("@/screens/settings"), "SettingsScreen");
 const LegalScreen = lazyScreen(() => import("@/screens/legal"), "LegalScreen");
 const NotificationsScreen = lazyScreen(() => import("@/screens/notifications"), "NotificationsScreen");
+const SavedScreen = lazyScreen(() => import("@/screens/saved"), "SavedScreen");
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -188,6 +189,7 @@ export default function App() {
                     <Route path="/tickets" element={<MyTicketsScreen />} />
                     <Route path="/settings" element={<SettingsScreen />} />
                     <Route path="/notifications" element={<NotificationsScreen />} />
+                    <Route path="/saved" element={<SavedScreen />} />
 
                     {/* Legal — Razorpay merchant approval requires these to resolve */}
                     <Route path="/terms" element={<LegalScreen doc="terms" />} />

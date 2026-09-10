@@ -25,32 +25,31 @@ Read it in order. It takes about 90 minutes the first time.
 
 ---
 
-## 0. Before you start: one thing is broken
+## 0. Before you start: where things stand
 
-**The frontend does not currently build.** Run this and you will see it:
+Everything in this guide works today. Both halves are green:
 
 ```bash
 cd /Users/apple/Desktop/NADDA/dev/Naada
-npm run build
+
+npm run build --workspace @naada/frontend   # produces the website files
+npm test     --workspace @naada/frontend    # 82 tests, all passing
+
+cd apps/backend
+DJANGO_ENV=naada.settings.local .venv/bin/python manage.py test   # 40 tests, all passing
 ```
 
-It stops with five `TS2322` type errors in `apps/frontend/src/App.tsx` (line 64,
-and lines 183–186). The `lazyScreen` helper in that file cannot describe a
-lazily-loaded screen that takes a property, and the new `LegalScreen` takes one
-(`doc="terms"`, `doc="privacy"`, and so on).
+Two things to know before you begin, because they surprise people:
 
-This matters because the build command is `tsc -b && vite build` — the type
-check runs *first*, so when it fails, no website files are produced at all.
-There is nothing to upload.
+**Payments run on a stand-in.** Naada has no Razorpay merchant account yet, so
+the app uses a mock gateway. Orders, inventory, signature checks, ticket
+issuing and QR codes are all completely real — only the money is simulated.
+Nothing needs rewriting when the account is approved; see *When Razorpay is
+approved* near the end. You can deploy and take the product through its whole
+flow today.
 
-Four tests also fail, for a separate reason (three in
-`apps/frontend/src/screens/admin/admin-disputes.test.tsx`, one in
-`apps/frontend/src/screens/artist/artist-gig-board.test.tsx`) — they look for
-buttons and text those screens no longer show.
-
-**Get a developer to fix `App.tsx` before you start Step C.** Everything else in
-this guide — Supabase, the backend, the API — works today and you can do it now.
-The backend is fully green: all 40 backend tests pass.
+**Sign-in codes appear in the logs, not in an inbox,** until you set the email
+variables in Step B4. That is deliberate for a first deploy.
 
 ---
 
@@ -292,6 +291,16 @@ by hand, then paste your password in where it says `[YOUR-PASSWORD]`.
 > checks. You don't configure this; just give it the right URL. Every non-SQLite
 > URL also gets `sslmode=require` automatically — Supabase refuses unencrypted
 > connections.
+
+> **Already verified from this machine.** Pointing the production settings at
+> `aws-0-ap-south-1.pooler.supabase.com:5432` resolved DNS, negotiated TLS and
+> reached Supabase's pooler, which answered with its own
+> `no tenant identifier provided` error — the expected reply to a made-up
+> username. In other words the driver, the SSL mode and the host are all
+> correct; the only missing piece is your project's real connection string.
+> Production settings were confirmed to resolve as: PostgreSQL engine,
+> `sslmode=require`, `CONN_MAX_AGE=60`, `DEBUG=False`, OTP codes never returned
+> in API responses, WhiteNoise active.
 
 ### A3. Run the migrations
 

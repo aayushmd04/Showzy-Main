@@ -28,9 +28,24 @@ if DATABASES["default"]["ENGINE"].endswith("sqlite3"):
         "(e.g. postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres)."
     )
 
-# SECRET_KEY must be supplied — refuse to boot on the insecure dev default.
-if SECRET_KEY.startswith("django-insecure"):  # noqa: F405
-    raise ImproperlyConfigured("SECRET_KEY must be set in the environment for production.")
+# SECRET_KEY must be a real secret — refuse to boot on anything recognisably
+# not one. Checking only the "django-insecure" prefix let the placeholder that
+# ships in .env ("change-me-in-production-...") sail straight through, which is
+# exactly the value most likely to reach a first deploy.
+_secret = SECRET_KEY  # noqa: F405
+_looks_placeholder = (
+    _secret.startswith("django-insecure")
+    or "change-me" in _secret.lower()
+    or "changeme" in _secret.lower()
+    or "your-secret" in _secret.lower()
+    or len(_secret) < 40
+)
+if _looks_placeholder:
+    raise ImproperlyConfigured(  # noqa: F405
+        "SECRET_KEY looks like a placeholder. Generate a real one and set it in the "
+        "environment:\n"
+        "  python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+    )
 
 # ── OTP ───────────────────────────────────────────────────────────────────────
 # Never leak the OTP in an API response, regardless of what .env says.

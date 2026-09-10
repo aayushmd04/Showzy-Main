@@ -47,10 +47,16 @@ envVarGroups:
       - key: DATABASE_URL
         sync: false
 
-      # Comma separated, no spaces, no scheme. Must include the Render
-      # hostname of naada-api plus 127.0.0.1 (the container health probe
-      # calls itself on loopback). Example:
-      #   naada-api.onrender.com,127.0.0.1,localhost
+      # Comma separated, no spaces, no scheme. Must include:
+      #   * the Render hostname of naada-api  (else every request is a 400
+      #     DisallowedHost)
+      #   * 127.0.0.1                         (the container health probe calls
+      #     itself on loopback)
+      #   * the FRONTEND hostname             (Channels' AllowedHostsOriginValidator
+      #     checks the WebSocket Origin header against ALLOWED_HOSTS, separately
+      #     from CORS — omit it and HTTP works while /ws/chat/ is refused)
+      # Example:
+      #   naada-api.onrender.com,naada-web.onrender.com,127.0.0.1,localhost
       - key: ALLOWED_HOSTS
         sync: false
 
@@ -61,16 +67,38 @@ envVarGroups:
         sync: false
 
       # ── Optional. Leave blank; nothing below is required to deploy. ──────
+
+      # Payments. "mock" is the default and needs no account — the entire
+      # booking + ticketing flow works end to end with no real money moving.
+      # Switch to "razorpay" only once the three RAZORPAY_* values below are
+      # real: the selector raises rather than silently falling back to mock,
+      # because a silent downgrade means tickets issued for money that never
+      # moved. See DEPLOY.md, "When Razorpay is approved".
+      - key: PAYMENT_GATEWAY
+        value: mock
+
       - key: SENTRY_DSN
         value: ""
       - key: RAZORPAY_KEY_ID
         value: ""
       - key: RAZORPAY_KEY_SECRET
         value: ""
+      # Must match the secret entered when registering the webhook at
+      # https://<naada-api host>/api/v1/payments/webhook/razorpay/
+      - key: RAZORPAY_WEBHOOK_SECRET
+        value: ""
+      # EMAIL_PORT must never be blank. base.py reads it as
+      # config("EMAIL_PORT", default=587, cast=int), and an empty string is a
+      # *present* value, so decouple hands int("") a "" and the whole app dies
+      # at boot with ValueError. Leaving the SMTP port at 587 is harmless when
+      # no SMTP credentials are set — the console backend is used instead.
       - key: EMAIL_HOST
-        value: ""
+        value: smtp.gmail.com
       - key: EMAIL_PORT
-        value: ""
+        value: "587"
+      # These two are the real switch: with both blank, EMAIL_BACKEND falls
+      # back to the console backend and login OTP codes appear in the Render
+      # logs instead of being emailed.
       - key: EMAIL_HOST_USER
         value: ""
       - key: EMAIL_HOST_PASSWORD

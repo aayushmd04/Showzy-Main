@@ -1,0 +1,73 @@
+# =============================================================================
+# Build context for apps/frontend/Dockerfile, whose context is the REPOSITORY
+# ROOT (package-lock.json lives here — npm workspaces).
+#
+# apps/backend/ has its own .dockerignore for the backend image; this file has
+# no effect on that build.
+#
+# Why this matters: without it, ~440 MB of node_modules and .venv are tarred up
+# and uploaded to the Docker builder on every single build, and any .env file
+# lying around gets baked into an image layer.
+# =============================================================================
+
+# ── Dependencies. Reinstalled inside the image by `npm ci`. ──────────────────
+node_modules/
+**/node_modules/
+.npm/
+.yarn/
+.pnpm-store/
+
+# ── Python. The backend image builds its own venv at /opt/venv. ──────────────
+apps/backend/.venv/
+**/.venv/
+**/venv/
+__pycache__/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# ── Secrets. These must never end up inside an image. ────────────────────────
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+
+# ── Local data and generated output ──────────────────────────────────────────
+apps/backend/db.sqlite3
+apps/backend/db.sqlite3-journal
+apps/backend/media/
+apps/backend/staticfiles/
+dist/
+apps/frontend/dist/
+.vite/
+*.tsbuildinfo
+
+# ── Version control and CI ───────────────────────────────────────────────────
+.git/
+.gitignore
+.github/
+.claude/
+
+# ── Docker's own files — never needed inside an image ────────────────────────
+docker-compose.yml
+docker-compose.*.yml
+.dockerignore
+apps/backend/Dockerfile
+apps/frontend/Dockerfile
+
+# ── Docs. Changing a .md must not invalidate the npm-install layer. ──────────
+*.md
+!apps/frontend/README.md
+
+# ── Host / editor noise ──────────────────────────────────────────────────────
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.log
+logs/

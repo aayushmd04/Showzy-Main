@@ -1,0 +1,17 @@
+# Cloudflare Pages / Netlify SPA history fallback.
+#
+# Files in public/ are copied verbatim into dist/ by Vite, so this ends up at
+# the root of the deployed site where Cloudflare Pages looks for it.
+#
+# Meaning: for any path that does not match a real file, serve index.html with
+# HTTP status 200 (not a redirect — the URL in the address bar is preserved so
+# React Router can read it). Without this line, opening /host/events/<id>
+# directly returns Cloudflare's 404 page instead of the app.
+#
+# Real files win: /assets/index-abc123.js is served as itself, because
+# Cloudflare Pages checks the filesystem before applying these rules.
+#
+# The trailing 200 is required. `/*  /index.html  302` would rewrite the URL
+# and break every deep link.
+
+/*    /index.html    200

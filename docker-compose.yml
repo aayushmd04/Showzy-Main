@@ -1,0 +1,245 @@
+# =============================================================================
+# Naada — full local stack, production-parity.
+#
+#   docker compose up --build          start everything
+#   docker compose down                stop, keep the data
+#   docker compose down -v             stop and WIPE the database
+#
+# Then open:
+#   http://localhost:8080              the app (React, served by nginx)
+#   http://localhost:8000/api/v1/health/   the API health probe
+#   http://localhost:8000/api/v1/docs/     the API docs
+#
+# This runs the SAME settings module as the real deploy
+# (naada.settings.production), on real Postgres and real Redis, with the same
+# ASGI server. If it works here it works on Render/Railway. That is the whole
+# point of this file — it is not a "dev mode".
+#
+# Two deliberate downgrades from real production, both required for plain HTTP
+# on localhost:
+#   SECURE_SSL_REDIRECT=False   otherwise Django 301-redirects every request to
+#                               https://localhost:8000 and nothing loads.
+#   DB_SSLMODE=prefer           the local postgres container has no TLS cert.
+#                               Against Supabase this stays at `require`.
+#
+# Note on /admin: production settings set CSRF_COOKIE_SECURE=True, so the Django
+# admin login form will not work over plain http here. Use
+# `docker compose exec backend python manage.py shell` instead.
+# =============================================================================
+
+# ── Shared backend environment ───────────────────────────────────────────────
+# One anchor so web, worker and beat can never drift apart. If SECRET_KEY
+# differed between the web process and the worker, tokens signed by one would
+# be rejected by the other.
+x-backend-env: &backend-env
+  DJANGO_ENV: naada.settings.production
+
+  # Local-only key. The real one is generated per environment — see DEPLOY.md.
+  # It must not start with "django-insecure": production settings refuse to
+  # boot on the dev default, on purpose.
+  SECRET_KEY: local-compose-only-key-1TZ8qP4mWv9sXrK2eLbN7hJdG5yC3uAfQ6oR
+
+  # Port 5432, not Supabase's 6543, so base.py keeps CONN_MAX_AGE=60 and
+  # connection health checks — the same behaviour as a direct Supabase URL.
+  DATABASE_URL: postgresql://naada:naada@db:5432/naada
+  DB_SSLMODE: prefer
+
+  REDIS_URL: redis://redis:6379/0
+
+  # No scheme, no port, comma separated. 127.0.0.1 is required because the
+  # container's own HEALTHCHECK calls the app on loopback; "backend" is
+  # required because other containers reach it by service name.
+  ALLOWED_HOSTS: localhost,127.0.0.1,backend,frontend
+
+  # WITH scheme, no trailing slash. Must match the browser's address bar
+  # exactly — 8080 is where the frontend container publishes.
+  CORS_ALLOWED_ORIGINS: http://localhost:8080,http://127.0.0.1:8080,http://localhost:5173
+
+  SECURE_SSL_REDIRECT: "False"
+
+  # Payments stay on the mock gateway. No Razorpay account is needed to run,
+  # test or demo the entire booking + ticketing flow.
+  PAYMENT_GATEWAY: mock
+
+  # Everything below is optional and deliberately empty: Sentry, S3 and SMTP
+  # are all clean no-ops when unset. OTP codes print to the backend logs.
+  SENTRY_DSN: ""
+  AWS_STORAGE_BUCKET_NAME: ""
+
+services:
+  # ── Postgres ───────────────────────────────────────────────────────────────
+  # Stands in for Supabase locally. Supabase runs Postgres 15/16; 16 here.
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: naada
+      POSTGRES_PASSWORD: naada
+      POSTGRES_DB: naada
+      # Slightly faster tests; this is a throwaway local database.
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # Published on 55432 so it cannot collide with a Postgres you already
+      # run on 5432. Connect with:
+      #   psql postgresql://naada:naada@127.0.0.1:55432/naada
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      # -U and -d matter: without them pg_isready reports ready during the
+      # initdb bootstrap, and migrations then fail against a half-built server.
+      test: ["CMD-SHELL", "pg_isready -U naada -d naada"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    restart: unless-stopped
+
+  # ── Redis ──────────────────────────────────────────────────────────────────
+  # Two jobs: the Channels layer (so a chat message published by one process
+  # reaches subscribers held by another) and the Celery broker.
+  redis:
+    image: redis:7-alpine
+    # noeviction: never silently drop a queued Celery task to reclaim memory.
+    # appendonly: queued tasks survive a restart of this container.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    ports:
+      - "127.0.0.1:56379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+    restart: unless-stopped
+
+  # ── Migrations ─────────────────────────────────────────────────────────────
+  # A one-shot job, not a server. Everything that touches the database waits
+  # for this to exit 0, which is what stops three processes racing to apply
+  # the same migration on first boot.
+  migrate:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    image: naada-backend:local
+    environment: *backend-env
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # ── Django, ASGI (HTTP + WebSockets) ───────────────────────────────────────
+  backend:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    image: naada-backend:local
+    environment: *backend-env
+    # daphne, not gunicorn. Gunicorn's default workers speak WSGI, and WSGI
+    # has no concept of a WebSocket upgrade — /ws/chat/ would silently never
+    # connect. This is the Dockerfile's own CMD; it is repeated here only so
+    # the process is visible when reading this file.
+    command:
+      ["sh", "-c", "exec daphne -b 0.0.0.0 -p 8000 --proxy-headers naada.asgi:application"]
+    ports:
+      - "8000:8000"
+    volumes:
+      # User uploads (event posters, artist photos). Shared with the worker,
+      # which also writes generated ticket QR codes.
+      - media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    # Healthcheck comes from the image (see apps/backend/Dockerfile) and hits
+    # /api/v1/health/, which does a real DB + cache round-trip.
+    restart: unless-stopped
+
+  # ── Celery worker ──────────────────────────────────────────────────────────
+  # Not optional infrastructure. Without it the @shared_task functions in
+  # apps/bookings/tasks.py have nothing consuming them, which means escrowed
+  # artist payouts never auto-release.
+  worker:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    image: naada-backend:local
+    environment: *backend-env
+    # `python -m celery` rather than the bare `celery` script. Identical
+    # behaviour, but it also works in a virtualenv whose console-script
+    # shebangs have gone stale — which is exactly the state of the checked-out
+    # apps/backend/.venv on the founder's Mac.
+    command:
+      ["python", "-m", "celery", "-A", "naada", "worker", "--loglevel=info", "--concurrency=2"]
+    volumes:
+      - media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      # Asks the broker whether any worker answers. `|| exit 1` because celery
+      # inspect exits 0 with an empty reply in some versions.
+      test: ["CMD-SHELL", "python -m celery -A naada inspect ping -d celery@$$HOSTNAME || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    restart: unless-stopped
+
+  # ── Celery beat (scheduler) ────────────────────────────────────────────────
+  # Fires the nightly reconciliation job. Exactly one instance, always: two
+  # beat schedulers means every scheduled job runs twice.
+  beat:
+    build:
+      context: ./apps/backend
+      dockerfile: Dockerfile
+    image: naada-backend:local
+    environment: *backend-env
+    # The schedule file goes to /tmp because the image runs as the non-root
+    # `naada` user and /tmp is guaranteed writable.
+    command:
+      ["python", "-m", "celery", "-A", "naada", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # ── Frontend ───────────────────────────────────────────────────────────────
+  # Vite build served by nginx. Build context is the REPOSITORY ROOT because
+  # package-lock.json lives there (npm workspaces) and `npm ci` needs it.
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        # BAKED IN AT BUILD TIME. Vite substitutes this into the JavaScript
+        # bundle and throws the environment away; there is nothing left to
+        # configure at runtime. Change it -> `docker compose build frontend`.
+        VITE_API_BASE: http://localhost:8000/api/v1
+    image: naada-frontend:local
+    ports:
+      - "8080:8080"
+    depends_on:
+      # Only waits for the API to be reachable — the browser, not nginx, is
+      # what actually calls it.
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  media:

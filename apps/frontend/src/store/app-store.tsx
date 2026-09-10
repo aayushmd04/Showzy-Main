@@ -739,10 +739,12 @@ export function AppStoreProvider({
         createdAt: now(),
       };
       setApplications((prev) => [created, ...prev]);
-      // Fire-and-forget API call
-      api.applyToGig({ event_id: eventId, message, proposed_rate: proposedRate }).catch(
-        console.error,
-      );
+      /*
+       * Local record only. This used to fire its own API call as well as the
+       * screen's, so every application was posted twice — and with the wrong
+       * field names, so both failed silently. The screen owns the request,
+       * because it is the only one that can report failure to the person.
+       */
       return created;
     },
     [],

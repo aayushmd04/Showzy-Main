@@ -14,6 +14,9 @@
   --color-muted:     rgba(243,233,214,.55);
   --color-signal:    #C4472E;
   --color-gold:      #E8B85C;
+  /* Used in 26 places as text-brass / border-brass for warnings and
+     pending states, and never defined — so all of them inherited. */
+  --color-brass:     #E8B85C;
   --color-live:      #3ddc91;
   --color-fault:     #ff5b4a;
 
@@ -90,6 +93,80 @@
 }
 
 @layer components {
+
+  /* ── Type scale ────────────────────────────────────────────────────────────
+     Every screen in the app uses these, and none of them existed — so `t-h1`,
+     `t-mono` and the rest were inert class names and all text rendered at the
+     body default. Headings were body-sized, ticket codes and prices were not
+     monospaced, and micro labels were neither uppercase nor tracked.
+
+     Sizes clamp so a long event title still fits a 375px phone.
+     ────────────────────────────────────────────────────────────────────────── */
+
+  .t-display {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(30px, 7vw, 52px);
+    line-height: 0.98;
+    letter-spacing: -0.03em;
+    text-wrap: balance;
+  }
+
+  .t-h1 {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: clamp(24px, 4.4vw, 34px);
+    line-height: 1.08;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  .t-h2 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: clamp(19px, 3vw, 24px);
+    line-height: 1.15;
+    letter-spacing: -0.015em;
+  }
+
+  .t-h3 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    line-height: 1.25;
+    letter-spacing: -0.01em;
+  }
+
+  .t-body {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .t-small {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.5;
+  }
+
+  /* Uppercase eyebrow / label. Tracked, because at this size it needs air. */
+  .t-micro {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-muted);
+  }
+
+  /* Anything a person reads character by character: ticket codes, prices,
+     times, counts. Tabular figures so columns of numbers line up. */
+  .t-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.01em;
+  }
   .btn {
     display: inline-flex;
     align-items: center;

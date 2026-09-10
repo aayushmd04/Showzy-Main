@@ -533,10 +533,15 @@ export function getOrderLedger(
 
 // ─── Gig applications ─────────────────────────────────────────────────────────
 
+/**
+ * Field names here must match what the view reads — it takes `event`, `note`
+ * and `proposed_fee`. This posted `event_id`, `message` and `proposed_rate`,
+ * so the event lookup found nothing and every application 404'd.
+ */
 export function applyToGig(data: {
-  event_id: string;
-  message: string;
-  proposed_rate?: number;
+  event: string;
+  note: string;
+  proposed_fee?: number;
 }): Promise<unknown> {
   return post("/gig-applications/", data);
 }

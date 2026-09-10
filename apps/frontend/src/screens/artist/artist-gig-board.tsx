@@ -54,9 +54,9 @@ export function ArtistGigBoardScreen() {
     setSubmitting(true);
     try {
       await apiApplyToGig({
-        event_id: open.id,
-        message,
-        proposed_rate: Number(rate.replace(/\D/g, "")) || undefined,
+        event: open.id,
+        note: message,
+        proposed_fee: Number(rate.replace(/\D/g, "")) || undefined,
       });
       applyToGig(open.id, me?.id ?? "", message, Number(rate.replace(/\D/g, "")) || undefined);
       toast(`Applied to ${open.name}`, "success");

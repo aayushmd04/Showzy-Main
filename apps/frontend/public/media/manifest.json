@@ -1,0 +1,1085 @@
+{
+  "generatedAt": "2026-09-10",
+  "count": 53,
+  "byCategory": {
+    "events": 16,
+    "artists": 15,
+    "venues": 12,
+    "restaurants": 10
+  },
+  "note": "Provenance record for Naada seed imagery. Every image is free for commercial use with no attribution required; this record exists so the licence is provable later, not because credit is owed. Keys are the paths the frontend serves from apps/frontend/public/.",
+  "licenses": {
+    "Pexels License": {
+      "url": "https://www.pexels.com/license/",
+      "commercialUse": true,
+      "attributionRequired": false
+    },
+    "Unsplash License": {
+      "url": "https://unsplash.com/license",
+      "commercialUse": true,
+      "attributionRequired": false
+    }
+  },
+  "images": {
+    "/media/events/acoustic-band-bar-night.jpg": {
+      "category": "events",
+      "file": "acoustic-band-bar-night.jpg",
+      "alt": "A three-piece acoustic band playing to a close crowd in a low-lit neighbourhood bar",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 181519,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAMBAgQF/8QAIBAAAgICAgIDAAAAAAAAAAAAAQMCEQAhBBIFIjFRYf/EABYBAQEBAAAAAAAAAAAAAAAAAAIBA//EABwRAAIBBQEAAAAAAAAAAAAAAAABIQIDERJRQf/aAAwDAQACEQMRAD8A4fFYtVTDOsro1kc5wZEERJYT7SJ2cTBMRqz95ZtQogAn93hVuNjR1+I2q8jyorES3rWqkReGLT0asTMKJ+awy4XQTw//2Q==",
+      "credit": {
+        "photographer": "Leonardo DelSabio",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/33731251/",
+        "downloadUrl": "https://images.pexels.com/photos/33731251/pexels-photo-33731251.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/acoustic-set-rustic-venue.jpg": {
+      "category": "events",
+      "file": "acoustic-set-rustic-venue.jpg",
+      "alt": "A guitarist performing a solo acoustic set in a small rustic venue washed in warm amber light",
+      "width": 800,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 159171,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAMFBP/EACAQAAICAgICAwAAAAAAAAAAAAECAAMEERMxEiFBUWH/xAAVAQEBAAAAAAAAAAAAAAAAAAADAf/EABoRAAICAwAAAAAAAAAAAAAAAAABAhESIVH/2gAMAwEAAhEDEQA/AJaWICV78BtvyPsw8O2uuw5QRmB2v1JC2upfhHzsmaeJ7wGTXXW9wsd2O+CB6LAehKOIpGMmmMIRIt2SaP/Z",
+      "credit": {
+        "photographer": "Leonardo DelSabio",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/33731266/",
+        "downloadUrl": "https://images.pexels.com/photos/33731266/pexels-photo-33731266.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/audience-silhouettes-colour.jpg": {
+      "category": "events",
+      "file": "audience-silhouettes-colour.jpg",
+      "alt": "Silhouetted audience members against the coloured stage lights of a live show",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 95293,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAQCAwX/xAAkEAACAQMDAwUAAAAAAAAAAAABAgMABBESIUEFExUiMTKRwf/EABYBAQEBAAAAAAAAAAAAAAAAAAMCBP/EABgRAQEBAQEAAAAAAAAAAAAAAAIBAAQS/9oADAMBAAIRAxEAPwDFjhtioPZPrzp3zxsPumpLW0jleNmXCsA2lclaQHUZI4UVEUdskjn3qleozRzSSqF1SfLIzmt3RSVJM5RkzdxHaxylViDgc4I/aKh5eWFI0EULYUbsuTRQehqqG//Z",
+      "credit": {
+        "photographer": "Caleb Oquendo",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/34622827/",
+        "downloadUrl": "https://images.pexels.com/photos/34622827/pexels-photo-34622827.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/band-cozy-bar-ambiance.jpg": {
+      "category": "events",
+      "file": "band-cozy-bar-ambiance.jpg",
+      "alt": "A live band playing in the corner of a cosy bar as guests listen from nearby tables",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 77001,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAYBAwQF/8QAHxAAAQQCAgMAAAAAAAAAAAAAAQACAxESIRMiBVFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAgH/xAAZEQEBAAMBAAAAAAAAAAAAAAABABESMVH/2gAMAwEAAhEDEQA/AOBBg+BzppC14PUVd/VXFjyAuIon0s3IXEXtRnWkXL2YhyZ4n+OEbQWtut7Ql9knUW0FCOh7Xa//2Q==",
+      "credit": {
+        "photographer": "cottonbro studio",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/9419405/",
+        "downloadUrl": "https://images.pexels.com/photos/9419405/pexels-photo-9419405.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/band-on-stage-energetic.jpg": {
+      "category": "events",
+      "file": "band-on-stage-energetic.jpg",
+      "alt": "An energetic live band playing together on a small stage",
+      "width": 960,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 176334,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUABADASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAIBAwQG/8QAIRAAAgICAgEFAAAAAAAAAAAAAQIDEQAhBBIxBSJCcYH/xAAVAQEBAAAAAAAAAAAAAAAAAAACAf/EABsRAAIBBQAAAAAAAAAAAAAAAAABIQIRMYHB/9oADAMBAAIRAxEAPwDk0iBVdWWOt408Cxt7DZ80Pj+5d6fGWkBoELusbk8KaNjJ3Vr394ZuOEiOI7Qq3Q1dDNPMcsIwfFYYY3wlOdn/2Q==",
+      "credit": {
+        "photographer": "Chris S",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/15324093/",
+        "downloadUrl": "https://images.pexels.com/photos/15324093/pexels-photo-15324093.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/cafe-acoustic-performance.jpg": {
+      "category": "events",
+      "file": "cafe-acoustic-performance.jpg",
+      "alt": "A woman playing an acoustic guitar during a live performance in a warmly lit cafe",
+      "width": 800,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 106971,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAABQAEBv/EACEQAAEEAgEFAQAAAAAAAAAAAAEAAgMRBCEiEhMxQVFh/8QAFgEBAQEAAAAAAAAAAAAAAAAAAwEC/8QAGREAAgMBAAAAAAAAAAAAAAAAAAIBITED/9oADAMBAAIRAxEAPwDk3aqgNpfCx2iHl5KxHtdLGyEfpASuHcsbjEHOaDQv4iaaFWLAiNi9+0picWODSQLUpR8Nc9P/2Q==",
+      "credit": {
+        "photographer": "Tuti Isnawati",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/39207842/",
+        "downloadUrl": "https://images.pexels.com/photos/39207842/pexels-photo-39207842.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/classical-dancer-stage.jpg": {
+      "category": "events",
+      "file": "classical-dancer-stage.jpg",
+      "alt": "A Bharatanatyam dancer in traditional costume holding a pose under a warm spotlight in a darkened temple hall",
+      "width": 800,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 65551,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIDAQb/xAAcEAACAwADAQAAAAAAAAAAAAAAAQIDEQQSMYH/xAAWAQEBAQAAAAAAAAAAAAAAAAADAQL/xAAYEQADAQEAAAAAAAAAAAAAAAAAARESIf/aAAwDAQACEQMRAD8A41LTerK8Xqptz8SE3G8JTU5S9NcJexHuprjLFHPrAAm3R0lk/9k=",
+      "credit": {
+        "photographer": "Shuvra Podder",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/26856873/",
+        "downloadUrl": "https://images.pexels.com/photos/26856873/pexels-photo-26856873.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/crowd-under-stage-lights.jpg": {
+      "category": "events",
+      "file": "crowd-under-stage-lights.jpg",
+      "alt": "A packed night-time crowd facing a stage lit with deep colour wash lighting",
+      "width": 1200,
+      "height": 900,
+      "orientation": "landscape",
+      "bytes": 113327,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAPABQDASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAQCAwb/xAAeEAACAgIDAQEAAAAAAAAAAAABAgARAyEFEmExUf/EABQBAQAAAAAAAAAAAAAAAAAAAAL/xAAYEQEBAQEBAAAAAAAAAAAAAAABABESMf/aAAwDAQACEQMRAD8AyuJCy666/RJdq11Q15BMGXa3Xly9ONyu4QEBro38ETyBE6fJPIbbQA8EI9k4nLjcqXWxCHSWN//Z",
+      "credit": {
+        "photographer": "Fotios Photos",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/13230484/",
+        "downloadUrl": "https://images.pexels.com/photos/13230484/pexels-photo-13230484.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/harmonium-tabla-ensemble.jpg": {
+      "category": "events",
+      "file": "harmonium-tabla-ensemble.jpg",
+      "alt": "Three musicians seated on a low white platform playing tabla and harmoniums together at an indoor recital",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 108749,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQFAQL/xAAgEAADAAIBBAMAAAAAAAAAAAABAgMABBESEyFxFCJR/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAEC/8QAGBEBAAMBAAAAAAAAAAAAAAAAAAERIUH/2gAMAwEAAhEDEQA/AL+7bWiKtQj7ABfZxP5+urUXyWnx1DxnDtOyKKSBHH7ik5653Jz7Hmg4LdZzNFxxaXZUqCEPB9YZqTnNQqzHGGXDX//Z",
+      "credit": {
+        "photographer": "World Sikh Organization of Canada",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/18870063/",
+        "downloadUrl": "https://images.pexels.com/photos/18870063/pexels-photo-18870063.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/indian-classical-spotlight.jpg": {
+      "category": "events",
+      "file": "indian-classical-spotlight.jpg",
+      "alt": "An Indian classical musician performing alone in a single warm spotlight on a darkened stage",
+      "width": 800,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 38179,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAMFAQL/xAAeEAACAgICAwAAAAAAAAAAAAABAgARAwQFEjFRcf/EABUBAQEAAAAAAAAAAAAAAAAAAAAB/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AgcIiO20Mgu8LKPpkwiiRH62w2FWCGiYhjbE+4HYPUWAJpQFQ3i4QkH//2Q==",
+      "credit": {
+        "photographer": "Vdivision",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/33753145/",
+        "downloadUrl": "https://images.pexels.com/photos/33753145/pexels-photo-33753145.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/jazz-band-club-stage.jpg": {
+      "category": "events",
+      "file": "jazz-band-club-stage.jpg",
+      "alt": "A jazz band mid-set on a small club stage with a vocalist, pianist and saxophonist",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 70033,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAAAAQDBv/EACAQAAICAQMFAAAAAAAAAAAAAAECAAMRBCExEjJRUmH/xAAWAQEBAQAAAAAAAAAAAAAAAAABAgP/xAAVEQEBAAAAAAAAAAAAAAAAAAAAAf/aAAwDAQACEQMRAD8A5amwInYhz7CUaelb3AfoQHxIczaoh7ApHP2RY0lLqglrKpyAdohjvxEQ/9k=",
+      "credit": {
+        "photographer": "cottonbro studio",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/9419224/",
+        "downloadUrl": "https://images.pexels.com/photos/9419224/pexels-photo-9419224.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/jazz-duo-guitar-piano.jpg": {
+      "category": "events",
+      "file": "jazz-duo-guitar-piano.jpg",
+      "alt": "Two jazz musicians performing together on guitar and piano in a small room",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 86242,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAQCAwX/xAAfEAACAgICAwEAAAAAAAAAAAABAgADBBESIRMiUTL/xAAVAQEBAAAAAAAAAAAAAAAAAAABAP/EABYRAQEBAAAAAAAAAAAAAAAAAAABEf/aAAwDAQACEQMRAD8AwsXGfKsbiPVRtiToCTbCeq8UtoMRvZMpry2xwAigg99/Y3Zn+f2uqVnK/oHRhbhhW0Cpgr6PWwR8hF7GNjcmJJMJaH//2Q==",
+      "credit": {
+        "photographer": "Anthony Shkraba",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/8040838/",
+        "downloadUrl": "https://images.pexels.com/photos/8040838/pexels-photo-8040838.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/jazz-quartet-dim-club.jpg": {
+      "category": "events",
+      "file": "jazz-quartet-dim-club.jpg",
+      "alt": "A jazz quartet performing under dim red house lights in an intimate club",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 92579,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAAAAUDBP/EAB8QAAICAgIDAQAAAAAAAAAAAAECAAMRIQQSMUFRkf/EABUBAQEAAAAAAAAAAAAAAAAAAAEC/8QAGREAAwEBAQAAAAAAAAAAAAAAAAECERIh/9oADAMBAAIRAxEAPwCLVatvGdrLSrqdDzMKCqupsfKk/JzIRjx73Ac9goAG4PW/S5yViLrjh2HtWMLj1Em12ArpAP2IKA7P/9k=",
+      "credit": {
+        "photographer": "cottonbro studio",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/9419380/",
+        "downloadUrl": "https://images.pexels.com/photos/9419380/pexels-photo-9419380.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/listening-over-a-drink.jpg": {
+      "category": "events",
+      "file": "listening-over-a-drink.jpg",
+      "alt": "A guest nursing a drink at a table while a band plays in the background of a dim venue",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 54087,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAUBAgMG/8QAHhABAAIBBAMAAAAAAAAAAAAAAQACAwQRMWESUXH/xAAVAQEBAAAAAAAAAAAAAAAAAAACAf/EABkRAQEAAwEAAAAAAAAAAAAAAAEAERITIf/aAAwDAQACEQMRAD8A5fBZcoXXw6k22cill7mFLI+yXXlPkj6yMBNtNq8OPCVsqwikvscQg5k9m//Z",
+      "credit": {
+        "photographer": "cottonbro studio",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/9419396/",
+        "downloadUrl": "https://images.pexels.com/photos/9419396/pexels-photo-9419396.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/music-cafe-guitarist.jpg": {
+      "category": "events",
+      "file": "music-cafe-guitarist.jpg",
+      "alt": "A guitarist playing in a music-themed cafe with soft lamps and record covers on the wall",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 105719,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAQDBQb/xAAiEAACAgIBAwUAAAAAAAAAAAABAgADBCEREhMUMVFxkaH/xAAWAQEBAQAAAAAAAAAAAAAAAAAEAgP/xAAZEQADAQEBAAAAAAAAAAAAAAAAAQIRITH/2gAMAwEAAhEDEQA/AM3hVV2qVZiD7gfksMCrwbVyHKWEghV5GohjY57hK2FfgRu2kohuDDkEa6dQ7vK4xCh54I5F9BuYhAd+u4SNq0J54P3CaLCHL0//2Q==",
+      "credit": {
+        "photographer": "Tuti Isnawati",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/39116758/",
+        "downloadUrl": "https://images.pexels.com/photos/39116758/pexels-photo-39116758.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/events/singer-guitarist-indoor-gig.jpg": {
+      "category": "events",
+      "file": "singer-guitarist-indoor-gig.jpg",
+      "alt": "A singer-guitarist performing into a microphone at a small indoor gig",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 103178,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAQFAv/EACEQAAEEAQMFAAAAAAAAAAAAAAEAAgMRBBMhMQUSFCJR/8QAFgEBAQEAAAAAAAAAAAAAAAAAAwAB/8QAFxEBAQEBAAAAAAAAAAAAAAAAAQARMf/aAAwDAQACEQMRAD8AidLEImGoGuA5DjQO6em8cNyLiZ7EadHZv2lDxpjG4mg6xwUxPkvd2WBvysMlcQkZgBIaQsvNuJQqN7f/2Q==",
+      "credit": {
+        "photographer": "Suki Lee",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/18685043/",
+        "downloadUrl": "https://images.pexels.com/photos/18685043/pexels-photo-18685043.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/bansuri-flautist.jpg": {
+      "category": "artists",
+      "file": "bansuri-flautist.jpg",
+      "alt": "A flautist in traditional dress playing the bansuri with his eyes closed",
+      "width": 400,
+      "height": 600,
+      "orientation": "portrait",
+      "bytes": 27957,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAUCBAb/xAAfEAACAQMFAQAAAAAAAAAAAAABAgMABBEFEhMhMUH/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AQ2mk86ySOxVR0uPppdNE0LlGHYNaXT5N8IZCdgc5UfaX64AtxGeMJlfBQU7a6mtmJhcrn2ozzy3LBpnLEeZoooP/2Q==",
+      "credit": {
+        "photographer": "Nikhil Manan",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/8610179/",
+        "downloadUrl": "https://images.pexels.com/photos/8610179/pexels-photo-8610179.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/drummer-brick-wall.jpg": {
+      "category": "artists",
+      "file": "drummer-brick-wall.jpg",
+      "alt": "A smiling drummer in glasses seated at his kit against an exposed brick wall",
+      "width": 600,
+      "height": 400,
+      "orientation": "landscape",
+      "bytes": 37517,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIEAwX/xAAgEAACAgICAgMAAAAAAAAAAAABAgARAwQSMRMhMkFR/8QAFgEBAQEAAAAAAAAAAAAAAAAABAAB/8QAGBEBAQEBAQAAAAAAAAAAAAAAAQAREmH/2gAMAwEAAhEDEQA/AOo22mwpKMpo/RuRuMzbOIg1io3MPIoxYzwAarsepZpvy12ciyw/eoNcNZnhOGIHyqERsBsEMACOqhN5rov/2Q==",
+      "credit": {
+        "photographer": "Anthony Shkraba",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/8412428/",
+        "downloadUrl": "https://images.pexels.com/photos/8412428/pexels-photo-8412428.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/drummer-live-portrait.jpg": {
+      "category": "artists",
+      "file": "drummer-live-portrait.jpg",
+      "alt": "A drummer caught mid-strike behind his cymbals during a live set",
+      "width": 400,
+      "height": 600,
+      "orientation": "portrait",
+      "bytes": 26952,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAMEBQb/xAAgEAABBAICAwEAAAAAAAAAAAABAAIDBBEhEzEFEkFh/8QAFQEBAQAAAAAAAAAAAAAAAAAAAwL/xAAaEQACAwEBAAAAAAAAAAAAAAAAAQISIREx/9oADAMBAAIRAxEAPwDkmRuldhu8FMscYkxnr8VVenO/ka2NwaSQfm0mzRnEzgYyCPiSuAqa7rNu9ZfUqyNhwBzHvajl83c9WAmM67LBlCFUvAopWP/Z",
+      "credit": {
+        "photographer": "Caleb Oquendo",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/15021843/",
+        "downloadUrl": "https://images.pexels.com/photos/15021843/pexels-photo-15021843.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/guitarist-stage-light.jpg": {
+      "category": "artists",
+      "file": "guitarist-stage-light.jpg",
+      "alt": "A guitarist playing an acoustic guitar under a narrow beam of stage light",
+      "width": 600,
+      "height": 400,
+      "orientation": "landscape",
+      "bytes": 27116,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAQBAgMF/8QAIBAAAgICAgIDAAAAAAAAAAAAAQIAAwQREyESMTJSkf/EABUBAQEAAAAAAAAAAAAAAAAAAAEC/8QAGREAAwADAAAAAAAAAAAAAAAAAAECESFB/9oADAMBAAIRAxEAPwBTKVrrCeVWJH29zl5aeL6KBTr1KJY99wqJ0Hb8mmYOHIeokuEHRMYpt7C4XBE9GEgvs/EQlBg//9k=",
+      "credit": {
+        "photographer": "A. Darmel",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/7715469/",
+        "downloadUrl": "https://images.pexels.com/photos/7715469/pexels-photo-7715469.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/keys-vocalist-saree.jpg": {
+      "category": "artists",
+      "file": "keys-vocalist-saree.jpg",
+      "alt": "A woman in a saree singing at a microphone while playing a stage keyboard",
+      "width": 600,
+      "height": 400,
+      "orientation": "landscape",
+      "bytes": 30513,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAEDBAb/xAAeEAACAgICAwAAAAAAAAAAAAABEQACAwQSMSEiQf/EABUBAQEAAAAAAAAAAAAAAAAAAAAB/8QAFhEBAQEAAAAAAAAAAAAAAAAAABEB/9oADAMBAAIRAxEAPwDMa4NSj9Me5jNMrbqelJta1b1PoAQOxDOjSrEXVyVSpi5htQiJ4lDwIQV//9k=",
+      "credit": {
+        "photographer": "Rajesh Syangtan",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/19262080/",
+        "downloadUrl": "https://images.pexels.com/photos/19262080/pexels-photo-19262080.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/saxophonist-warm-light.jpg": {
+      "category": "artists",
+      "file": "saxophonist-warm-light.jpg",
+      "alt": "A young saxophonist playing under warm stage lights",
+      "width": 600,
+      "height": 400,
+      "orientation": "landscape",
+      "bytes": 33954,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAMEBv/EACIQAAIBBAIBBQAAAAAAAAAAAAECAwAEERMFEjEhIkFRYf/EABUBAQEAAAAAAAAAAAAAAAAAAAME/8QAGBEBAQEBAQAAAAAAAAAAAAAAAREAAhL/2gAMAwEAAhEDEQA/AM8vFXGgXBjOrOM02FWt5VDx5Xp5xnBqpeTmNrHbnBjPqRTrSXStzKyLJ7lXq3jFDVY5ZC6OPhZLldwkVQxOB1/aK0UUo1L0QIv0Piiqjg03p3//2Q==",
+      "credit": {
+        "photographer": "Yan Krukov",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/9002848/",
+        "downloadUrl": "https://images.pexels.com/photos/9002848/pexels-photo-9002848.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/singer-songwriter-glasses.jpg": {
+      "category": "artists",
+      "file": "singer-songwriter-glasses.jpg",
+      "alt": "A singer-songwriter in glasses performing with an acoustic guitar on a small stage",
+      "width": 450,
+      "height": 600,
+      "orientation": "portrait",
+      "bytes": 31768,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA8DASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIDBAb/xAAgEAEBAAIBBAMBAAAAAAAAAAABAgADEgQRITETQVFh/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAH/xAAWEQEBAQAAAAAAAAAAAAAAAAAAESH/2gAMAwEAAhEDEQA/AOa065uwuiT9xGeyj9Zt0dI7dRc08+Xr+YvUF8B2VK1Sji6sxD5KI4ng75Nuq8KoesMMD//Z",
+      "credit": {
+        "photographer": "John Detochka",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/15789084/",
+        "downloadUrl": "https://images.pexels.com/photos/15789084/pexels-photo-15789084.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/sitar-player-stage.jpg": {
+      "category": "artists",
+      "file": "sitar-player-stage.jpg",
+      "alt": "A sitarist's hands moving across the frets mid-performance, with tabla and stage microphones set up alongside",
+      "width": 600,
+      "height": 400,
+      "orientation": "landscape",
+      "bytes": 53506,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGgAAAQUBAAAAAAAAAAAAAAAAAAECAwQFBv/EAB8QAAICAwACAwAAAAAAAAAAAAECAwQAERIhYQUxUf/EABYBAQEBAAAAAAAAAAAAAAAAAAIAAf/EABcRAQEBAQAAAAAAAAAAAAAAAAABESH/2gAMAwEAAhEDEQA/AK1SSkskrimvOzoMdgesgcRrt41SPfleR95r/H14LF61XaIAISOt+d/uc7chKTMxkZuTyMFh7CMELHokH1hjFc6wzOp//9k=",
+      "credit": {
+        "photographer": "Saubhagya gandharv",
+        "source": "Unsplash",
+        "sourceUrl": "https://unsplash.com/photos/a-man-playing-a-musical-instrument-in-front-of-a-microphone-XQ3zQmywpX8",
+        "downloadUrl": "https://unsplash.com/photos/XQ3zQmywpX8/download?w=1200",
+        "license": "Unsplash License",
+        "licenseUrl": "https://unsplash.com/license",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/tabla-hands-monochrome.jpg": {
+      "category": "artists",
+      "file": "tabla-hands-monochrome.jpg",
+      "alt": "A monochrome portrait of a musician's hands striking the tabla mid-phrase",
+      "width": 600,
+      "height": 400,
+      "orientation": "landscape",
+      "bytes": 37564,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAQBAwX/xAAgEAACAgIBBQEAAAAAAAAAAAABAgADBBEhBRIiUXEx/8QAFAEBAAAAAAAAAAAAAAAAAAAAAP/EABQRAQAAAAAAAAAAAAAAAAAAAAD/2gAMAwEAAhEDEQA/AEca5VRbUqc1MoX4Yj1JXvyBZWhH6vMnJyrcVRVW3jwfkTXIfuBOzrR0TA1cehUoQBiTrnXuEqruZkBXxHoGED//2Q==",
+      "credit": {
+        "photographer": "Yash Limaje",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/18851187/",
+        "downloadUrl": "https://images.pexels.com/photos/18851187/pexels-photo-18851187.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/tabla-player-outdoors.jpg": {
+      "category": "artists",
+      "file": "tabla-player-outdoors.jpg",
+      "alt": "An elderly man in a white shirt playing tabla outdoors",
+      "width": 400,
+      "height": 600,
+      "orientation": "portrait",
+      "bytes": 38628,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQGAgX/xAAhEAACAQQCAgMAAAAAAAAAAAABAgMABBEhBRITIjFBcf/EABUBAQEAAAAAAAAAAAAAAAAAAAAC/8QAGREBAQADAQAAAAAAAAAAAAAAAQACAxEh/9oADAMBAAIRAxEAPwCgvZY7a3zI3XscA4qS5GS4tLplEzAP7DqcDddxPDfIsPlLSIQzfY/KX5TixeXCupIAXGiKPeV6kxfZKe6kiyYz1PsMjXwKzcTTGOFzM+WXe6KKFLf/2Q==",
+      "credit": {
+        "photographer": "Kunal Deotare",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/4728585/",
+        "downloadUrl": "https://images.pexels.com/photos/4728585/pexels-photo-4728585.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/tanpura-vocalist.jpg": {
+      "category": "artists",
+      "file": "tanpura-vocalist.jpg",
+      "alt": "A smiling woman in traditional dress holding a tanpura upright at her shoulder",
+      "width": 600,
+      "height": 400,
+      "orientation": "landscape",
+      "bytes": 44143,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAMFAQT/xAAhEAACAQMEAwEAAAAAAAAAAAABAgMABBESITFBBVFxQv/EABYBAQEBAAAAAAAAAAAAAAAAAAABAv/EABkRAAIDAQAAAAAAAAAAAAAAAAABAhIhMf/aAAwDAQACEQMRAD8ARfgJbBVG+eB3U2G6ihCqA2rV8x7pnlHaK8xktxz8rgmYPKHChc9CkY7pW8Kpkt85OsZ9UVttcxpAqvbpIR+id6KVZnp//9k=",
+      "credit": {
+        "photographer": "Sohani Kamat",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/5804658/",
+        "downloadUrl": "https://images.pexels.com/photos/5804658/pexels-photo-5804658.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/veena-player-portrait.jpg": {
+      "category": "artists",
+      "file": "veena-player-portrait.jpg",
+      "alt": "A woman in traditional South Indian dress seated with a veena across her lap",
+      "width": 400,
+      "height": 600,
+      "orientation": "portrait",
+      "bytes": 41406,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAABAACBf/EACAQAAEDAwUBAAAAAAAAAAAAAAEAAgMEERMhIjEyUZH/xAAWAQEBAQAAAAAAAAAAAAAAAAADAAT/xAAZEQEBAQADAAAAAAAAAAAAAAABABEhIkH/2gAMAwEAAhEDEQA/AOfDA0RAm1kWqgGTQJ1HKJNsbMjm9m8I1VKTMbsLT54gHnLcpk8Px9GtF+TZYllcSNB8UpCHevL/2Q==",
+      "credit": {
+        "photographer": "TK Dhamu",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/11822309/",
+        "downloadUrl": "https://images.pexels.com/photos/11822309/pexels-photo-11822309.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/violinist-close-portrait.jpg": {
+      "category": "artists",
+      "file": "violinist-close-portrait.jpg",
+      "alt": "A close portrait of a woman resting her chin near the scroll of her violin",
+      "width": 400,
+      "height": 600,
+      "orientation": "portrait",
+      "bytes": 22987,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAMEBf/EAB4QAAEEAwEBAQAAAAAAAAAAAAEAAgMEERIhMQVh/8QAFgEBAQEAAAAAAAAAAAAAAAAAAwIE/8QAGREAAgMBAAAAAAAAAAAAAAAAAAECAzFB/9oADAMBAAIRAxEAPwBDK0VqAHJ31yNR4s18eD0dTK1swVnzB2CWlvP1Si7GWjYkHHeIq+mi5JNFf3KMVKCIQl+HHBBOVhH1CFccDs0//9k=",
+      "credit": {
+        "photographer": "Daniel Dolidze",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/30563415/",
+        "downloadUrl": "https://images.pexels.com/photos/30563415/pexels-photo-30563415.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/violinist-studio-portrait.jpg": {
+      "category": "artists",
+      "file": "violinist-studio-portrait.jpg",
+      "alt": "A young violinist holding his instrument against a dark studio backdrop",
+      "width": 410,
+      "height": 600,
+      "orientation": "portrait",
+      "bytes": 25049,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA4DASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAMCBAX/xAAgEAEBAAIBAwUAAAAAAAAAAAABAgADEQQhURITMTJB/8QAFAEBAAAAAAAAAAAAAAAAAAAAAf/EABURAQEAAAAAAAAAAAAAAAAAAABB/9oADAMBAAIRAxEAPwDB0dLqsr3NhrCVFPl8ZVqAxmy2pDvwPfF9VcrJH1DgwpiLSRR5xeyn0yc/mGGIf//Z",
+      "credit": {
+        "photographer": "Vital Silva",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/17581814/",
+        "downloadUrl": "https://images.pexels.com/photos/17581814/pexels-photo-17581814.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/artists/vocalist-vintage-mic.jpg": {
+      "category": "artists",
+      "file": "vocalist-vintage-mic.jpg",
+      "alt": "A vocalist singing into a vintage ribbon microphone, eyes closed mid-phrase",
+      "width": 600,
+      "height": 400,
+      "orientation": "landscape",
+      "bytes": 16916,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAQBAgMG/8QAHRAAAgICAwEAAAAAAAAAAAAAAQIAEQMxEiFBcf/EABYBAQEBAAAAAAAAAAAAAAAAAAMAAf/EABgRAQEBAQEAAAAAAAAAAAAAAAEAAhEh/9oADAMBAAIRAxEAPwDl0XkjsQaA2JK9VcsjFcS14b+zF2JYky77K4DIza56G4RMXUJsd//Z",
+      "credit": {
+        "photographer": "Anthony Shkraba",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/8043850/",
+        "downloadUrl": "https://images.pexels.com/photos/8043850/pexels-photo-8043850.jpeg?auto=compress&cs=tinysrgb&w=600",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/bar-stage-microphone.jpg": {
+      "category": "venues",
+      "file": "bar-stage-microphone.jpg",
+      "alt": "A microphone stand set up beside a wooden bar counter lined with shelves and bottles",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 210145,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAEEAgP/xAAgEAACAgEDBQAAAAAAAAAAAAABAgARAwQSIRQiMUFR/8QAFgEBAQEAAAAAAAAAAAAAAAAAAQME/8QAGBEAAwEBAAAAAAAAAAAAAAAAAAECEkH/2gAMAwEAAhEDEQA/AGuTVJiUKFJrkkGa6nUjU41GMHER3NfiWolqeZOEYjaGAr3tmSVT4XbSEVdSQ2UtZvkQnYYbAJazXyEcUG5P/9k=",
+      "credit": {
+        "photographer": "Markus Winkler",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/11309986/",
+        "downloadUrl": "https://images.pexels.com/photos/11309986/pexels-photo-11309986.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/brick-bar-stools.jpg": {
+      "category": "venues",
+      "file": "brick-bar-stools.jpg",
+      "alt": "Tall wooden stools along a brick-fronted bar counter in an empty venue",
+      "width": 801,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 165356,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAIDBAX/xAAiEAACAgEDBAMAAAAAAAAAAAABAgARAwQSQQUhMWETcbH/xAAVAQEBAAAAAAAAAAAAAAAAAAACA//EABURAQEAAAAAAAAAAAAAAAAAAAAB/9oADAMBAAIRAxEAPwDPTL8ZxsqbgqHex836kmm02s1WMsWAAPYMar6g/Tje0UbPYHmMiZsKgBHF+75kqpF1GLNR48Rcbkg3wx/YQiox/9k=",
+      "credit": {
+        "photographer": "Pavel Danilyuk",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/5858030/",
+        "downloadUrl": "https://images.pexels.com/photos/5858030/pexels-photo-5858030.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/curtained-stage-mic.jpg": {
+      "category": "venues",
+      "file": "curtained-stage-mic.jpg",
+      "alt": "A single microphone in a spotlight in front of closed red stage curtains",
+      "width": 800,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 102636,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAIGBf/EACAQAAIBBAEFAAAAAAAAAAAAAAECAAMEERIGMUFRYXH/xAAWAQEBAQAAAAAAAAAAAAAAAAACAwT/xAAVEQEBAAAAAAAAAAAAAAAAAAAAAf/aAAwDAQACEQMRAD8AkggOvyDLqcCNq2g0Uk+hGc5YnHWBpkih4xWdywcggeRMC9rPWuXdzlix7QhFUn//2Q==",
+      "credit": {
+        "photographer": "Martin de Arriba",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/29858812/",
+        "downloadUrl": "https://images.pexels.com/photos/29858812/pexels-photo-29858812.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/drum-kit-empty-stage.jpg": {
+      "category": "venues",
+      "file": "drum-kit-empty-stage.jpg",
+      "alt": "A drum kit standing alone on a darkened stage, backlit by warm golden haze before the band comes on",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 114992,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAUGAv/EACAQAAEDBAIDAAAAAAAAAAAAAAEAAgMEERIhQVEiUpH/xAAVAQEBAAAAAAAAAAAAAAAAAAADBP/EABsRAAEFAQEAAAAAAAAAAAAAAAABAgMTIRFR/9oADAMBAAIRAxEAPwBHS2jIe4EN50nkE1HNHdjXEjW+1JmpfhhwtQ1DmNLR3dTui7pSkiJhSSxszPiPqFPGtm9kIaHeiWtP/9k=",
+      "credit": {
+        "photographer": "Gigxels com",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/7551983/",
+        "downloadUrl": "https://images.pexels.com/photos/7551983/pexels-photo-7551983.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/empty-stage-purple-wash.jpg": {
+      "category": "venues",
+      "file": "empty-stage-purple-wash.jpg",
+      "alt": "An empty stage lit by purple spotlights before doors open",
+      "width": 795,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 19570,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAECAwb/xAAbEAEBAQEAAwEAAAAAAAAAAAABAgARISJhcf/EABUBAQEAAAAAAAAAAAAAAAAAAAAC/8QAFxEBAQEBAAAAAAAAAAAAAAAAABEBAv/aAAwDAQACEQMRAD8AyeNZMtT4lfvNBOOreYHN1D60n45VTT2lXGNNH//Z",
+      "credit": {
+        "photographer": "Isabella Mendes",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/5389619/",
+        "downloadUrl": "https://images.pexels.com/photos/5389619/pexels-photo-5389619.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/empty-stage-red-spots.jpg": {
+      "category": "venues",
+      "file": "empty-stage-red-spots.jpg",
+      "alt": "Three red spotlights trained on a bare, darkened stage",
+      "width": 795,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 20632,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAEDBv/EABwQAAICAgMAAAAAAAAAAAAAAAACAREDITJRsf/EABYBAQEBAAAAAAAAAAAAAAAAAAIAAf/EABkRAQEBAAMAAAAAAAAAAAAAAAERAAISUf/aAAwDAQACEQMRAD8AyoF8SK+Jtb7IytTQBrM3ggPuaZGTjNCZ2abnwAKbOzJd/9k=",
+      "credit": {
+        "photographer": "Isabella Mendes",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/5389623/",
+        "downloadUrl": "https://images.pexels.com/photos/5389623/pexels-photo-5389623.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/four-chairs-blue-stage.jpg": {
+      "category": "venues",
+      "file": "four-chairs-blue-stage.jpg",
+      "alt": "Four empty chairs arranged on a dark stage under low blue light for an acoustic set",
+      "width": 1072,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 81914,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUABIDASIAAhEBAxEB/8QAGAABAQEBAQAAAAAAAAAAAAAAAAMBAgb/xAAgEAACAQQBBQAAAAAAAAAAAAAAAQIREiFRAyIxMmGR/8QAGAEAAwEBAAAAAAAAAAAAAAAAAQIEAAP/xAAYEQEBAQEBAAAAAAAAAAAAAAAAARECEv/aAAwDAQACEQMRAD8A8tSptj0xx5qXSxllPHHqaS1C16BXp9gbxG1aPHCLxFHVsaeK7AFkkjmyi0vgABgv/9k=",
+      "credit": {
+        "photographer": "Gaby Barragan",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/12242087/",
+        "downloadUrl": "https://images.pexels.com/photos/12242087/pexels-photo-12242087.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/grand-piano-hall.jpg": {
+      "category": "venues",
+      "file": "grand-piano-hall.jpg",
+      "alt": "A grand piano standing alone on a dimly lit concert hall stage",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 48699,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAAAAEDBv/EAB0QAAIDAAIDAAAAAAAAAAAAAAEDAAIREjEhYXH/xAAUAQEAAAAAAAAAAAAAAAAAAAAB/8QAFREBAQAAAAAAAAAAAAAAAAAAACH/2gAMAwEAAhEDEQA/AOQUljji6mx9RZN6kgjyO8MqnsSdXY1+RV7K7xtm9wpjKJSSTp7iIf/Z",
+      "credit": {
+        "photographer": "Matteo Basile",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/14719432/",
+        "downloadUrl": "https://images.pexels.com/photos/14719432/pexels-photo-14719432.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/industrial-black-box.jpg": {
+      "category": "venues",
+      "file": "industrial-black-box.jpg",
+      "alt": "An industrial black-box performance space lit green, with bench seating along the walls",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 99607,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAFwABAQEBAAAAAAAAAAAAAAAAAAQDBv/EACAQAQACAgIBBQAAAAAAAAAAAAEAAgMRBCEFEhMxUWH/xAAVAQEBAAAAAAAAAAAAAAAAAAAAAv/EABgRAQADAQAAAAAAAAAAAAAAAAABERJh/9oADAMBAAIRAxEAPwDlMeVoPtgP3ruLVtd3eyr3Led444gayN9/mpJjRdJ8xq0dhj6Ilrxa27LJEWaf/9k=",
+      "credit": {
+        "photographer": "Zisan Ozdemir",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/27806693/",
+        "downloadUrl": "https://images.pexels.com/photos/27806693/pexels-photo-27806693.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/mic-in-light-beam.jpg": {
+      "category": "venues",
+      "file": "mic-in-light-beam.jpg",
+      "alt": "A microphone on a stand standing alone in a shaft of stage light",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 33981,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAABAAG/8QAHhAAAgMAAgMBAAAAAAAAAAAAAQMAAgQREgUjMUH/xAAVAQEBAAAAAAAAAAAAAAAAAAAAA//EABkRAQACAwAAAAAAAAAAAAAAAAABAhESIf/aAAwDAQACEQMRAD8AzmdDNDQtVe1j8ETp8Y/KPaODCqbdVxehIsP0RDt7314ZbtK11x0gSUjKTH//2Q==",
+      "credit": {
+        "photographer": "Vadim Koza",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/12267669/",
+        "downloadUrl": "https://images.pexels.com/photos/12267669/pexels-photo-12267669.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/rooftop-bar-city-view.jpg": {
+      "category": "venues",
+      "file": "rooftop-bar-city-view.jpg",
+      "alt": "A warm, dimly lit rooftop bar with guests seated against a city skyline",
+      "width": 1200,
+      "height": 800,
+      "orientation": "landscape",
+      "bytes": 138539,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIEAwX/xAAgEAACAgIBBQEAAAAAAAAAAAABAgADESESBAUjMUFx/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAL/xAAZEQEAAgMAAAAAAAAAAAAAAAAAARESIUH/2gAMAwEAAhEDEQA/AOCaunLny6LHGRnUTuFVIsdq3BGsfP2RIxB0YznK5PuT1cRppYtYc8X18hJ2Y8oRRlT/2Q==",
+      "credit": {
+        "photographer": "Jay Moon",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/35005900/",
+        "downloadUrl": "https://images.pexels.com/photos/35005900/pexels-photo-35005900.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/venues/theatre-seats-lit-stage.jpg": {
+      "category": "venues",
+      "file": "theatre-seats-lit-stage.jpg",
+      "alt": "Rows of empty red seats facing an illuminated stage in a small theatre",
+      "width": 1200,
+      "height": 798,
+      "orientation": "landscape",
+      "bytes": 92590,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAANABQDASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAcBAwb/xAAfEAABAwQDAQAAAAAAAAAAAAABAAIDBAURkiExNBL/xAAWAQEBAQAAAAAAAAAAAAAAAAADAQL/xAAbEQACAgMBAAAAAAAAAAAAAAAAARETAiEiUf/aAAwDAQACEQMRAD8AyrWuJ4BwpLH46KY8Fuo8ACmi1Cvkt1GB5otAhWcqR+VoVvzjscoTClt1GX+aLVCzcvC1n//Z",
+      "credit": {
+        "photographer": "Samlin",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/19658083/",
+        "downloadUrl": "https://images.pexels.com/photos/19658083/pexels-photo-19658083.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/art-filled-coffee-house.jpg": {
+      "category": "restaurants",
+      "file": "art-filled-coffee-house.jpg",
+      "alt": "An intimate coffee house with framed art covering the walls and modern lighting",
+      "width": 800,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 133371,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAUCAwQG/8QAHhABAAIDAAIDAAAAAAAAAAAAAQIDAAQRBRIUIUH/xAAUAQEAAAAAAAAAAAAAAAAAAAAC/8QAFhEBAQEAAAAAAAAAAAAAAAAAAQAC/9oADAMBAAIRAxEAPwBLZUEIMDj3Iype+0hF/Ay23bh6jFX7xj4nYsthZL48ZnQOy5zBkWS3OCqDm/V2LKa0reC4YY2Jf//Z",
+      "credit": {
+        "photographer": "Catherine Chechun",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/34746696/",
+        "downloadUrl": "https://images.pexels.com/photos/34746696/pexels-photo-34746696.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/bengaluru-modern-dining.jpg": {
+      "category": "restaurants",
+      "file": "bengaluru-modern-dining.jpg",
+      "alt": "A modern restaurant interior in Bengaluru with sculpted lighting and upholstered seating",
+      "width": 858,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 148069,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA4DASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAMEAv/EACEQAAICAgEEAwAAAAAAAAAAAAECAAMRIRIEFTFBMoGx/8QAFgEBAQEAAAAAAAAAAAAAAAAAAwAC/8QAFhEBAQEAAAAAAAAAAAAAAAAAABEB/9oADAMBAAIRAxEAPwB9lLmw2qqsufiDIbiorBIOz59R3c667SrLhtBpH1HXrwCqmd+fUClmp3r5oCzNnf7MCpWPFhkD6hCaT//Z",
+      "credit": {
+        "photographer": "Prajwal",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/24499488/",
+        "downloadUrl": "https://images.pexels.com/photos/24499488/pexels-photo-24499488.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/bengaluru-mosaic-cafe.jpg": {
+      "category": "restaurants",
+      "file": "bengaluru-mosaic-cafe.jpg",
+      "alt": "A Bengaluru cafe courtyard with blue mosaic tiling and decorative plates on the wall",
+      "width": 900,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 230613,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA8DASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQFAgP/xAAiEAACAgIBAwUAAAAAAAAAAAABAgADERJBBAUhIzEyUcH/xAAVAQEBAAAAAAAAAAAAAAAAAAABAv/EABYRAQEBAAAAAAAAAAAAAAAAAAABEf/aAAwDAQACEQMRAD8AfupW1SpfXIx45mrLSwWmgZIHnXiK23+oFFLEMcbFvyduhSxbb9K2Qn4ngwwpHarbL8va7O32TL/Tsce8IS4iv//Z",
+      "credit": {
+        "photographer": "Raaj Ugar",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/38795031/",
+        "downloadUrl": "https://images.pexels.com/photos/38795031/pexels-photo-38795031.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/delhi-cafe-pendants.jpg": {
+      "category": "restaurants",
+      "file": "delhi-cafe-pendants.jpg",
+      "alt": "Wooden chairs and tables under low pendant lamps in a cosy New Delhi cafe",
+      "width": 903,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 223019,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA8DASIAAhEBAxEB/8QAFgABAQEAAAAAAAAAAAAAAAAAAwQA/8QAIRAAAgIBAgcAAAAAAAAAAAAAAQIAAxEhQRMUIjFCYaH/xAAWAQEBAQAAAAAAAAAAAAAAAAACAAH/xAAWEQEBAQAAAAAAAAAAAAAAAAAAEQH/2gAMAwEAAhEDEQA/AJbE4IHkPsnuvsUAqN8amLzq22dahSewzDsdLEODkhs4g2UssQNqx9GIBisEbmaaTX//2Q==",
+      "credit": {
+        "photographer": "Vidit Goel",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/19447626/",
+        "downloadUrl": "https://images.pexels.com/photos/19447626/pexels-photo-19447626.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/goa-garden-restaurant.jpg": {
+      "category": "restaurants",
+      "file": "goa-garden-restaurant.jpg",
+      "alt": "A rustic open-air restaurant in Goa with wooden tables set among dense greenery",
+      "width": 901,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 233560,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA8DASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAIGAQT/xAAgEAACAgICAgMAAAAAAAAAAAABAgADESESMQQTMlGx/8QAFwEAAwEAAAAAAAAAAAAAAAAAAAIDBP/EABgRAQEAAwAAAAAAAAAAAAAAAAABAzFR/9oADAMBAAIRAxEAPwCbNaeoYLc87B6xE4OoByP2Uymj2E2on38Zy3U12MRUqsTvAEyzJeLNuvsqvLK52Do9RLHJ8F7OnLDY1CED3T//2Q==",
+      "credit": {
+        "photographer": "Abey Saksham",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/31774138/",
+        "downloadUrl": "https://images.pexels.com/photos/31774138/pexels-photo-31774138.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/hyderabad-courtyard-cafe.jpg": {
+      "category": "restaurants",
+      "file": "hyderabad-courtyard-cafe.jpg",
+      "alt": "An outdoor cafe in Hyderabad with wooden furniture, yellow walls and potted plants",
+      "width": 675,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 127532,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAAsDASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAMEAQL/xAAhEAACAgICAQUAAAAAAAAAAAABAgADBBESISIUMUFhcf/EABcBAAMBAAAAAAAAAAAAAAAAAAABAwT/xAAXEQEBAQEAAAAAAAAAAAAAAAABABEi/9oADAMBAAIRAxEAPwB3qF4W1oSrqCAv1IFz8xRxQgKPYEbnTZV1VZD4+2cnZBjcfJpalTZwDfIYdzN1tdDKiwCh+I8ge/LvU00KTssxP7CEGZf/2Q==",
+      "credit": {
+        "photographer": "Mayank Dixit",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/35813673/",
+        "downloadUrl": "https://images.pexels.com/photos/35813673/pexels-photo-35813673.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/modern-indian-restaurant.jpg": {
+      "category": "restaurants",
+      "file": "modern-indian-restaurant.jpg",
+      "alt": "A contemporary Indian restaurant interior with patterned tiles and warm pendant lighting",
+      "width": 904,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 214686,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA8DASIAAhEBAxEB/8QAGAAAAwEBAAAAAAAAAAAAAAAAAAQFAwb/xAAhEAACAgEEAgMAAAAAAAAAAAABAgMRAAQSITETIjJhkf/EABYBAQEBAAAAAAAAAAAAAAAAAAIAA//EABgRAQEAAwAAAAAAAAAAAAAAAAABAhFB/9oADAMBAAIRAxEAPwDngjhSAGD3VWc3MdLtvew7OOSvGkbK1nUSfEfWJzMYW3tGQrDkX1g60l2smKLToBHEnr0WFn9ybrT5uX7wwypYv//Z",
+      "credit": {
+        "photographer": "Lakshmi RJ",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/39068397/",
+        "downloadUrl": "https://images.pexels.com/photos/39068397/pexels-photo-39068397.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/ornate-arches-dining.jpg": {
+      "category": "restaurants",
+      "file": "ornate-arches-dining.jpg",
+      "alt": "An Indian restaurant dining room framed by ornate carved arches",
+      "width": 900,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 202575,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA8DASIAAhEBAxEB/8QAGAAAAgMAAAAAAAAAAAAAAAAAAAQBAwX/xAAiEAACAQMEAgMAAAAAAAAAAAABAgADETEEEkFRBRMhccH/xAAVAQEBAAAAAAAAAAAAAAAAAAABA//EABURAQEAAAAAAAAAAAAAAAAAAAAh/9oADAMBAAIRAxEAPwBxT3TKm+MgyGIsWUMRf5vFNL5HeHZ91lJYEcAy6jrKVYOEckA9ZklayQoXS1GUbTY4+4rRqN7WN+P2EIh//9k=",
+      "credit": {
+        "photographer": "AbsoluteAbhi",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/32657750/",
+        "downloadUrl": "https://images.pexels.com/photos/32657750/pexels-photo-32657750.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/pune-vintage-corner.jpg": {
+      "category": "restaurants",
+      "file": "pune-vintage-corner.jpg",
+      "alt": "A cafe corner in Pune hung with vintage photo frames above a banquette",
+      "width": 900,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 201593,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA8DASIAAhEBAxEB/8QAGQAAAgMBAAAAAAAAAAAAAAAAAAUBAgME/8QAIRAAAQUAAgEFAAAAAAAAAAAAAQACAwQREiExBRMyYZH/xAAVAQEBAAAAAAAAAAAAAAAAAAADAv/EABgRAAMBAQAAAAAAAAAAAAAAAAABAkEh/9oADAMBAAIRAxEAPwBBXpzWc9lnL63Fd3pdo8sj+J7wha07EcUQaXNBPntdM1xzY80AE6idUnwRTIorsD5MPhS8nrs/qEJNIw//2Q==",
+      "credit": {
+        "photographer": "Dhananjay Shinde",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/36971913/",
+        "downloadUrl": "https://images.pexels.com/photos/36971913/pexels-photo-36971913.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    },
+    "/media/restaurants/warm-bar-shelf-glow.jpg": {
+      "category": "restaurants",
+      "file": "warm-bar-shelf-glow.jpg",
+      "alt": "A cosy bar interior with warm lighting over a well-stocked back shelf",
+      "width": 800,
+      "height": 1200,
+      "orientation": "portrait",
+      "bytes": 133106,
+      "blurDataURL": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABQODxIPDRQSEBIXFRQYHjIhHhwcHj0sLiQySUBMS0dARkVQWnNiUFVtVkVGZIhlbXd7gYKBTmCNl4x9lnN+gXz/2wBDARUXFx4aHjshITt8U0ZTfHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHx8fHz/wAARCAAUAA0DASIAAhEBAxEB/8QAFwAAAwEAAAAAAAAAAAAAAAAAAAIEA//EACIQAAICAgEDBQAAAAAAAAAAAAECAxEABDEFIUESE1Fxgf/EABcBAAMBAAAAAAAAAAAAAAAAAAABAgP/xAAYEQEBAQEBAAAAAAAAAAAAAAABABECEv/aAAwDAQACEQMRAD8Ak1hMymol7qEZV8Dm8mi6TNts7QopAq7aqyTWnZAACxN8A5q+05qj6f09/vIBG0evRJDAhZbv5xDGvuMPA4www12eGF//2Q==",
+      "credit": {
+        "photographer": "Okan Yasar",
+        "source": "Pexels",
+        "sourceUrl": "https://www.pexels.com/photo/29844873/",
+        "downloadUrl": "https://images.pexels.com/photos/29844873/pexels-photo-29844873.jpeg?auto=compress&cs=tinysrgb&w=1200",
+        "license": "Pexels License",
+        "licenseUrl": "https://www.pexels.com/license/",
+        "commercialUse": true,
+        "attributionRequired": false
+      }
+    }
+  }
+}

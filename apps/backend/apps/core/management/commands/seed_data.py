@@ -311,6 +311,14 @@ class Command(BaseCommand):
                               min_per_order=1, max_per_order=4)
             )
 
+        self.stdout.write("Attaching seed imagery...")
+        self._attach_images(
+            venues=[v1, v2, v3],
+            artists=[a1, a2, a3, a4],
+            events=[e1, e2, e3, e4],
+            uploader=admin_user,
+        )
+
         self.stdout.write("Seeding bookings / organizer / orders...")
         self._seed_bookings(venue_owner, artist_user, a1, e2, blr)
 
@@ -323,6 +331,89 @@ class Command(BaseCommand):
             "  API:          http://localhost:8000/api/v1/\n"
             "  Admin panel:  http://localhost:8000/admin/\n"
         ))
+
+    def _attach_images(self, venues, artists, events, uploader):
+        """Point seeded rows at the shared seed imagery.
+
+        The files live in the frontend's ``public/media/`` and are served from
+        there; we only store the relative path, which ``MEDIA_URL`` ("/media/")
+        turns back into the URL the frontend already serves.
+
+        Idempotent: photo rows are looked up by ``(owner, image)`` so a second
+        run finds them instead of duplicating, and event posters are only
+        written when the value would actually change.
+        """
+        from apps.core.management import seed_images
+        from apps.artists.models import ArtistPhoto
+        from apps.venues.models import VenuePhoto
+        from apps.events.models import EventPhoto
+
+        if not seed_images.available():
+            self.stdout.write(self.style.WARNING(
+                f"  no image manifest at {seed_images.MANIFEST_PATH} — skipping imagery"
+            ))
+            return
+
+        created = 0
+
+        # Venues: a stage shot as the primary, plus an interior for the gallery.
+        for i, venue in enumerate(venues):
+            path, alt = seed_images.pick("venues", i)
+            if path:
+                _, made = VenuePhoto.objects.get_or_create(
+                    venue=venue, image=path,
+                    defaults={"caption": alt, "is_primary": True,
+                              "sort_order": 0, "uploaded_by": uploader},
+                )
+                created += made
+            interior, interior_alt = seed_images.pick("restaurants", i)
+            if interior:
+                _, made = VenuePhoto.objects.get_or_create(
+                    venue=venue, image=interior,
+                    defaults={"caption": interior_alt, "is_primary": False,
+                              "sort_order": 1, "uploaded_by": uploader},
+                )
+                created += made
+
+        # Artists: one distinct portrait each.
+        for i, artist in enumerate(artists):
+            path, alt = seed_images.pick("artists", i)
+            if not path:
+                continue
+            _, made = ArtistPhoto.objects.get_or_create(
+                artist=artist, image=path,
+                defaults={"caption": alt, "is_primary": True, "sort_order": 0},
+            )
+            created += made
+
+        # Events: poster + a different banner, and the poster in the gallery.
+        event_count = len(seed_images.category_images("events"))
+        for i, event in enumerate(events):
+            poster, poster_alt = seed_images.pick("events", i)
+            if not poster:
+                continue
+            # Offset the banner so it is never the same shot as the poster.
+            banner, _banner_alt = seed_images.pick("events", i + max(1, event_count // 2))
+            fields = []
+            if event.poster_image != poster:
+                event.poster_image = poster
+                fields.append("poster_image")
+            if banner and event.banner_image != banner:
+                event.banner_image = banner
+                fields.append("banner_image")
+            if fields:
+                event.save(update_fields=fields)
+            _, made = EventPhoto.objects.get_or_create(
+                event=event, image=poster,
+                defaults={"caption": poster_alt, "is_primary": True,
+                          "sort_order": 0, "uploaded_by": uploader},
+            )
+            created += made
+
+        self.stdout.write(
+            f"  imagery: {len(venues)} venues, {len(artists)} artists, "
+            f"{len(events)} events ({created} new photo rows)"
+        )
 
     def _seed_bookings(self, venue_owner, artist_user, artist, event, city):
         from apps.bookings.models import (

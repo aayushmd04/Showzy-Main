@@ -446,16 +446,6 @@ export function DiscoverScreen() {
   const tok    = isDark ? T.dark : T.light;
   const urlQuery = searchParams.get("q")?.toLowerCase().trim() ?? "";
 
-  // Apply theme class to <html> so the whole app reflects the theme
-  useEffect(() => {
-    const root = document.documentElement;
-    if (isDark) {
-      root.classList.remove("theme-light");
-    } else {
-      root.classList.add("theme-light");
-    }
-  }, [isDark]);
-
   // Published upcoming events sorted by date (city-filtered)
   const published = useMemo(() => {
     return events

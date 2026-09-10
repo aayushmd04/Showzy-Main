@@ -2,6 +2,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -217,8 +218,54 @@ const HELD_STATES: BookingState[] = ["accepted", "funded", "performed", "release
 export function AppStoreProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<Role>("out");
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
-  const [theme, setTheme] = useState<Theme>("dark");
-  const [lang, setLang] = useState<Lang>("en");
+  /*
+   * Theme and language are read back from the browser so a choice survives a
+   * reload. Both were in-memory only, so every refresh silently reset to dark
+   * English.
+   */
+  const [theme, setTheme] = useState<Theme>(() => {
+    try {
+      return localStorage.getItem("naada_theme") === "light" ? "light" : "dark";
+    } catch {
+      return "dark";
+    }
+  });
+  const [lang, setLang] = useState<Lang>(() => {
+    try {
+      return localStorage.getItem("naada_lang") === "kn" ? "kn" : "en";
+    } catch {
+      return "en";
+    }
+  });
+
+  /*
+   * One place decides what the page looks like.
+   *
+   * This class used to be set inside the discover screen's own effect, so it
+   * only tracked the theme while that screen was mounted — navigate to a
+   * ticket or a policy page and you kept whatever class happened to be left
+   * over. That is why switching theme appeared to work on the home page and
+   * nowhere else.
+   */
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("theme-light", theme === "light");
+    root.style.colorScheme = theme;
+    try {
+      localStorage.setItem("naada_theme", theme);
+    } catch {
+      /* private mode — the choice just won't outlive the tab */
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    document.documentElement.lang = lang === "kn" ? "kn" : "en";
+    try {
+      localStorage.setItem("naada_lang", lang);
+    } catch {
+      /* as above */
+    }
+  }, [lang]);
   const [events, setEvents] = useState<NaadaEvent[]>(() =>
     eventsFixture.map((e) => ({ ...e, tiers: e.tiers.map((t) => ({ ...t })) })),
   );

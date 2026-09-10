@@ -5,7 +5,6 @@ import { MotionConfig } from "motion/react";
 import { AppStoreProvider } from "@/store/app-store";
 import { AuthSheetProvider, useAuthSheet } from "@/components/naada/auth-sheet";
 import { BriefComposerProvider } from "@/components/naada/brief-composer";
-import { DevSwitcher } from "@/components/naada/dev-switcher";
 import { ErrorBoundary } from "@/components/naada/error-boundary";
 import { RequireRole } from "@/components/naada/require-role";
 import { Toaster } from "@/components/ui/toaster";
@@ -243,14 +242,6 @@ export default function App() {
                 </Suspense>
 
                 <Toaster />
-                {/*
-                  * Local development only. In production this let anyone
-                  * signed in flip themselves into the host, artist or admin
-                  * console — the backend refuses their API calls, but showing
-                  * those screens at all is wrong. Role now comes solely from
-                  * the authenticated user.
-                  */}
-                {import.meta.env.DEV && <DevSwitcher />}
               </BriefComposerProvider>
             </AuthSheetProvider>
           </AppStoreProvider>

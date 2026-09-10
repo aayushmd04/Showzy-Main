@@ -97,7 +97,7 @@ export function ConsoleShell({
 
 
   return (
-    <div className="theme-light min-h-dvh bg-ink md:flex">
+    <div className="min-h-dvh bg-ink md:flex">
       {/* Desktop sidebar / tablet icon rail */}
       <aside className="sticky top-0 hidden h-dvh shrink-0 border-r border-line bg-surface md:block md:w-[72px] lg:w-[240px]">
         <div className="flex h-16 items-center border-b border-line px-4 lg:px-6">

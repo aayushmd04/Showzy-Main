@@ -63,19 +63,31 @@ export function VenuesScreen() {
                   key={v.id}
                   style={{
                     border: `1px solid ${tok.cardBorder}`, background: tok.surface,
-                    borderRadius: 4, padding: "20px",
+                    borderRadius: 4, overflow: "hidden",
                   }}
                 >
-                  {/* Icon */}
-                  <div style={{
-                    width: 44, height: 44, borderRadius: 6,
-                    background: `${tok.signal}18`, border: `1px solid ${tok.signal}44`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 20, marginBottom: 12,
-                  }}>
-                    🎵
-                  </div>
+                  {/* A room is worth showing. The mark stands in when there's no photo yet. */}
+                  {v.photo ? (
+                    <div style={{ aspectRatio: "16 / 9", overflow: "hidden", background: `${tok.signal}12` }}>
+                      <img
+                        src={v.photo}
+                        alt={`Inside ${v.name}`}
+                        loading="lazy"
+                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                      />
+                    </div>
+                  ) : (
+                    <div style={{
+                      aspectRatio: "16 / 9",
+                      background: `${tok.signal}12`, borderBottom: `1px solid ${tok.cardBorder}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 26, color: tok.signal,
+                    }}>
+                      ♪
+                    </div>
+                  )}
 
+                  <div style={{ padding: "20px" }}>
                   <p style={{ fontSize: 17, fontWeight: 700, color: tok.paper, margin: 0 }}>{v.name}</p>
                   <p style={{ fontSize: 13, color: tok.muted, margin: "4px 0 0" }}>
                     {v.area}{v.area ? " · " : ""}{v.capacity > 0 ? `Capacity ${v.capacity}` : "Intimate venue"}
@@ -93,6 +105,7 @@ export function VenuesScreen() {
                       ))}
                     </div>
                   )}
+                  </div>
                 </div>
               );
             })}

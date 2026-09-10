@@ -215,6 +215,9 @@ CORS_ALLOWED_ORIGINS = config(
 ).split(",")
 CORS_ALLOW_CREDENTIALS = True
 
+# Used to build absolute links in outgoing email (ticket pages, receipts).
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173").rstrip("/")
+
 # ── Email ─────────────────────────────────────────────────────────────────────
 # Auto-detects SMTP vs console backend: if EMAIL_HOST_USER is set in .env, use real
 # SMTP; otherwise fall back to console (dev mode — OTP appears in server terminal).
@@ -262,6 +265,12 @@ CELERY_BEAT_SCHEDULE = {
     "nightly-reconciliation": {
         "task": "apps.bookings.tasks.nightly_reconciliation",
         "schedule": 86400,  # every 24h — use crontab(hour=2, minute=0) with django-celery-beat
+    },
+    # Checkouts hold seats for 15 minutes. Sweeping often keeps an abandoned
+    # cart from making an event look sold out while the room is empty.
+    "release-expired-ticket-orders": {
+        "task": "apps.tickets.tasks.release_expired_orders",
+        "schedule": 300,  # every 5 minutes
     },
 }
 

@@ -81,6 +81,17 @@ def _confirm_order_once(order: Order) -> bool:
             return False
         _confirm_order(locked)
     order.refresh_from_db()
+
+    # Only ever fires on the call that did the confirming, so a retried webhook
+    # cannot email the buyer twice. Best-effort by design: the ticket is already
+    # issued and a failed receipt must not undo that.
+    try:
+        from apps.notifications.dispatch import order_confirmed
+
+        order_confirmed(order)
+    except Exception:
+        logger.exception("Confirmation notification failed for order %s", order.pk)
+
     return True
 
 

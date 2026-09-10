@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { Wordmark } from "./wordmark";
 import { NotificationBell } from "./notification-bell";
-import { useStore } from "@/store/app-store";
+import { AccountMenu } from "./account-menu";
 import { cn } from "@/lib/utils";
 
 /**
@@ -89,15 +89,12 @@ export function ConsoleShell({
   children: ReactNode;
   actions?: ReactNode;
 }) {
-  const { currentUser } = useStore();
   const location = useLocation();
   const [menuOpen, setMenuOpen] = useState(false);
   const reduce = useReducedMotion();
 
   useEffect(() => setMenuOpen(false), [location.pathname]);
 
-  const displayName = currentUser?.full_name ?? "You";
-  const displayInitial = (displayName).charAt(0).toUpperCase();
 
   return (
     <div className="theme-light min-h-dvh bg-ink md:flex">
@@ -167,12 +164,7 @@ export function ConsoleShell({
 
           <NotificationBell />
 
-          <div className="flex shrink-0 items-center gap-2 border border-line px-2 py-1.5" title={displayName}>
-            <span className="grid size-7 place-items-center bg-surface-2 font-display text-[13px] font-bold text-paper">
-              {displayInitial}
-            </span>
-            <span className="t-small hidden sm:block">{displayName.split(" ")[0]}</span>
-          </div>
+          <AccountMenu />
         </header>
 
         <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 py-6 md:px-8 md:py-8">

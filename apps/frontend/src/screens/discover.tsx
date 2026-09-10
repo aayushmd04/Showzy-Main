@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { NotificationBell } from "@/components/naada/notification-bell";
+import { AccountMenu } from "@/components/naada/account-menu";
 import { TODAY } from "@/lib/format";
 import { getCities, type ApiCity } from "@/lib/api";
 import type { NaadaEvent } from "@/data/fixtures";
@@ -683,27 +684,8 @@ export function DiscoverScreen() {
 
           {role !== "out" && currentUser && <NotificationBell />}
 
-          {/* Account avatar */}
-          {role !== "out" && currentUser && (
-            <Link
-              to={role === "host" ? "/host" : role === "artist" ? "/artist" : "/tickets"}
-              style={{
-                width: 34,
-                height: 34,
-                borderRadius: "50%",
-                background: tok.signal,
-                color: "#F3E9D6",
-                fontSize: 13,
-                fontWeight: 800,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                textDecoration: "none",
-              }}
-            >
-              {currentUser.full_name?.charAt(0) ?? "?"}
-            </Link>
-          )}
+          {/* Account avatar + sign out */}
+          {role !== "out" && currentUser && <AccountMenu />}
         </div>
       </nav>
 

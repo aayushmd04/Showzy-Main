@@ -5,6 +5,7 @@
 import { type ReactNode } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useStore } from "@/store/app-store";
+import { AccountMenu } from "./account-menu";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { NotificationBell } from "@/components/naada/notification-bell";
 
@@ -75,7 +76,6 @@ export function PublicShell({ children }: { children: ReactNode }) {
   const tok = isDark ? T.dark : T.light;
 
   const isLoggedIn = role !== "out" && currentUser !== null;
-  const displayName = currentUser?.full_name ?? "";
 
   return (
     <div style={{ minHeight: "100dvh", display: "flex", flexDirection: "column", background: tok.bg, fontFamily: "'Archivo', sans-serif" }}>
@@ -155,20 +155,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
 
             {/* Account avatar or Sign in */}
             {isLoggedIn ? (
-              <Link
-                to={role === "host" ? "/host" : role === "artist" ? "/artist" : "/tickets"}
-                aria-label={`Account — ${displayName}`}
-                title={displayName}
-                style={{
-                  width: 34, height: 34, borderRadius: "50%",
-                  background: `linear-gradient(135deg,${tok.signal},${tok.logoName})`,
-                  color: "#fff", fontSize: 13, fontWeight: 900,
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  textDecoration: "none", flexShrink: 0,
-                }}
-              >
-                {(displayName || "?").charAt(0).toUpperCase()}
-              </Link>
+              <AccountMenu />
             ) : (
               <button
                 onClick={() => openAuth("Sign in to Naada", {

@@ -243,7 +243,14 @@ export default function App() {
                 </Suspense>
 
                 <Toaster />
-                <DevSwitcher />
+                {/*
+                  * Local development only. In production this let anyone
+                  * signed in flip themselves into the host, artist or admin
+                  * console — the backend refuses their API calls, but showing
+                  * those screens at all is wrong. Role now comes solely from
+                  * the authenticated user.
+                  */}
+                {import.meta.env.DEV && <DevSwitcher />}
               </BriefComposerProvider>
             </AuthSheetProvider>
           </AppStoreProvider>

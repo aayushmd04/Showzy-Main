@@ -6,4 +6,5 @@ urlpatterns = [
     path("areas/", views.AreaListView.as_view(), name="areas-list"),
     path("genres/", views.GenreListView.as_view(), name="genres-list"),
     path("sitemap.xml", views.sitemap_xml, name="sitemap"),
+    path("site-config/", views.site_config, name="site-config"),
 ]

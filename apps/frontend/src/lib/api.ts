@@ -883,6 +883,32 @@ export function updateNotificationPreferences(
   return patch<NotificationPreferences>("/notifications/preferences/", data);
 }
 
+// ─── Site configuration ───────────────────────────────────────────────────────
+
+/**
+ * Operator details for the public policy pages. Served from the backend so
+ * they can be filled in at deploy time without editing frontend source or
+ * rebuilding.
+ */
+export interface SiteConfig {
+  name: string;
+  legal_name: string;
+  address: string;
+  email: string;
+  phone: string;
+  gstin: string;
+  grievance_officer: string;
+  policies_updated: string;
+  missing: string[];
+  is_complete: boolean;
+  booking_fee: number;
+  gst_configured: boolean;
+}
+
+export function getSiteConfig(): Promise<SiteConfig> {
+  return get<SiteConfig>("/site-config/", false);
+}
+
 // ─── Reference data ───────────────────────────────────────────────────────────
 
 export interface ApiCity {

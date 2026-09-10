@@ -80,3 +80,38 @@ def sitemap_xml(request):
         f"{entries}</urlset>"
     )
     return Response(xml, content_type="application/xml")
+
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def site_config(request):
+    """Operator details the public pages need — legal entity, contact, tax.
+
+    These live in the environment rather than in the frontend source so the
+    founder can fill them in at deploy time without editing code or triggering
+    a rebuild. The policy pages read `is_complete` to decide whether to warn
+    that they are not ready to publish.
+    """
+    entity = {
+        "name": getattr(settings, "SITE_NAME", "Naada"),
+        "legal_name": getattr(settings, "LEGAL_ENTITY_NAME", ""),
+        "address": getattr(settings, "LEGAL_ENTITY_ADDRESS", ""),
+        "email": getattr(settings, "SUPPORT_EMAIL", ""),
+        "phone": getattr(settings, "SUPPORT_PHONE", ""),
+        "gstin": getattr(settings, "GSTIN", ""),
+        "grievance_officer": getattr(settings, "GRIEVANCE_OFFICER", ""),
+        "policies_updated": getattr(settings, "POLICIES_UPDATED", ""),
+    }
+    required = ["legal_name", "address", "email", "phone", "grievance_officer"]
+    missing = [k for k in required if not entity.get(k)]
+
+    return Response({
+        **entity,
+        "missing": missing,
+        "is_complete": not missing,
+        # Shown on the refund policy so it matches what is actually charged.
+        "booking_fee": getattr(settings, "CONVENIENCE_FEE", 0),
+        "gst_configured": bool(
+            getattr(settings, "GST_RATE_FEE", 0) or getattr(settings, "GST_RATE_TICKET", 0)
+        ),
+    })

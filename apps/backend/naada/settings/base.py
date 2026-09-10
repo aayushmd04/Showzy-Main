@@ -247,6 +247,18 @@ RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET", default="placeholder_secret"
 # Set to 0 to sell at face value.
 CONVENIENCE_FEE = config("CONVENIENCE_FEE", default=19, cast=int)
 
+# ── Operator details shown on the public policy pages ────────────────────────
+# Blank by default. Until these are filled in, the policy pages say so plainly,
+# because a payment gateway rejects an application whose policies still read
+# "[Company]". Set them here rather than editing the frontend source.
+SITE_NAME = config("SITE_NAME", default="Naada")
+LEGAL_ENTITY_NAME = config("LEGAL_ENTITY_NAME", default="")
+LEGAL_ENTITY_ADDRESS = config("LEGAL_ENTITY_ADDRESS", default="")
+SUPPORT_EMAIL = config("SUPPORT_EMAIL", default="")
+SUPPORT_PHONE = config("SUPPORT_PHONE", default="")
+GRIEVANCE_OFFICER = config("GRIEVANCE_OFFICER", default="")
+POLICIES_UPDATED = config("POLICIES_UPDATED", default="")
+
 # ── GST ───────────────────────────────────────────────────────────────────────
 # Zero by default, so nothing changes until a rate is set deliberately. The
 # correct rate and treatment for event ticketing in India is a question for a

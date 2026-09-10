@@ -1,6 +1,8 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PublicShell } from "@/components/naada/public-shell";
 import { usePageMeta } from "@/lib/use-meta";
+import { getSiteConfig, type SiteConfig } from "@/lib/api";
 
 /**
  * Razorpay will not activate an Indian merchant account until Terms, Privacy,
@@ -12,18 +14,33 @@ import { usePageMeta } from "@/lib/use-meta";
  * visible warning, because shipping a policy that says "[Company]" fails
  * merchant review.
  */
-export const LEGAL_ENTITY = {
+/**
+ * Placeholders shown only until the operator fills these in on the backend.
+ * They are deliberately obvious rather than plausible — a policy that quietly
+ * names the wrong company is worse than one that says it is unfinished.
+ */
+const PLACEHOLDER: SiteConfig = {
   name: "Naada",
-  legalName: "TO BE COMPLETED — registered company name",
-  address: "TO BE COMPLETED — registered office address",
-  email: "support@naada.live",
-  phone: "TO BE COMPLETED — support phone",
-  gstin: "TO BE COMPLETED — GSTIN",
-  grievanceOfficer: "TO BE COMPLETED — name of grievance officer",
-  lastUpdated: "10 September 2026",
+  legal_name: "[your registered company name]",
+  address: "[your registered office address]",
+  email: "[support email]",
+  phone: "[support phone]",
+  gstin: "",
+  grievance_officer: "[grievance officer name]",
+  policies_updated: "",
+  missing: [],
+  is_complete: false,
+  booking_fee: 0,
+  gst_configured: false,
 };
 
-const INCOMPLETE = "TO BE COMPLETED";
+const FIELD_LABEL: Record<string, string> = {
+  legal_name: "registered company name",
+  address: "registered office address",
+  email: "support email",
+  phone: "support phone",
+  grievance_officer: "grievance officer",
+};
 
 type Doc = "terms" | "privacy" | "refunds" | "contact";
 
@@ -65,9 +82,27 @@ function S({ heading, children }: { heading: string; children: React.ReactNode }
 export function LegalScreen({ doc }: { doc: Doc }) {
   const { title, blurb } = TITLES[doc];
   usePageMeta({ title, description: blurb });
-  const missing = Object.entries(LEGAL_ENTITY)
-    .filter(([, v]) => v.startsWith(INCOMPLETE))
-    .map(([k]) => k);
+
+  // Operator details live on the backend so they can be filled in at deploy
+  // time without editing this file or rebuilding the site.
+  const [config, setConfig] = useState<SiteConfig | null>(null);
+  useEffect(() => {
+    getSiteConfig()
+      .then(setConfig)
+      .catch(() => setConfig(null));
+  }, []);
+
+  const LEGAL_ENTITY = {
+    name: config?.name || PLACEHOLDER.name,
+    legalName: config?.legal_name || PLACEHOLDER.legal_name,
+    address: config?.address || PLACEHOLDER.address,
+    email: config?.email || PLACEHOLDER.email,
+    phone: config?.phone || PLACEHOLDER.phone,
+    gstin: config?.gstin || "",
+    grievanceOfficer: config?.grievance_officer || PLACEHOLDER.grievance_officer,
+    lastUpdated: config?.policies_updated || "—",
+  };
+  const missing = (config?.missing ?? []).map((k) => FIELD_LABEL[k] ?? k);
 
   return (
     <PublicShell>
@@ -95,11 +130,12 @@ export function LegalScreen({ doc }: { doc: Doc }) {
         {missing.length > 0 && (
           <div className="mt-6 border border-fault bg-fault/5 p-4">
             <p className="t-small text-fault">
-              <strong>Not ready to publish.</strong> These details are still
-              placeholders: {missing.join(", ")}. Fill them in at the top of{" "}
-              <code className="t-mono">src/screens/legal.tsx</code>, and have a
-              lawyer review this text before you take real payments — a payment
-              gateway will reject an application with incomplete policies.
+              <strong>Not ready to publish.</strong> Still missing:{" "}
+              {missing.join(", ")}. Set these on the backend — see{" "}
+              <code className="t-mono">LEGAL_ENTITY_NAME</code> and the others in{" "}
+              <code className="t-mono">.env.example</code> — and have a lawyer read
+              this text before you take real money. A payment gateway rejects an
+              application whose policies are incomplete.
             </p>
           </div>
         )}

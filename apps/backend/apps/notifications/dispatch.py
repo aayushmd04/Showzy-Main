@@ -95,8 +95,18 @@ def order_confirmed(order):
     when = timezone.localtime(event.start_datetime).strftime("%a %d %b %Y, %I:%M %p")
     venue = getattr(event.venue, "name", "") or ""
 
-    lines = [f"  {t.ticket_number}  ·  {t.tier.name if t.tier else 'General'}" for t in tickets]
+    lines = [
+        f"  {t.ticket_number}  ·  {t.tier.name if t.tier else 'General'}"
+        + (f"  ·  {t.seat_label}" if t.seat_label else "")
+        for t in tickets
+    ]
     ticket_block = "\n".join(lines) if lines else "  (see My Tickets)"
+
+    # Where in the room, when the buyer chose a spot on the venue's floor plan.
+    # Door staff are told the same thing on the ticket itself, so both sides of
+    # the door are looking at the same words.
+    seated = next((t.seat_label for t in tickets if t.seat_label), "")
+    seat_line = f"  Seats:  {seated}\n" if seated else ""
     count = len(tickets) or 1
     noun = "ticket" if count == 1 else "tickets"
 
@@ -124,7 +134,7 @@ You're going to {event.title}.
 
   When:   {when}
   Where:  {venue}
-  Paid:   Rs {order.total_amount}
+{seat_line}  Paid:   Rs {order.total_amount}
 
 Your {noun}:
 {ticket_block}

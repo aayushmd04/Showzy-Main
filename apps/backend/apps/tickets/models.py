@@ -1,6 +1,7 @@
 import uuid
 from django.db import models
 from django.conf import settings
+from django.utils import timezone
 from apps.core.models import TimeStampedModel
 
 
@@ -166,7 +167,10 @@ class Ticket(TimeStampedModel):
     holder_email = models.EmailField(blank=True)
     holder_phone = models.CharField(max_length=20, blank=True)
 
-    seat_label = models.CharField(max_length=20, blank=True)
+    # Where in the room this ticket sits, copied from the order's zone
+    # allocation when one was chosen. 40 characters because it holds a
+    # host-authored zone label ("Balcony Left — Table 3"), not a seat number.
+    seat_label = models.CharField(max_length=40, blank=True)
     status = models.CharField(max_length=15, choices=Status.choices,
                               default=Status.VALID, db_index=True)
 
@@ -189,6 +193,23 @@ class Ticket(TimeStampedModel):
     def __str__(self):
         return f"Ticket #{self.ticket_number} — {self.event.title}"
 
+    def save(self, *args, **kwargs):
+        """Stamp the order's chosen zone onto the ticket as it is issued.
+
+        Tickets are created in one place (payment confirmation) and the buyer's
+        zone is a property of the order, so deriving it here means door staff
+        get "VIP Section" on the ticket without every caller having to remember
+        to pass it. Only ever fills a blank label, so an explicitly set one —
+        or a later `save(update_fields=...)` — is left alone.
+        """
+        if not self.seat_label and self.order_id and not kwargs.get("update_fields"):
+            allocation = ZoneAllocation.objects.filter(
+                order_id=self.order_id, status=ZoneAllocation.Status.HELD
+            ).first()
+            if allocation:
+                self.seat_label = allocation.zone_label[:40]
+        super().save(*args, **kwargs)
+
     def generate_qr_image(self):
         import qrcode
         import io
@@ -206,6 +227,54 @@ class Ticket(TimeStampedModel):
             ContentFile(buffer.getvalue()),
             save=False
         )
+
+
+class ZoneAllocation(TimeStampedModel):
+    """One order's claim on one labelled area of the venue's floor plan.
+
+    Deliberately a row per order rather than a counter on the zone: a zone is
+    not a database object at all — it is an element in host-authored JSON that
+    can be renamed, resized or deleted between one gig and the next. Storing
+    the claim against the order, with the label and capacity as they stood at
+    booking time, means a redrawn floor plan can never silently rewrite what
+    somebody already bought.
+
+    Availability is therefore derived (see `zones.taken_by_zone`) rather than
+    stored, so there is no counter to drift out of step with reality.
+    """
+
+    class Status(models.TextChoices):
+        HELD = "held", "Held"
+        RELEASED = "released", "Released"
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE,
+                                 related_name="zone_allocation")
+    event = models.ForeignKey("events.Event", on_delete=models.CASCADE,
+                              related_name="zone_allocations")
+    zone_id = models.CharField(max_length=64, db_index=True,
+                               help_text="Element id from Venue.layout")
+    zone_label = models.CharField(max_length=40)
+    zone_type = models.CharField(max_length=30, blank=True)
+    quantity = models.PositiveSmallIntegerField(default=1,
+                                                help_text="Places claimed in this zone")
+    capacity_at_booking = models.PositiveIntegerField(default=0)
+    status = models.CharField(max_length=10, choices=Status.choices, default=Status.HELD)
+    released_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["event", "zone_id", "status"])]
+
+    def __str__(self):
+        return f"{self.quantity}× {self.zone_label} (order {str(self.order_id)[:8]})"
+
+    def release(self):
+        """Hand the places back. Idempotent — a second sweep is a no-op."""
+        if self.status == self.Status.RELEASED:
+            return False
+        self.status = self.Status.RELEASED
+        self.released_at = timezone.now()
+        self.save(update_fields=["status", "released_at", "updated_at"])
+        return True
 
 
 class TicketTransfer(TimeStampedModel):

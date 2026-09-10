@@ -105,6 +105,7 @@ export function TicketDetailScreen() {
       location: place,
       description: [
         `${ticket.tier} · ${ticket.holder}`,
+        ticket.seat ? `Seated at ${ticket.seat}.` : "",
         `Ticket ${ticket.code} — show the QR at the door.`,
         detail.doors_open_at
           ? `Doors ${new Date(detail.doors_open_at).toLocaleTimeString("en-IN", {
@@ -169,6 +170,13 @@ export function TicketDetailScreen() {
             <p className="t-small mt-1 text-muted">
               {ticket.tier} × 1 · {ticket.holder}
             </p>
+            {/* Where in the room, when the buyer claimed a spot on the venue's
+                floor plan. Door staff read this off the ticket. */}
+            {ticket.seat && (
+              <p className="t-mono mt-2 text-[14px] uppercase tracking-[0.06em] text-paper">
+                Seated · {ticket.seat}
+              </p>
+            )}
 
             <p className="t-mono mt-6 break-all text-[17px] tracking-[0.14em] text-paper">
               {ticket.code}

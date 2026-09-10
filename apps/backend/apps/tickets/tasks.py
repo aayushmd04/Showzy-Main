@@ -6,7 +6,7 @@ from celery import shared_task
 from django.db import transaction
 from django.utils import timezone
 
-from .models import Order, OrderItem
+from .models import Order, OrderItem, ZoneAllocation
 
 logger = logging.getLogger(__name__)
 
@@ -18,6 +18,10 @@ def release_expired_orders() -> int:
     out, but nothing ever swept the expired ones back. Every abandoned checkout
     permanently subtracted from `available_quantity`, so an event drifts towards
     looking sold out while the room is empty.
+
+    The same applies to a floor-plan zone: an abandoned checkout that had
+    claimed the good table by the stage gives it back here, so the next buyer
+    can have it.
 
     Safe to run repeatedly and safe to run concurrently: rows are locked, and
     the status change is what makes the release happen at most once.
@@ -44,6 +48,12 @@ def release_expired_orders() -> int:
                 tier = item.tier
                 tier.reserved_quantity = max(0, tier.reserved_quantity - item.quantity)
                 tier.save(update_fields=["reserved_quantity"])
+
+            allocation = ZoneAllocation.objects.filter(
+                order=order, status=ZoneAllocation.Status.HELD
+            ).first()
+            if allocation:
+                allocation.release()
 
             order.status = Order.Status.EXPIRED
             order.save(update_fields=["status"])

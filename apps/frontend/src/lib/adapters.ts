@@ -131,6 +131,7 @@ export function adaptTicket(t: ApiTicket): Ticket {
     code: t.ticket_number,
     eventId: t.event,
     tier: t.tier_name ?? "General",
+    seat: t.seat_label || undefined,
     // The ticket endpoint carries no price; the event's tier is the source of
     // truth for what was paid, and the order history for the actual amount.
     price: 0,

@@ -13,6 +13,7 @@ import { getMe, tokens, AUTH_EXPIRED_EVENT } from "@/lib/api";
 
 // Public screens load eagerly — they are the first thing every visitor sees.
 import { DiscoverScreen } from "@/screens/discover";
+import { RoleHomeScreen } from "@/screens/home/role-home";
 import { EventScreen } from "@/screens/event";
 import { ArtistProfileScreen } from "@/screens/artist-profile";
 import { ArtistsScreen } from "@/screens/artists";
@@ -176,7 +177,14 @@ export default function App() {
                 <Suspense fallback={<ScreenFallback />}>
                   <Routes>
                     {/* Public */}
-                    <Route path="/" element={<DiscoverScreen />} />
+                    {/*
+                     * `/` answers by role: signed out and listeners keep the
+                     * discover page, artists and hosts get their own home.
+                     * `/whats-on` is that same discover page on a stable URL,
+                     * so a signed-in artist or host never loses access to it.
+                     */}
+                    <Route path="/" element={<RoleHomeScreen />} />
+                    <Route path="/whats-on" element={<DiscoverScreen />} />
                     <Route path="/e/:id" element={<EventScreen />} />
                     <Route path="/a/:id" element={<ArtistProfileScreen />} />
                     <Route path="/artists" element={<ArtistsScreen />} />

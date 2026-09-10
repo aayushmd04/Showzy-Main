@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import TicketTier, Order, OrderItem, Ticket, PromoCode
+from .models import TicketTier, Order, OrderItem, Ticket, PromoCode, ZoneAllocation
 
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
@@ -23,6 +23,13 @@ class TicketAdmin(admin.ModelAdmin):
 @admin.register(TicketTier)
 class TicketTierAdmin(admin.ModelAdmin):
     list_display = ["name", "event", "tier_type", "price", "total_quantity", "sold_quantity"]
+
+@admin.register(ZoneAllocation)
+class ZoneAllocationAdmin(admin.ModelAdmin):
+    list_display = ["zone_label", "event", "quantity", "status", "order", "created_at"]
+    list_filter = ["status", "event"]
+    search_fields = ["zone_label", "zone_id", "order__id"]
+    readonly_fields = ["order", "event", "zone_id", "capacity_at_booking"]
 
 @admin.register(PromoCode)
 class PromoCodeAdmin(admin.ModelAdmin):

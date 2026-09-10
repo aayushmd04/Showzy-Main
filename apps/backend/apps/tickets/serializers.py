@@ -1,5 +1,7 @@
 from rest_framework import serializers
-from .models import TicketTier, Order, OrderItem, Ticket, PromoCode, TicketTransfer
+from .models import (
+    TicketTier, Order, OrderItem, Ticket, PromoCode, TicketTransfer, ZoneAllocation,
+)
 from apps.events.serializers import EventListSerializer
 
 
@@ -32,19 +34,52 @@ class CreateOrderSerializer(serializers.Serializer):
     event_id = serializers.UUIDField()
     items = CreateOrderItemSerializer(many=True)
     promo_code = serializers.CharField(required=False, allow_blank=True)
+    # The floor-plan zone the buyer picked, if the venue has a floor plan and
+    # they picked one. Absent means "seat me anywhere", which is how every
+    # standing-room gig has always worked and must keep working.
+    zone_id = serializers.CharField(required=False, allow_blank=True, max_length=64)
+
+
+class ZoneSerializer(serializers.Serializer):
+    """One element of a venue floor plan, priced by availability rather than money."""
+
+    id = serializers.CharField()
+    label = serializers.CharField()
+    type = serializers.CharField()
+    x = serializers.FloatField()
+    y = serializers.FloatField()
+    w = serializers.FloatField()
+    h = serializers.FloatField()
+    capacity = serializers.IntegerField()
+    bookable = serializers.BooleanField()
+    taken = serializers.IntegerField()
+    available = serializers.IntegerField()
+
+
+class ZoneAllocationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ZoneAllocation
+        fields = ["zone_id", "zone_label", "zone_type", "quantity", "status"]
 
 
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     event_title = serializers.CharField(source="event.title", read_only=True)
     event_date = serializers.DateTimeField(source="event.start_datetime", read_only=True)
+    zone = serializers.SerializerMethodField()
+
+    def get_zone(self, obj):
+        allocation = getattr(obj, "zone_allocation", None)
+        if not allocation or allocation.status != ZoneAllocation.Status.HELD:
+            return None
+        return ZoneAllocationSerializer(allocation).data
 
     class Meta:
         model = Order
         fields = [
             "id", "event", "event_title", "event_date", "status",
             "subtotal", "discount_amount", "platform_fee", "taxes", "total_amount",
-            "currency", "payment_method", "items", "promo_code",
+            "currency", "payment_method", "items", "promo_code", "zone",
             "expires_at", "confirmed_at", "created_at",
         ]
 

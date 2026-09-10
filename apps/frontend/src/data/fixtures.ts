@@ -149,6 +149,12 @@ export interface Ticket {
   code: string;
   eventId: string;
   tier: string;
+  /**
+   * The area of the venue's floor plan this ticket is for — "Table A", "VIP
+   * Section" — when the buyer picked one at checkout. Blank for standing-room
+   * gigs and for any venue without a layout, which is most of them.
+   */
+  seat?: string;
   price: number;
   fee: number;
   holder: string;

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AlertCircle, Loader2, Lock, ShieldCheck } from "lucide-react";
 import { PublicShell } from "@/components/naada/public-shell";
+import { SeatPicker, type VenueZone } from "@/components/naada/seat-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/app-store";
@@ -65,6 +66,14 @@ export function CheckoutPayScreen() {
    * being charged, so they replace the estimate everywhere.
    */
   const [placed, setPlaced] = useState<api.ApiTicketOrder | null>(null);
+  /*
+   * The area of the venue's floor plan this buyer claimed, if the venue has
+   * one and they chose. Held here rather than in the checkout draft because it
+   * only exists for the length of this screen: the server holds the real
+   * claim, and releases it when the order expires.
+   */
+  const [zone, setZone] = useState<VenueZone | null>(null);
+  const [zoneRefresh, setZoneRefresh] = useState(0);
   const cancelled = useRef(false);
 
   useEffect(() => () => { cancelled.current = true; }, []);
@@ -178,12 +187,19 @@ export function CheckoutPayScreen() {
     setPhase("reserving");
 
     try {
-      // 1. Reserve inventory server-side. This is what actually holds the seat.
-      const order = await api.createTicketOrder({
+      // 1. Reserve inventory server-side. This is what actually holds the
+      // seat — both the tier and, when one was picked, the floor-plan zone.
+      // `zone_id` is not on the api client's parameter type yet (that file is
+      // owned elsewhere this cycle); the endpoint accepts and ignores it when
+      // absent, and a variable rather than a literal keeps TypeScript honest
+      // about the rest of the payload.
+      const orderPayload = {
         event_id: event.id,
         items: [{ tier_id: tierId, quantity: qty }],
         promo_code: promoState?.valid ? promo.trim() : undefined,
-      });
+        ...(zone ? { zone_id: zone.id } : {}),
+      };
+      const order = await api.createTicketOrder(orderPayload);
 
       setPlaced(order);
 
@@ -239,6 +255,9 @@ export function CheckoutPayScreen() {
       if (cancelled.current) return;
       setPhase("failed");
       setError(err instanceof ApiError ? err.detail : (err as Error).message);
+      // Somebody else may have taken the table between rendering the plan and
+      // pressing pay, so re-read availability before they try again.
+      if (zone) setZoneRefresh((n) => n + 1);
     }
   };
 
@@ -296,6 +315,9 @@ export function CheckoutPayScreen() {
             <p className="t-small mt-1 text-muted">
               {dateListing(event.date)} · {tier.name} × {qty}
             </p>
+            {zone && (
+              <p className="t-small mt-1 text-paper/90">Seated at {zone.label}</p>
+            )}
 
             <dl className="mt-4 space-y-1.5 border-t border-line pt-4">
               <div className="flex justify-between gap-4">
@@ -331,6 +353,18 @@ export function CheckoutPayScreen() {
             </dl>
           </div>
         </section>
+
+        {/* ── Where in the room ─────────────────────────────────────── */}
+        <SeatPicker
+          eventId={event.id}
+          quantity={qty}
+          value={zone}
+          onChange={setZone}
+          // Once inventory is held against a zone the choice is the server's,
+          // not the buyer's — changing it would need the order cancelling.
+          disabled={phase !== "review" || placed !== null}
+          refreshToken={zoneRefresh}
+        />
 
         {/* ── Promo code ────────────────────────────────────────────── */}
         {!isFree && phase === "review" && (
@@ -375,7 +409,12 @@ export function CheckoutPayScreen() {
             <div className="mt-5 flex flex-wrap gap-2">
               <Button
                 variant="primary"
-                onClick={() => { setPhase("review"); setError(null); setPlaced(null); }}
+                onClick={() => {
+                  setPhase("review");
+                  setError(null);
+                  setPlaced(null);
+                  setZoneRefresh((n) => n + 1);
+                }}
               >
                 Try again
               </Button>

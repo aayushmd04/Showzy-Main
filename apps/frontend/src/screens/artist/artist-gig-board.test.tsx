@@ -83,7 +83,9 @@ describe("ArtistGigBoardScreen", () => {
 
     await waitFor(() =>
       expect(api.applyToGig).toHaveBeenCalledWith(
-        expect.objectContaining({ event_id: "e2", proposed_rate: 12000 }),
+        // The view reads event / note / proposed_fee — posting event_id made
+        // every application 404.
+        expect.objectContaining({ event: "e2", proposed_fee: 12000 }),
       ),
     );
   });

@@ -2,24 +2,65 @@ from decimal import Decimal
 from django.conf import settings as django_settings
 from django.utils import timezone
 from django.db import models, transaction
-from rest_framework import generics, permissions, status
+from rest_framework import exceptions, generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from datetime import timedelta
 
-from .models import Order, OrderItem, Ticket, TicketTier, PromoCode, TicketTransfer
+from .models import (
+    Order, OrderItem, Ticket, TicketTier, PromoCode, TicketTransfer, ZoneAllocation,
+)
 from .tax import compute_gst
+from . import zones as zone_map
 from .serializers import (
     OrderSerializer, TicketSerializer, CreateOrderSerializer,
-    PromoCodeValidateSerializer,
+    PromoCodeValidateSerializer, ZoneSerializer,
 )
 from apps.events.models import Event
+
+
+class ZoneUnavailable(exceptions.APIException):
+    """A 400 that also unwinds the transaction.
+
+    The tier reservations for this order have already been written by the time
+    the zone is checked, so returning a plain response here would leave seats
+    held by an order that was never created. Raising rolls the whole attempt
+    back, and DRF still renders `{"detail": ...}` for the buyer.
+    """
+
+    status_code = status.HTTP_400_BAD_REQUEST
 
 
 def generate_ticket_number(event):
     count = Ticket.objects.filter(event=event).count() + 1
     prefix = event.title[:3].upper().replace(" ", "")
     return f"{prefix}-{count:05d}"
+
+
+@api_view(["GET"])
+@permission_classes([permissions.AllowAny])
+def event_zones(request, event_id):
+    """The venue floor plan for one event, with live availability per zone.
+
+    Public, because a buyer needs to see where they would be sitting before
+    they have any reason to sign in. `has_layout: false` is a perfectly normal
+    answer — most open mics are standing room — and the checkout flow treats it
+    as "no zone step", not as an error.
+    """
+    event = generics.get_object_or_404(
+        Event.objects.select_related("venue"), pk=event_id, is_deleted=False
+    )
+    zones = zone_map.zone_availability(event)
+    bookable = [z for z in zones if z["bookable"]]
+
+    return Response({
+        "event_id": str(event.id),
+        "venue_name": getattr(event.venue, "name", "") or "",
+        "has_layout": bool(zones),
+        "bookable_count": len(bookable),
+        "places_available": sum(z["available"] for z in bookable),
+        "zones": ZoneSerializer(zones, many=True).data,
+    })
 
 
 @api_view(["POST"])
@@ -41,6 +82,8 @@ def create_order(request):
             models.Q(event=event) | models.Q(event__isnull=True)
         ).first()
 
+    requested_zone_id = (data.get("zone_id") or "").strip()
+
     with transaction.atomic():
         subtotal = Decimal("0")
         order_items_data = []
@@ -61,6 +104,37 @@ def create_order(request):
             subtotal += line_total
             order_items_data.append({"tier": tier, "qty": qty, "price": tier.price, "total": line_total})
 
+        ticket_count = sum(d["qty"] for d in order_items_data)
+
+        # ── Floor-plan zone ───────────────────────────────────────────────
+        # Optional throughout. Only a venue with a layout can offer one, and a
+        # buyer who does not care never sends one.
+        zone = None
+        if requested_zone_id:
+            # Lock this zone's existing claims for the length of the
+            # transaction so two buyers racing for the last table cannot both
+            # read "one place left". (A no-op on SQLite, which serialises
+            # writes anyway; it matters on Postgres in production.)
+            list(
+                ZoneAllocation.objects.select_for_update().filter(
+                    event=event, zone_id=requested_zone_id
+                )
+            )
+            zone = zone_map.find_zone(event, requested_zone_id)
+            if zone is None:
+                raise ZoneUnavailable(
+                    "That area is no longer part of this venue's layout. Pick another one."
+                )
+            if not zone["bookable"]:
+                raise ZoneUnavailable(f"{zone['label']} isn't a bookable area.")
+            if zone["available"] < ticket_count:
+                raise ZoneUnavailable(
+                    f"{zone['label']} is fully booked."
+                    if zone["available"] == 0
+                    else f"Only {zone['available']} place"
+                         f"{'' if zone['available'] == 1 else 's'} left in {zone['label']}."
+                )
+
         if promo:
             if promo.discount_type == "pct":
                 discount = (subtotal * promo.discount_value / 100).quantize(Decimal("0.01"))
@@ -79,7 +153,7 @@ def create_order(request):
         gst = compute_gst(
             ticket_subtotal=subtotal - discount,
             booking_fee=platform_fee,
-            ticket_count=sum(d["qty"] for d in order_items_data),
+            ticket_count=ticket_count,
         )
 
         total = subtotal - discount + platform_fee + gst["total"]
@@ -104,6 +178,17 @@ def create_order(request):
             OrderItem.objects.create(
                 order=order, tier=d["tier"], quantity=d["qty"],
                 unit_price=d["price"], total_price=d["total"]
+            )
+
+        if zone is not None:
+            ZoneAllocation.objects.create(
+                order=order,
+                event=event,
+                zone_id=zone["id"],
+                zone_label=zone["label"],
+                zone_type=zone["type"],
+                quantity=ticket_count,
+                capacity_at_booking=zone["capacity"],
             )
 
     return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)

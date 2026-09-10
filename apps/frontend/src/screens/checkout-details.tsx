@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { PublicShell } from "@/components/naada/public-shell";
+import { useVenueZones } from "@/components/naada/seat-picker";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
@@ -19,6 +20,15 @@ export function CheckoutDetailsScreen() {
   const [email, setEmail] = useState(currentUser?.email ?? "");
   const [consent, setConsent] = useState(false);
 
+  /*
+   * Only to set expectations: if this venue has a floor plan, the next step
+   * asks where they want to sit, and it is better to know that before filling
+   * in a form. Silent when there is no plan, and never blocking either way.
+   */
+  const { phase: zonePhase, data: zoneData } = useVenueZones(checkout.eventId ?? "");
+  const hasSeating =
+    zonePhase === "ready" && !!zoneData?.has_layout && zoneData.bookable_count > 0;
+
   if (!event) return <Navigate to="/" replace />;
 
   const submit = (e: React.FormEvent) => {
@@ -35,6 +45,12 @@ export function CheckoutDetailsScreen() {
         <p className="t-small mt-2 text-muted">
           {event.name} · {dateListing(event.date)} · {checkout.tierName}
         </p>
+        {hasSeating && (
+          <p className="t-small mt-2 text-paper/90">
+            {zoneData?.venue_name} has a seating plan — you'll pick your table or area on the
+            next step.
+          </p>
+        )}
 
         <form onSubmit={submit} className="mt-8 space-y-5">
           <Field label="Full name" htmlFor="guest-name">

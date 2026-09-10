@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { dateListing, money } from "@/lib/format";
+import { CONVENIENCE_FEE } from "@/data/fixtures";
 import * as api from "@/lib/api";
 import { ApiError } from "@/lib/api";
 
@@ -68,8 +69,11 @@ export function CheckoutPayScreen() {
 
   const ticketTotal = (tier?.price ?? 0) * qty;
   const discount = promoState?.valid ? promoState.discount_amount ?? 0 : 0;
-  const total = Math.max(0, ticketTotal - discount);
   const isFree = ticketTotal === 0;
+  // Booking fee is the server's to decide, so quote it the same way the event
+  // page does and reconcile against the real order once it exists.
+  const estimatedFee = isFree ? 0 : CONVENIENCE_FEE * qty;
+  const total = Math.max(0, ticketTotal - discount + estimatedFee);
 
   const finish = useCallback(
     async (eventId: string) => {
@@ -283,6 +287,12 @@ export function CheckoutPayScreen() {
                 <div className="flex justify-between gap-4">
                   <dt className="t-small text-live">Promo discount</dt>
                   <dd className="t-mono text-[14px] text-live">−{money(discount)}</dd>
+                </div>
+              )}
+              {estimatedFee > 0 && (
+                <div className="flex justify-between gap-4">
+                  <dt className="t-small text-muted">Booking fee</dt>
+                  <dd className="t-mono text-[14px]">{money(estimatedFee)}</dd>
                 </div>
               )}
               <div className="flex justify-between gap-4 border-t border-line pt-2">

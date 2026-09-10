@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.conf import settings as django_settings
 from django.utils import timezone
 from django.db import models, transaction
 from rest_framework import generics, permissions, status
@@ -65,7 +66,15 @@ def create_order(request):
             else:
                 discount = min(promo.discount_value, subtotal)
 
-        total = subtotal - discount
+        # Booking fee, charged per paid ticket. This used to be hardcoded to
+        # zero here while the event page displayed a fee and a higher total —
+        # so the price quoted was never the price charged. One source of truth
+        # now, and free tickets stay genuinely free.
+        paid_qty = sum(d["qty"] for d in order_items_data if d["price"] > 0)
+        fee_per_ticket = Decimal(str(getattr(django_settings, "CONVENIENCE_FEE", 0)))
+        platform_fee = fee_per_ticket * paid_qty if subtotal > 0 else Decimal("0")
+
+        total = subtotal - discount + platform_fee
         expires = timezone.now() + timedelta(minutes=15)
 
         order = Order.objects.create(
@@ -75,7 +84,7 @@ def create_order(request):
             status=Order.Status.INITIATED,
             subtotal=subtotal,
             discount_amount=discount,
-            platform_fee=Decimal("0"),
+            platform_fee=platform_fee,
             taxes=Decimal("0"),
             total_amount=total,
             ip_address=request.META.get("REMOTE_ADDR"),

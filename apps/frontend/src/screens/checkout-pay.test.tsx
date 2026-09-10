@@ -170,13 +170,11 @@ describe("CheckoutPayScreen", () => {
     const user = userEvent.setup();
     renderCheckout({ tierName: "General", qty: 2 });
 
-    await user.click(await screen.findByRole("button", { name: "Pay ₹998" }));
+    await user.click(await screen.findByRole("button", { name: "Pay ₹1,036" }));
 
     // The simulated gateway sheet stands in for Razorpay's.
     await user.click(await screen.findByRole("button", { name: "Approve payment" }));
 
-    await new Promise((r) => setTimeout(r, 50));
-    console.log("TICKETS CALLS", vi.mocked(api.getMyTickets).mock.calls.length, JSON.stringify(vi.mocked(api.getMyTickets).mock.results));
     expect(await screen.findByText("Your ticket is ready")).toBeInTheDocument();
 
     expect(api.createTicketOrder).toHaveBeenCalledWith({
@@ -235,7 +233,7 @@ describe("CheckoutPayScreen", () => {
     const user = userEvent.setup();
     renderCheckout({ tierName: "General" });
 
-    await user.click(await screen.findByRole("button", { name: "Pay ₹499" }));
+    await user.click(await screen.findByRole("button", { name: "Pay ₹518" }));
     await user.click(await screen.findByRole("button", { name: "Decline payment" }));
 
     expect(
@@ -252,7 +250,7 @@ describe("CheckoutPayScreen", () => {
     // server-side, so there is nothing to reserve.
     renderCheckout({ tierName: "General", hydrate: false, eventId: "e2" });
 
-    await user.click(await screen.findByRole("button", { name: "Pay ₹499" }));
+    await user.click(await screen.findByRole("button", { name: "Pay ₹518" }));
 
     expect(await screen.findByText(/sample data and can't be booked/i)).toBeInTheDocument();
     expect(api.createTicketOrder).not.toHaveBeenCalled();
@@ -272,7 +270,7 @@ describe("CheckoutPayScreen", () => {
     await user.type(await screen.findByLabelText("Promo code"), "naada10");
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
-    expect(await screen.findByRole("button", { name: "Pay ₹399" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Pay ₹418" })).toBeInTheDocument();
     expect(screen.getByText(/₹100/)).toBeInTheDocument();
     expect(api.validatePromo).toHaveBeenCalledWith({
       code: "NAADA10",
@@ -280,7 +278,7 @@ describe("CheckoutPayScreen", () => {
       order_amount: 499,
     });
 
-    await user.click(screen.getByRole("button", { name: "Pay ₹399" }));
+    await user.click(screen.getByRole("button", { name: "Pay ₹418" }));
 
     await waitFor(() =>
       expect(api.createTicketOrder).toHaveBeenCalledWith(
@@ -301,6 +299,6 @@ describe("CheckoutPayScreen", () => {
     await user.click(screen.getByRole("button", { name: "Apply" }));
 
     expect(await screen.findByText("That code has expired.")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Pay ₹499" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pay ₹518" })).toBeInTheDocument();
   });
 });

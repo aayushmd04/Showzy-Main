@@ -241,6 +241,12 @@ EMAIL_BACKEND = config(
 RAZORPAY_KEY_ID = config("RAZORPAY_KEY_ID", default="rzp_test_placeholder")
 RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET", default="placeholder_secret")
 
+# ── Ticketing economics ───────────────────────────────────────────────────────
+# Per-ticket booking fee, in rupees. The event page and the checkout summary
+# both render whatever this produces, so display and charge cannot drift.
+# Set to 0 to sell at face value.
+CONVENIENCE_FEE = config("CONVENIENCE_FEE", default=19, cast=int)
+
 # ── OTP settings ─────────────────────────────────────────────────────────────
 OTP_LENGTH = config("OTP_LENGTH", default=6, cast=int)
 OTP_EXPIRY_MINUTES = config("OTP_EXPIRY_MINUTES", default=10, cast=int)

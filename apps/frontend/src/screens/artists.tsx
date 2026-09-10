@@ -18,16 +18,25 @@ function ArtistCard({ artist, tok }: { artist: import("@/data/fixtures").Artist;
         transition: "border-color .15s",
       }}
     >
-      {/* Avatar */}
+      {/* Avatar — the photo when there is one, initial as the fallback */}
       <div style={{
         width: 52, height: 52, borderRadius: "50%",
         background: `linear-gradient(135deg, ${tok.signal}55, ${tok.signal}22)`,
         border: `2px solid ${tok.signal}66`,
         display: "flex", alignItems: "center", justifyContent: "center",
         fontSize: 22, fontWeight: 800, color: tok.signal,
-        marginBottom: 12,
+        marginBottom: 12, overflow: "hidden", flexShrink: 0,
       }}>
-        {artist.name.charAt(0)}
+        {artist.photo ? (
+          <img
+            src={artist.photo}
+            alt={`${artist.name}, performing`}
+            loading="lazy"
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        ) : (
+          artist.name.charAt(0)
+        )}
       </div>
 
       <p style={{ fontSize: 16, fontWeight: 700, color: tok.paper, margin: 0 }}>{artist.name}</p>

@@ -34,6 +34,8 @@ export interface Venue {
   name: string;
   area: string;
   capacity: number;
+  /** Primary photo, when the venue has one. */
+  photo?: string;
 }
 
 export interface Artist {
@@ -46,6 +48,8 @@ export interface Artist {
   gigsPlayed: number;
   rating: number;
   bio: string;
+  /** Primary photo, when the artist has one. */
+  photo?: string;
   /** Razorpay Linked Account KYC status — gated at payout, not at signup (Q17). */
   kycStatus: KycStatus;
 }

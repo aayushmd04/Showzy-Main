@@ -3,6 +3,7 @@
  * Keeps the store shape stable so screens don't need changes.
  */
 
+import { API_BASE } from "./api";
 import type {
   ApiEvent,
   ApiArtist,
@@ -22,6 +23,33 @@ import type {
   ChatMessage,
   Quote,
 } from "@/data/fixtures";
+
+/**
+ * Resolve a media URL to where the bytes actually are.
+ *
+ * Seed imagery is committed to the frontend's `public/media/`, so the CDN
+ * serves it for free with no storage bucket. The backend stores the matching
+ * relative path in an ImageField, but DRF runs `build_absolute_uri` on the way
+ * out and hands back an API-origin URL — which 404s, because those files were
+ * never on the API host.
+ *
+ * So: rewrite same-origin `/media/` URLs to a bare path the frontend serves,
+ * and pass everything else through untouched. Real uploads live on S3 under a
+ * different origin (see DEPLOY.md) and are unaffected.
+ */
+export function mediaUrl(raw?: string | null): string | undefined {
+  if (!raw) return undefined;
+  try {
+    const url = new URL(raw, window.location.origin);
+    const apiOrigin = new URL(API_BASE, window.location.origin).origin;
+    if (url.origin === apiOrigin && url.pathname.startsWith("/media/")) {
+      return url.pathname;
+    }
+    return url.origin === window.location.origin ? url.pathname : url.href;
+  } catch {
+    return raw;
+  }
+}
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 
@@ -60,7 +88,7 @@ export function adaptEvent(e: ApiEvent): NaadaEvent {
     isSeekingArtist: e.is_seeking_artists ?? false,
     budgetMin: e.performance_budget_min ? parseFloat(e.performance_budget_min) : undefined,
     budgetMax: e.performance_budget_max ? parseFloat(e.performance_budget_max) : undefined,
-    _posterImage: e.poster_image,
+    _posterImage: mediaUrl(e.poster_image),
     _cityName: e.city_name ?? "",
   } as NaadaEvent & { _posterImage?: string; _cityName?: string };
 }
@@ -78,6 +106,7 @@ export function adaptArtist(a: ApiArtist): Artist {
     gigsPlayed: a.total_gigs ?? 0,
     rating: a.avg_rating ?? 0,
     bio: a.bio ?? "",
+    photo: mediaUrl(a.primary_photo ?? a.profile_image),
     kycStatus: "pending",
   };
 }
@@ -90,6 +119,7 @@ export function adaptVenue(v: ApiVenue): Venue {
     name: v.name,
     area: v.area_name ?? v.area ?? v.city_name ?? v.city ?? "",
     capacity: v.capacity ?? 0,
+    photo: mediaUrl(v.primary_photo),
   };
 }
 

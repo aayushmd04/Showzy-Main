@@ -264,6 +264,7 @@ export interface ApiVenue {
   city?: string;       // city id or name depending on endpoint
   city_name?: string;  // flat field from list endpoint
   capacity?: number;
+  primary_photo?: string;
 }
 
 export interface ApiTier {

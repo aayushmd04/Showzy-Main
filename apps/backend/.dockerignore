@@ -1,0 +1,44 @@
+# Build context for apps/backend/Dockerfile.
+# Keeping this tight matters: the local .venv alone is ~200 MB and would
+# otherwise be uploaded to the builder on every single build.
+
+# Local virtualenv — the image builds its own at /opt/venv
+.venv/
+venv/
+env/
+
+# Secrets. The real .env must never end up baked into an image layer.
+.env
+.env.*
+!.env.example
+
+# Local database and user uploads
+db.sqlite3
+db.sqlite3-journal
+media/
+
+# Collectstatic output — regenerated inside the image
+staticfiles/
+
+# Python bytecode / tooling caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# VCS
+.git/
+.gitignore
+
+# Docs and CI never affect the runtime image
+*.md

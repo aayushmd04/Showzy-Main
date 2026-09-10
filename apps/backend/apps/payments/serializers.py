@@ -33,9 +33,11 @@ class RefundSerializer(serializers.ModelSerializer):
         fields = [
             "id", "order", "ticket", "amount", "reason",
             "reason_detail", "status", "gateway_refund_id",
-            "initiated_by_name", "initiated_at", "processed_at",
+            "initiated_by_name", "created_at", "processed_at",
+            "failure_reason",
         ]
-        read_only_fields = ["id", "status", "gateway_refund_id", "processed_at"]
+        read_only_fields = ["id", "status", "gateway_refund_id", "processed_at",
+                            "created_at", "failure_reason"]
 
 
 class InitiateRefundSerializer(serializers.Serializer):

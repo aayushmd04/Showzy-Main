@@ -2,6 +2,10 @@ from .base import *  # noqa
 
 DEBUG = True
 
+# Echo the generated OTP in the API response so local logins work without SMTP.
+# Overridable via .env, but never inherited by production.py.
+OTP_DEBUG_RESPONSE = config("OTP_DEBUG_RESPONSE", default=True, cast=bool)  # noqa: F405
+
 # Show SQL queries in terminal during development
 # Uncomment to debug slow queries:
 # LOGGING["loggers"]["django.db.backends"] = {

@@ -608,15 +608,20 @@ export function verifyPayment(data: {
  * `verifyPayment` path — the signature check is genuinely exercised rather
  * than skipped. Only available while the mock gateway is selected.
  */
+export interface MockCheckoutResult {
+  status: "success" | "failed" | "pending";
+  gateway_order_id?: string;
+  gateway_payment_id?: string;
+  gateway_signature?: string;
+  error?: { code: string; description: string; reason?: string };
+}
+
 export function completeMockPayment(data: {
   order_id: string;
   gateway_order_id: string;
-}): Promise<{
-  gateway_order_id: string;
-  gateway_payment_id: string;
-  gateway_signature: string;
-}> {
-  return post("/payments/mock/complete/", data);
+  outcome?: "success" | "failed" | "pending";
+}): Promise<MockCheckoutResult> {
+  return post<MockCheckoutResult>("/payments/mock/checkout/", data);
 }
 
 export function requestRefund(data: {

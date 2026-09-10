@@ -99,6 +99,10 @@ class Refund(TimeStampedModel):
 class PaymentWebhook(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     gateway = models.CharField(max_length=20, choices=Gateway.choices)
+    event_id = models.CharField(
+        max_length=120, blank=True, db_index=True,
+        help_text="Gateway delivery id (X-Razorpay-Event-Id) — used for idempotency",
+    )
     event_type = models.CharField(max_length=80)
     payload = models.JSONField()
     signature = models.CharField(max_length=200, blank=True)
@@ -109,3 +113,11 @@ class PaymentWebhook(models.Model):
 
     class Meta:
         ordering = ["-received_at"]
+        constraints = [
+            # Razorpay retries deliveries; the same event id must never land twice.
+            models.UniqueConstraint(
+                fields=["gateway", "event_id"],
+                condition=models.Q(event_id__gt=""),
+                name="uniq_webhook_event_per_gateway",
+            ),
+        ]

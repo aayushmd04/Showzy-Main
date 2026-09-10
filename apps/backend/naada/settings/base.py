@@ -1,4 +1,8 @@
+import os
 from pathlib import Path
+from urllib.parse import urlparse
+
+import dj_database_url
 from decouple import config
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
@@ -22,6 +26,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "channels",
+    "drf_spectacular",
     # Naada apps
     "apps.core",
     "apps.users",
@@ -77,20 +82,44 @@ CHANNEL_LAYERS = {
 }
 
 # ── Database ──────────────────────────────────────────────────────────────────
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-        # For Supabase / Postgres production:
-        # "ENGINE": "django.db.backends.postgresql",
-        # "NAME": config("DB_NAME"),
-        # "USER": config("DB_USER"),
-        # "PASSWORD": config("DB_PASSWORD"),
-        # "HOST": config("DB_HOST"),
-        # "PORT": config("DB_PORT", default="5432"),
-        # "OPTIONS": {"sslmode": "require"},
+# One DATABASE_URL drives every environment. Defaults to the local SQLite file
+# so dev behaviour is unchanged when the var is absent.
+#
+#   local     sqlite:///.../apps/backend/db.sqlite3
+#   Supabase  postgresql://postgres.<ref>:<pw>@aws-0-<region>.pooler.supabase.com:6543/postgres
+#   direct    postgresql://postgres:<pw>@db.<ref>.supabase.co:5432/postgres
+#
+# Port 6543 is Supabase's pgbouncer pooler (transaction mode): persistent
+# connections and server-side cursors must be off there. Port 5432 is a direct
+# connection and keeps CONN_MAX_AGE + health checks.
+DEFAULT_SQLITE_URL = f"sqlite:///{BASE_DIR / 'db.sqlite3'}"
+DATABASE_URL = config("DATABASE_URL", default=DEFAULT_SQLITE_URL)
+
+_db_url = urlparse(DATABASE_URL)
+_db_is_sqlite = _db_url.scheme.lower().startswith("sqlite")
+# Supabase's transaction pooler runs on 6543; override with DB_POOLED if needed.
+_db_pooled = config("DB_POOLED", default=(_db_url.port == 6543), cast=bool)
+
+if _db_is_sqlite:
+    DATABASES = {"default": dj_database_url.parse(DATABASE_URL)}
+    # "sqlite:///db.sqlite3" yields a cwd-relative name; anchor it to BASE_DIR so
+    # the same file is used no matter where manage.py / gunicorn is launched from.
+    _sqlite_name = str(DATABASES["default"].get("NAME") or "")
+    if _sqlite_name and _sqlite_name != ":memory:" and not os.path.isabs(_sqlite_name):
+        DATABASES["default"]["NAME"] = str(BASE_DIR / _sqlite_name)
+else:
+    DATABASES = {
+        "default": dj_database_url.parse(
+            DATABASE_URL,
+            conn_max_age=0 if _db_pooled else config("DB_CONN_MAX_AGE", default=60, cast=int),
+            conn_health_checks=not _db_pooled,
+            disable_server_side_cursors=_db_pooled,
+            ssl_require=True,  # Supabase rejects non-TLS connections
+        )
     }
-}
+    # ssl_require already sets this; make it explicit and overridable.
+    DATABASES["default"].setdefault("OPTIONS", {})
+    DATABASES["default"]["OPTIONS"]["sslmode"] = config("DB_SSLMODE", default="require")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -140,7 +169,29 @@ REST_FRAMEWORK = {
         "user": "1000/hour",
         "otp": "5/hour",
     },
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
+
+# ── API schema / docs (drf-spectacular) ───────────────────────────────────────
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Naada API",
+    "DESCRIPTION": "Live-music events, ticketing and artist bookings for Mysuru & Bengaluru.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "SCHEMA_PATH_PREFIX": "/api/v1",
+    "COMPONENT_SPLIT_REQUEST": True,
+    "SORT_OPERATIONS": False,
+    "SERVE_PERMISSIONS": ["rest_framework.permissions.AllowAny"],
+    "SWAGGER_UI_SETTINGS": {"persistAuthorization": True, "displayRequestDuration": True},
+}
+
+# drf-spectacular emits ~56 documentation-quality warnings against the existing
+# views: W002 for every @api_view whose serializer it cannot infer, W001 for
+# SerializerMethodFields with no return type hint. The schema still generates
+# (those fields fall back to `string`), but the noise buries the real security
+# findings in `manage.py check --deploy`. Drop these once the function-based
+# views carry @extend_schema / @extend_schema_field decorators.
+SILENCED_SYSTEM_CHECKS = ["drf_spectacular.W001", "drf_spectacular.W002"]
 
 # ── JWT ───────────────────────────────────────────────────────────────────────
 from datetime import timedelta
@@ -191,6 +242,13 @@ RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET", default="placeholder_secret"
 OTP_LENGTH = config("OTP_LENGTH", default=6, cast=int)
 OTP_EXPIRY_MINUTES = config("OTP_EXPIRY_MINUTES", default=10, cast=int)
 OTP_MAX_ATTEMPTS = config("OTP_MAX_ATTEMPTS", default=5, cast=int)
+
+# When True the OTP request endpoint echoes the generated code back in the JSON
+# response so you can log in without a mail server. NEVER enable in production:
+# it hands account takeover to anyone who knows a phone number / email.
+# Deliberately independent of DEBUG — see local.py, which is the only place it
+# is turned on.
+OTP_DEBUG_RESPONSE = config("OTP_DEBUG_RESPONSE", default=False, cast=bool)
 
 # ── Celery ────────────────────────────────────────────────────────────────────
 CELERY_BROKER_URL = config("REDIS_URL", default="redis://localhost:6379/0")

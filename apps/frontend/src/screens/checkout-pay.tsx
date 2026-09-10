@@ -217,21 +217,35 @@ export function CheckoutPayScreen() {
     }
   };
 
-  const completeMock = async (outcome: "success" | "failure") => {
+  const completeMock = async (outcome: "success" | "failed") => {
     if (!mockSheet || !event) return;
     setMockSheet(null);
-    if (outcome === "failure") {
-      setPhase("failed");
-      setError("The payment was declined. No money was taken.");
-      return;
-    }
     setPhase("verifying");
     try {
-      const signed = await api.completeMockPayment({
+      // The browser can't sign — the secret is server-side — so the backend
+      // mints the payment id and a real HMAC, and we then go through the very
+      // same verify endpoint a live Razorpay callback would.
+      const res = await api.completeMockPayment({
         order_id: mockSheet.order_id,
         gateway_order_id: mockSheet.gateway_order_id ?? "",
+        outcome,
       });
-      await confirm(mockSheet.order_id, event.id, signed);
+
+      if (res.status !== "success" || !res.gateway_payment_id || !res.gateway_signature) {
+        setPhase("failed");
+        setError(
+          res.status === "pending"
+            ? "The payment is still pending with the bank. We'll confirm your ticket as soon as it clears."
+            : res.error?.description ?? "The payment was declined. No money was taken.",
+        );
+        return;
+      }
+
+      await confirm(mockSheet.order_id, event.id, {
+        gateway_order_id: res.gateway_order_id ?? mockSheet.gateway_order_id ?? "",
+        gateway_payment_id: res.gateway_payment_id,
+        gateway_signature: res.gateway_signature,
+      });
     } catch (err) {
       if (cancelled.current) return;
       setPhase("failed");
@@ -381,7 +395,7 @@ export function CheckoutPayScreen() {
               <Button variant="primary" full onClick={() => completeMock("success")}>
                 Approve payment
               </Button>
-              <Button full onClick={() => completeMock("failure")}>
+              <Button full onClick={() => completeMock("failed")}>
                 Decline payment
               </Button>
               <button

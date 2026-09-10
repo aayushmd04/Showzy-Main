@@ -1,0 +1,18 @@
+# Naada backend process manifest.
+#
+# Works on any Procfile-aware host (Heroku, Dokku, Railway's Procfile support,
+# Porter, CapRover). Render and Railway config-as-code are in render.yaml and
+# railway.json in this same directory — all three declare the same three
+# processes so you get identical behaviour whichever host you pick.
+#
+# Run these from apps/backend/ (that is the directory containing manage.py).
+#
+# release  runs once per deploy, BEFORE the new web process takes traffic.
+# web      ASGI, not WSGI — gunicorn cannot serve the /ws/chat/ WebSockets.
+# worker   Celery, consumes apps/bookings/tasks.py (escrow auto-release, KYC nudges).
+# beat     Celery scheduler, fires the nightly reconciliation job.
+
+release: python manage.py migrate --noinput
+web: daphne -b 0.0.0.0 -p $PORT --proxy-headers naada.asgi:application
+worker: celery -A naada worker --loglevel=info --concurrency=2
+beat: celery -A naada beat --loglevel=info --schedule=/tmp/celerybeat-schedule

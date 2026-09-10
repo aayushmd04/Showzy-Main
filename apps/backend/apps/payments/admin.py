@@ -14,5 +14,6 @@ class RefundAdmin(admin.ModelAdmin):
 
 @admin.register(PaymentWebhook)
 class WebhookAdmin(admin.ModelAdmin):
-    list_display = ["gateway", "event_type", "is_processed", "received_at"]
+    list_display = ["gateway", "event_type", "event_id", "is_processed", "received_at"]
     list_filter = ["gateway", "is_processed"]
+    search_fields = ["event_id", "event_type"]

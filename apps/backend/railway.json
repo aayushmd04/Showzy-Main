@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "DOCKERFILE",
+    "dockerfilePath": "Dockerfile"
+  },
+  "deploy": {
+    "startCommand": "daphne -b 0.0.0.0 -p $PORT --proxy-headers naada.asgi:application",
+    "preDeployCommand": ["python manage.py migrate --noinput"],
+    "healthcheckPath": "/api/v1/health/",
+    "healthcheckTimeout": 300,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}

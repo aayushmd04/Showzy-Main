@@ -1,0 +1,191 @@
+# Naada — Render Blueprint (Infrastructure as Code).
+#
+# ┌──────────────────────────────────────────────────────────────────────────┐
+# │ BEFORE YOU USE THIS: copy it to the repository root.                     │
+# │                                                                          │
+# │     cp apps/backend/render.yaml render.yaml                              │
+# │     git add render.yaml && git commit -m "Add Render blueprint"          │
+# │     git push                                                             │
+# │                                                                          │
+# │ Render only ever looks for a file literally named render.yaml at the     │
+# │ top level of the repository. It will not find it in apps/backend/.       │
+# │ It lives here because apps/backend/ is where the rest of the backend     │
+# │ deployment config lives; the copy at the root is the one Render reads.   │
+# └──────────────────────────────────────────────────────────────────────────┘
+#
+# Creates, in one click (Render Dashboard -> New -> Blueprint):
+#   naada-api      web service, Docker, daphne (ASGI: HTTP + WebSockets)
+#   naada-worker   background worker, Celery
+#   naada-beat     background worker, Celery beat scheduler
+#   naada-redis    Key Value (Redis) — Channels layer + Celery broker
+#   naada-web      static site, the Vite build, with SPA history fallback
+#
+# Postgres is NOT declared here on purpose: it lives on Supabase. You paste
+# the Supabase connection string in as DATABASE_URL. See DEPLOY.md.
+#
+# Every value marked `sync: false` is prompted for when you create the
+# Blueprint. Every value with `value: ""` is an optional integration that is
+# safe to leave empty — the app runs fine without Razorpay, Sentry or SMTP.
+
+envVarGroups:
+  # One shared group so all three backend processes agree on SECRET_KEY,
+  # the database and the allowed hosts. If SECRET_KEY differed between the
+  # web process and the worker, JWTs signed by one would be rejected by the
+  # other — this group is what prevents that.
+  - name: naada-backend
+    envVars:
+      - key: DJANGO_ENV
+        value: naada.settings.production
+
+      # Generate with:
+      #   python -c "import secrets; print(secrets.token_urlsafe(64))"
+      - key: SECRET_KEY
+        sync: false
+
+      # Supabase connection string. Use the SESSION pooler on port 5432.
+      # See DEPLOY.md — this is the single most common thing to get wrong.
+      - key: DATABASE_URL
+        sync: false
+
+      # Comma separated, no spaces, no scheme. Must include the Render
+      # hostname of naada-api plus 127.0.0.1 (the container health probe
+      # calls itself on loopback). Example:
+      #   naada-api.onrender.com,127.0.0.1,localhost
+      - key: ALLOWED_HOSTS
+        sync: false
+
+      # Comma separated, WITH scheme, no trailing slash. Must exactly match
+      # the browser origin the frontend is served from. Example:
+      #   https://naada-web.onrender.com,https://naada.live
+      - key: CORS_ALLOWED_ORIGINS
+        sync: false
+
+      # ── Optional. Leave blank; nothing below is required to deploy. ──────
+      - key: SENTRY_DSN
+        value: ""
+      - key: RAZORPAY_KEY_ID
+        value: ""
+      - key: RAZORPAY_KEY_SECRET
+        value: ""
+      - key: EMAIL_HOST
+        value: ""
+      - key: EMAIL_PORT
+        value: ""
+      - key: EMAIL_HOST_USER
+        value: ""
+      - key: EMAIL_HOST_PASSWORD
+        value: ""
+      - key: DEFAULT_FROM_EMAIL
+        value: ""
+
+services:
+  # ── Redis ─────────────────────────────────────────────────────────────────
+  # Carries two things: the Channels layer (so a chat message published by one
+  # web instance reaches subscribers on another) and the Celery broker.
+  - name: naada-redis
+    type: keyvalue
+    plan: free # 25 MB, no persistence. Enough for chat fan-out + a task queue.
+    region: singapore
+    # Empty list = reachable only from other services in this Render account,
+    # never from the public internet. This is the setting you want.
+    ipAllowList: []
+    maxmemoryPolicy: noeviction # Never silently drop queued Celery tasks.
+
+  # ── Django, ASGI ──────────────────────────────────────────────────────────
+  - name: naada-api
+    type: web
+    runtime: docker
+    plan: 0.5c-512mb # legacy alias: "starter" — $7/month
+    region: singapore
+    dockerfilePath: ./apps/backend/Dockerfile
+    dockerContext: ./apps/backend
+    # dockerCommand omitted on purpose -> uses the Dockerfile CMD, which is
+    # daphne. Do not replace this with gunicorn: gunicorn speaks WSGI and
+    # cannot serve the /ws/chat/ WebSocket upgrade.
+    healthCheckPath: /api/v1/health/
+    # Runs once per deploy, after the image is built and before the new
+    # instance takes traffic. Requires a paid plan (not available on free).
+    preDeployCommand: python manage.py migrate --noinput
+    autoDeployTrigger: commit
+    envVarGroups:
+      - naada-backend
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          name: naada-redis
+          type: keyvalue
+          property: connectionString
+
+  # ── Celery worker ─────────────────────────────────────────────────────────
+  # Without this, escrowed artist payouts never auto-release: the
+  # @shared_task functions in apps/bookings/tasks.py have nothing consuming
+  # them. This is not optional infrastructure for this app.
+  - name: naada-worker
+    type: worker
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    dockerfilePath: ./apps/backend/Dockerfile
+    dockerContext: ./apps/backend
+    dockerCommand: celery -A naada worker --loglevel=info --concurrency=2
+    autoDeployTrigger: commit
+    envVarGroups:
+      - naada-backend
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          name: naada-redis
+          type: keyvalue
+          property: connectionString
+
+  # ── Celery beat ───────────────────────────────────────────────────────────
+  # Fires the nightly reconciliation job. Keep this at exactly one instance:
+  # two beat schedulers means every scheduled job runs twice.
+  - name: naada-beat
+    type: worker
+    runtime: docker
+    plan: 0.5c-512mb
+    region: singapore
+    numInstances: 1
+    dockerfilePath: ./apps/backend/Dockerfile
+    dockerContext: ./apps/backend
+    # --schedule points at /tmp because the container filesystem is read-only
+    # everywhere else for the non-root user.
+    dockerCommand: celery -A naada beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    autoDeployTrigger: commit
+    envVarGroups:
+      - naada-backend
+    envVars:
+      - key: REDIS_URL
+        fromService:
+          name: naada-redis
+          type: keyvalue
+          property: connectionString
+
+  # ── Frontend ──────────────────────────────────────────────────────────────
+  # Static site: free, on Render's CDN, no server to keep warm.
+  - name: naada-web
+    type: web
+    runtime: static
+    buildCommand: npm ci && npm run build --workspace apps/frontend
+    staticPublishPath: ./apps/frontend/dist
+    autoDeployTrigger: commit
+    routes:
+      # SPA history fallback. Without this, loading /host/events/<id> directly
+      # (a refresh, or a pasted link) returns 404 because no such file exists
+      # on disk — React Router never gets a chance to handle the URL.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Vite bakes this into the JavaScript bundle at BUILD time. Changing it
+      # requires a rebuild, not a restart. Include the /api/v1 suffix:
+      #   https://naada-api.onrender.com/api/v1
+      - key: VITE_API_BASE
+        sync: false
+      - key: VITE_SENTRY_DSN
+        value: ""
+      - key: VITE_ANALYTICS_KEY
+        value: ""
+      - key: VITE_ANALYTICS_HOST
+        value: ""

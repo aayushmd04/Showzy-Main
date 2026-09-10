@@ -1,20 +1,37 @@
-import hmac
 import hashlib
 import json
+import logging
 from decimal import Decimal
+
+from django.db import IntegrityError, transaction
+from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
-from django.conf import settings as django_settings
 from django.views.decorators.csrf import csrf_exempt
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 
+from .gateways import (
+    OUTCOMES,
+    OUTCOME_FAILED,
+    OUTCOME_PENDING,
+    OUTCOME_SUCCESS,
+    GatewayConfigurationError,
+    GatewayError,
+    get_gateway,
+    to_paise,
+)
 from .models import Payment, Refund, PaymentWebhook, Gateway, PaymentStatus
 from .serializers import (
     InitiatePaymentSerializer, VerifyPaymentSerializer,
     RefundSerializer, InitiateRefundSerializer, PaymentSerializer,
 )
 from apps.tickets.models import Order, Ticket, OrderItem, TicketTier
+
+logger = logging.getLogger(__name__)
+
+#: gateways that legitimately move money outside the online gateway
+OFFLINE_GATEWAYS = {Gateway.CASH, Gateway.COMPLIMENTARY}
 
 
 def _confirm_order(order: Order):
@@ -49,6 +66,67 @@ def _confirm_order(order: Order):
         tier.save(update_fields=["sold_quantity", "reserved_quantity"])
 
 
+def _confirm_order_once(order: Order) -> bool:
+    """Idempotent wrapper around `_confirm_order`.
+
+    Gateways retry webhooks and users double-click "verify".  Confirming twice
+    would issue a second set of tickets and double-count tier inventory, so the
+    row is locked and re-read before we decide.  Returns True if this call did
+    the confirming.
+    """
+    with transaction.atomic():
+        locked = Order.objects.select_for_update().get(pk=order.pk)
+        if locked.status == Order.Status.CONFIRMED or locked.tickets.exists():
+            logger.info("Order %s already confirmed; skipping duplicate confirm.", order.pk)
+            return False
+        _confirm_order(locked)
+    order.refresh_from_db()
+    return True
+
+
+def _resolve_gateway():
+    """Return (gateway, error_response). Never silently downgrades to mock."""
+    try:
+        return get_gateway(), None
+    except GatewayConfigurationError as exc:
+        logger.error("Payment gateway misconfigured: %s", exc)
+        return None, Response(
+            {"detail": "Payment gateway is not configured.", "error": str(exc)},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+
+
+def _mock_checkout_url():
+    try:
+        return reverse("payments-mock-checkout")
+    except NoReverseMatch:  # pragma: no cover - url is always registered
+        return None
+
+
+def _initiate_response(*, order, payment, gateway_name, is_mock, public_key,
+                       gateway_order_id, amount_paise, state, mock_checkout_url=None):
+    """The single response contract consumed by the checkout UI.
+
+    Every payment path returns these keys, so the frontend branches on
+    `is_mock` (simulated checkout) vs not (load Razorpay's SDK) and on nothing
+    else.
+    """
+    return {
+        "payment_id": str(payment.id),
+        "order_id": str(order.id),
+        "gateway": gateway_name,
+        "is_mock": is_mock,
+        "key": public_key,
+        # kept so any existing frontend code continues to work unchanged
+        "razorpay_key": public_key,
+        "gateway_order_id": gateway_order_id,
+        "amount": amount_paise,
+        "currency": order.currency,
+        "status": state,
+        "mock_checkout_url": mock_checkout_url,
+    }
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_payment(request):
@@ -62,73 +140,145 @@ def initiate_payment(request):
     if order.status not in [Order.Status.INITIATED, Order.Status.PAYMENT_PENDING]:
         return Response({"detail": f"Order is already {order.status}."}, status=400)
 
-    gateway = serializer.validated_data["gateway"]
+    requested = serializer.validated_data["gateway"]
 
-    # Handle free / comp
-    if order.total_amount == Decimal("0") or gateway == "comp":
+    # ── Free / complimentary: no gateway involved, legitimately ──────────────
+    if order.total_amount == Decimal("0") or requested == "comp":
         payment = Payment.objects.create(
             order=order, gateway=Gateway.COMPLIMENTARY,
-            amount=order.total_amount, status=PaymentStatus.SUCCESS,
+            amount=order.total_amount, currency=order.currency,
+            status=PaymentStatus.SUCCESS,
             completed_at=timezone.now(),
         )
-        _confirm_order(order)
-        return Response({"payment_id": str(payment.id), "status": "success",
-                         "gateway": "comp", "order_id": str(order.id)})
+        _confirm_order_once(order)
+        return Response(_initiate_response(
+            order=order, payment=payment, gateway_name="comp", is_mock=False,
+            public_key="", gateway_order_id="", amount_paise=0, state="success",
+        ))
 
-    if gateway == "cash":
+    # ── Cash at the door: collected offline ──────────────────────────────────
+    if requested == "cash":
         payment = Payment.objects.create(
             order=order, gateway=Gateway.CASH,
-            amount=order.total_amount, status=PaymentStatus.PROCESSING,
+            amount=order.total_amount, currency=order.currency,
+            status=PaymentStatus.PROCESSING,
             ip_address=request.META.get("REMOTE_ADDR"),
         )
         order.status = Order.Status.PAYMENT_PENDING
         order.payment_method = "cash"
         order.save(update_fields=["status", "payment_method"])
-        return Response({"payment_id": str(payment.id), "status": "cash_pending",
-                         "gateway": "cash"})
+        return Response(_initiate_response(
+            order=order, payment=payment, gateway_name="cash", is_mock=False,
+            public_key="", gateway_order_id="",
+            amount_paise=to_paise(order.total_amount), state="cash_pending",
+        ))
 
-    # Razorpay
+    # ── Online gateway (Razorpay or its mock) ────────────────────────────────
+    gateway, error = _resolve_gateway()
+    if error:
+        return error
+
     try:
-        import razorpay
-        key_id = django_settings.RAZORPAY_KEY_ID
-        key_secret = django_settings.RAZORPAY_KEY_SECRET
-        if not key_secret or key_id in ("rzp_test_", ""):
-            # Dev mode: simulate Razorpay order without hitting the API
-            import uuid as _uuid
-            rzp_order = {
-                "id": f"order_DEV_{_uuid.uuid4().hex[:16]}",
-                "entity": "order", "amount": int(order.total_amount * 100),
-                "currency": order.currency, "status": "created",
-            }
-        else:
-            client = razorpay.Client(auth=(key_id, key_secret))
-            rzp_order = client.order.create({
-                "amount": int(order.total_amount * 100),
-                "currency": order.currency,
-                "receipt": str(order.id)[:40],
-                "notes": {"order_id": str(order.id), "user": order.user.email},
-            })
-        payment = Payment.objects.create(
-            order=order,
-            gateway=Gateway.RAZORPAY,
-            gateway_order_id=rzp_order["id"],
-            amount=order.total_amount,
-            status=PaymentStatus.INITIATED,
-            ip_address=request.META.get("REMOTE_ADDR"),
-        )
-        order.status = Order.Status.PAYMENT_PENDING
-        order.payment_method = "razorpay"
-        order.save(update_fields=["status", "payment_method"])
+        gw_order = gateway.create_order(order)
+    except GatewayError as exc:
+        logger.exception("Gateway order creation failed for order %s", order.id)
+        return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+    payment = Payment.objects.create(
+        order=order,
+        gateway=Gateway.RAZORPAY,
+        gateway_order_id=gw_order["id"],
+        amount=order.total_amount,
+        currency=order.currency,
+        status=PaymentStatus.INITIATED,
+        gateway_response=gw_order,
+        metadata={"gateway_impl": gateway.name, "is_mock": gateway.is_mock},
+        ip_address=request.META.get("REMOTE_ADDR"),
+    )
+    order.status = Order.Status.PAYMENT_PENDING
+    order.payment_method = "razorpay"
+    order.save(update_fields=["status", "payment_method"])
+
+    return Response(_initiate_response(
+        order=order, payment=payment, gateway_name=gateway.name,
+        is_mock=gateway.is_mock, public_key=gateway.public_key,
+        gateway_order_id=gw_order["id"], amount_paise=gw_order["amount"],
+        state="created",
+        mock_checkout_url=_mock_checkout_url() if gateway.is_mock else None,
+    ))
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def mock_checkout(request):
+    """Stand-in for Razorpay's hosted checkout — mock gateway only.
+
+    The browser cannot sign anything (the secret is server-side), so the demo
+    UI calls this to obtain a payment id + signature, then POSTs them to
+    /payments/verify/ exactly as the real Razorpay handler would.  The
+    signature produced here is a real HMAC and is really verified.
+
+    Body: {order_id, gateway_order_id, outcome?}
+    `outcome` (success|failed|pending) overrides the amount-derived outcome.
+    """
+    gateway, error = _resolve_gateway()
+    if error:
+        return error
+    if not gateway.is_mock:
+        return Response({"detail": "Mock checkout is disabled; a live gateway is active."},
+                        status=404)
+
+    order_id = request.data.get("order_id")
+    gateway_order_id = request.data.get("gateway_order_id")
+    if not order_id or not gateway_order_id:
+        return Response({"detail": "order_id and gateway_order_id are required."}, status=400)
+
+    payment = Payment.objects.filter(
+        order__id=order_id, order__user=request.user, gateway_order_id=gateway_order_id
+    ).first()
+    if not payment:
+        return Response({"detail": "Payment record not found."}, status=404)
+
+    outcome = request.data.get("outcome")
+    if outcome:
+        if outcome not in OUTCOMES:
+            return Response({"detail": f"outcome must be one of {list(OUTCOMES)}."}, status=400)
+    else:
+        outcome = gateway.outcome_for_amount(payment.amount)
+
+    if outcome == OUTCOME_FAILED:
+        payment.status = PaymentStatus.FAILED
+        payment.failure_reason = "Simulated payment failure (mock gateway)"
+        payment.save(update_fields=["status", "failure_reason"])
         return Response({
-            "payment_id": str(payment.id),
-            "gateway_order_id": rzp_order["id"],
-            "razorpay_key": django_settings.RAZORPAY_KEY_ID,
-            "amount": int(order.total_amount * 100),
-            "currency": order.currency,
-            "order_id": str(order.id),
+            "status": OUTCOME_FAILED,
+            "error": {
+                "code": "BAD_REQUEST_ERROR",
+                "description": "Payment failed",
+                "source": "customer",
+                "step": "payment_authentication",
+                "reason": "payment_failed",
+                "metadata": {"order_id": gateway_order_id},
+            },
         })
-    except Exception as e:
-        return Response({"detail": str(e)}, status=500)
+
+    if outcome == OUTCOME_PENDING:
+        payment.status = PaymentStatus.PROCESSING
+        payment.save(update_fields=["status"])
+        return Response({"status": OUTCOME_PENDING, "gateway_order_id": gateway_order_id})
+
+    payment_id = gateway.new_payment_id()
+    signature = gateway.sign_checkout(gateway_order_id, payment_id)
+    return Response({
+        "status": OUTCOME_SUCCESS,
+        "gateway_order_id": gateway_order_id,
+        "gateway_payment_id": payment_id,
+        "gateway_signature": signature,
+        # Razorpay's own field names, so a mock checkout handler is a drop-in
+        "razorpay_order_id": gateway_order_id,
+        "razorpay_payment_id": payment_id,
+        "razorpay_signature": signature,
+    })
 
 
 @api_view(["POST"])
@@ -148,68 +298,140 @@ def verify_payment(request):
     if not payment:
         return Response({"detail": "Payment record not found."}, status=404)
 
-    # Verify HMAC signature (skip in dev mode when no real key is set)
-    key_secret = django_settings.RAZORPAY_KEY_SECRET
-    is_dev_mode = not key_secret or django_settings.RAZORPAY_KEY_ID in ("rzp_test_", "")
-    if not is_dev_mode:
-        body = f"{d['gateway_order_id']}|{d['gateway_payment_id']}"
-        expected_sig = hmac.new(
-            key_secret.encode(), body.encode(), hashlib.sha256
-        ).hexdigest()
-        if not hmac.compare_digest(expected_sig, d["gateway_signature"]):
-            payment.status = PaymentStatus.FAILED
-            payment.failure_reason = "Signature mismatch"
-            payment.save(update_fields=["status", "failure_reason"])
-            return Response({"detail": "Invalid payment signature."}, status=400)
+    # Already verified (double-submit, or a webhook beat the browser here).
+    if payment.status == PaymentStatus.SUCCESS:
+        _confirm_order_once(order)
+        return Response({"status": "confirmed", "order_id": str(order.id),
+                         "already_verified": True})
+
+    gateway, error = _resolve_gateway()
+    if error:
+        return error
+
+    # Signature verification always runs — mock and live alike.
+    valid = gateway.verify_signature({
+        "order_id": d["gateway_order_id"],
+        "payment_id": d["gateway_payment_id"],
+        "signature": d["gateway_signature"],
+    })
+    if not valid:
+        payment.status = PaymentStatus.FAILED
+        payment.failure_reason = "Signature mismatch"
+        payment.save(update_fields=["status", "failure_reason"])
+        return Response({"detail": "Invalid payment signature."}, status=400)
 
     payment.gateway_payment_id = d["gateway_payment_id"]
     payment.gateway_signature = d["gateway_signature"]
     payment.status = PaymentStatus.SUCCESS
     payment.completed_at = timezone.now()
-    payment.save(update_fields=["gateway_payment_id", "gateway_signature", "status", "completed_at"])
+    payment.save(update_fields=["gateway_payment_id", "gateway_signature",
+                                "status", "completed_at"])
 
-    _confirm_order(order)
+    _confirm_order_once(order)
 
     return Response({"status": "confirmed", "order_id": str(order.id)})
+
+
+def _webhook_event_id(request, raw_body: bytes, payload: dict) -> str:
+    """Stable id for a webhook delivery, for idempotency.
+
+    Razorpay sends `X-Razorpay-Event-Id` and repeats it on every retry of the
+    same event.  If it is absent we fall back to a hash of the body, which is
+    equally stable for a repeated delivery.
+    """
+    header_id = request.headers.get("X-Razorpay-Event-Id", "").strip()
+    if header_id:
+        return header_id[:120]
+    return "sha256:" + hashlib.sha256(raw_body or b"").hexdigest()[:100]
 
 
 @api_view(["POST"])
 @csrf_exempt
 @permission_classes([permissions.AllowAny])
 def razorpay_webhook(request):
-    payload = request.body
+    raw_body = request.body
     signature = request.headers.get("X-Razorpay-Signature", "")
-    expected = hmac.new(
-        django_settings.RAZORPAY_KEY_SECRET.encode(),
-        payload, hashlib.sha256
-    ).hexdigest()
 
-    webhook = PaymentWebhook.objects.create(
-        gateway="razorpay",
-        event_type=request.data.get("event", ""),
-        payload=request.data,
-        signature=signature,
-    )
+    gateway, error = _resolve_gateway()
+    if error:
+        return error
 
-    if not hmac.compare_digest(expected, signature):
+    # 1. Verify BEFORE touching the database — unsigned traffic leaves no trace.
+    if not gateway.verify_webhook_signature(raw_body, signature):
+        logger.warning("Rejected webhook with invalid signature (%d bytes).", len(raw_body or b""))
         return Response({"detail": "Invalid signature."}, status=400)
 
-    event_type = request.data.get("event", "")
+    try:
+        payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
+    except (ValueError, UnicodeDecodeError):
+        return Response({"detail": "Malformed webhook body."}, status=400)
+    if not isinstance(payload, dict):
+        return Response({"detail": "Malformed webhook body."}, status=400)
+
+    event_type = payload.get("event", "")
+    event_id = _webhook_event_id(request, raw_body, payload)
+
+    # 2. Idempotency: the same delivery must never be processed twice.
+    try:
+        with transaction.atomic():
+            webhook, created = PaymentWebhook.objects.get_or_create(
+                gateway="razorpay",
+                event_id=event_id,
+                defaults={"event_type": event_type, "payload": payload,
+                          "signature": signature},
+            )
+    except IntegrityError:  # raced with a concurrent delivery of the same event
+        created = False
+        webhook = PaymentWebhook.objects.filter(
+            gateway="razorpay", event_id=event_id).first()
+
+    if not created:
+        logger.info("Duplicate webhook %s (%s) ignored.", event_id, event_type)
+        return Response({"status": "ok", "duplicate": True})
+
+    # 3. Process.
     try:
         if event_type == "payment.captured":
-            payment_data = request.data["payload"]["payment"]["entity"]
-            payment = Payment.objects.filter(
-                gateway_payment_id=payment_data["id"]
-            ).first()
+            entity = payload["payload"]["payment"]["entity"]
+            payment = Payment.objects.filter(gateway_payment_id=entity["id"]).first()
+            if payment is None:
+                # Browser never returned; match on the gateway order id instead.
+                payment = Payment.objects.filter(
+                    gateway_order_id=entity.get("order_id", "")).first()
+                if payment is not None:
+                    payment.gateway_payment_id = entity["id"]
+                    payment.save(update_fields=["gateway_payment_id"])
             if payment and payment.status != PaymentStatus.SUCCESS:
                 payment.status = PaymentStatus.SUCCESS
                 payment.completed_at = timezone.now()
                 payment.save(update_fields=["status", "completed_at"])
-                _confirm_order(payment.order)
+            if payment:
+                _confirm_order_once(payment.order)
+
+        elif event_type == "payment.failed":
+            entity = payload["payload"]["payment"]["entity"]
+            payment = (Payment.objects.filter(gateway_payment_id=entity["id"]).first()
+                       or Payment.objects.filter(
+                           gateway_order_id=entity.get("order_id", "")).first())
+            if payment and payment.status != PaymentStatus.SUCCESS:
+                payment.status = PaymentStatus.FAILED
+                payment.failure_reason = entity.get("error_description") or "Payment failed"
+                payment.save(update_fields=["status", "failure_reason"])
+
+        elif event_type in ("refund.processed", "refund.created"):
+            entity = payload["payload"]["refund"]["entity"]
+            refund = Refund.objects.filter(gateway_refund_id=entity["id"]).first()
+            if refund and refund.status != Refund.Status.SUCCESS:
+                refund.status = Refund.Status.SUCCESS
+                refund.processed_at = timezone.now()
+                refund.gateway_response = entity
+                refund.save(update_fields=["status", "processed_at", "gateway_response"])
+
         webhook.is_processed = True
         webhook.processed_at = timezone.now()
         webhook.save(update_fields=["is_processed", "processed_at"])
     except Exception as e:
+        logger.exception("Webhook %s (%s) processing failed", event_id, event_type)
         webhook.processing_error = str(e)
         webhook.save(update_fields=["processing_error"])
 
@@ -228,7 +450,7 @@ def initiate_refund(request):
     ).first()
     if not payment:
         return Response({"detail": "Payment not found."}, status=404)
-    if payment.status != PaymentStatus.SUCCESS:
+    if payment.status not in (PaymentStatus.SUCCESS, PaymentStatus.PARTIALLY_REFUNDED):
         return Response({"detail": "Only successful payments can be refunded."}, status=400)
 
     ticket = None
@@ -239,6 +461,17 @@ def initiate_refund(request):
             return Response({"detail": "Ticket not found."}, status=404)
         amount = ticket.tier.price
 
+    already_refunded = sum(
+        (r.amount for r in payment.refunds.filter(
+            status__in=[Refund.Status.SUCCESS, Refund.Status.PROCESSING])),
+        Decimal("0"),
+    )
+    if already_refunded + amount > payment.amount:
+        return Response(
+            {"detail": "Refund amount exceeds the remaining refundable balance."},
+            status=400,
+        )
+
     refund = Refund.objects.create(
         payment=payment,
         order=payment.order,
@@ -247,7 +480,67 @@ def initiate_refund(request):
         reason=d["reason"],
         reason_detail=d.get("reason_detail", ""),
         initiated_by=request.user,
+        status=Refund.Status.PROCESSING,
     )
 
-    # In production, call Razorpay refund API here
+    # Cash / complimentary money never went through a gateway; settling it is
+    # an offline act, recorded here for the audit trail.
+    if payment.gateway in OFFLINE_GATEWAYS or payment.amount == Decimal("0"):
+        refund.status = Refund.Status.SUCCESS
+        refund.processed_at = timezone.now()
+        refund.gateway_response = {"offline": True, "gateway": payment.gateway}
+        refund.save(update_fields=["status", "processed_at", "gateway_response"])
+        _apply_refund_to_payment(payment)
+        return Response(RefundSerializer(refund).data, status=201)
+
+    gateway, error = _resolve_gateway()
+    if error:
+        refund.status = Refund.Status.FAILED
+        refund.failure_reason = "Payment gateway is not configured."
+        refund.save(update_fields=["status", "failure_reason"])
+        return error
+
+    try:
+        gw_refund = gateway.refund(
+            payment, amount,
+            notes={"order_id": str(payment.order_id), "reason": d["reason"],
+                   "refund_id": str(refund.id)},
+        )
+    except GatewayError as exc:
+        # No money moved: leave a FAILED row rather than a PENDING one that
+        # looks like an in-flight refund forever.
+        logger.exception("Refund failed at gateway for payment %s", payment.pk)
+        refund.status = Refund.Status.FAILED
+        refund.failure_reason = str(exc)
+        refund.save(update_fields=["status", "failure_reason"])
+        return Response(
+            {"detail": "Refund could not be processed by the payment gateway.",
+             "error": str(exc), "refund": RefundSerializer(refund).data},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    refund.gateway_refund_id = gw_refund.get("id", "")
+    refund.gateway_response = gw_refund
+    # Razorpay: "processed" = money returned, "pending" = still in flight.
+    refund.status = (Refund.Status.SUCCESS if gw_refund.get("status") == "processed"
+                     else Refund.Status.PROCESSING)
+    if refund.status == Refund.Status.SUCCESS:
+        refund.processed_at = timezone.now()
+    refund.save(update_fields=["gateway_refund_id", "gateway_response",
+                               "status", "processed_at"])
+
+    if refund.status == Refund.Status.SUCCESS:
+        _apply_refund_to_payment(payment)
+
     return Response(RefundSerializer(refund).data, status=201)
+
+
+def _apply_refund_to_payment(payment: Payment):
+    """Reflect settled refunds on the payment row (full vs partial)."""
+    settled = sum((r.amount for r in payment.refunds.filter(status=Refund.Status.SUCCESS)),
+                  Decimal("0"))
+    if settled <= 0:
+        return
+    payment.status = (PaymentStatus.REFUNDED if settled >= payment.amount
+                      else PaymentStatus.PARTIALLY_REFUNDED)
+    payment.save(update_fields=["status"])

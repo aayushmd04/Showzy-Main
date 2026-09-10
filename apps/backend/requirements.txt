@@ -1,16 +1,44 @@
+# ── Core framework ───────────────────────────────────────────────────────────
 django==5.1.4
 djangorestframework==3.15.2
 djangorestframework-simplejwt==5.3.1
 django-cors-headers==4.6.0
-pillow==11.1.0
-qrcode==8.0
+
+# ── Realtime / async ─────────────────────────────────────────────────────────
 channels==4.2.0
 daphne==4.1.2
 channels-redis==4.2.1
+
+# ── Background jobs ──────────────────────────────────────────────────────────
 celery==5.4.0
 django-celery-beat==2.7.0
+
+# ── Database ─────────────────────────────────────────────────────────────────
 psycopg2-binary==2.9.10
+dj-database-url==2.3.0        # parses DATABASE_URL (Supabase direct + pooler)
+
+# ── Config ───────────────────────────────────────────────────────────────────
 python-decouple==3.8
-cryptography==44.0.2
+
+# ── Media / tickets ──────────────────────────────────────────────────────────
+pillow==11.1.0
+qrcode==8.0
+
+# ── Payments & crypto ────────────────────────────────────────────────────────
 razorpay==1.4.2
+cryptography==44.0.2
+
+# ── Production serving ───────────────────────────────────────────────────────
+gunicorn==23.0.0              # WSGI: gunicorn naada.wsgi:application
+whitenoise[brotli]==6.8.2     # static files without nginx
+
+# ── Object storage (optional; only active when AWS_STORAGE_BUCKET_NAME is set)
+django-storages==1.14.4
+boto3==1.43.91
+
+# ── Observability & docs ─────────────────────────────────────────────────────
+sentry-sdk==2.19.2            # no-op unless SENTRY_DSN is set
+drf-spectacular==0.28.0       # /api/v1/schema/ and /api/v1/docs/
+
+# ── Build ────────────────────────────────────────────────────────────────────
 setuptools==69.5.1

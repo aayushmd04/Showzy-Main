@@ -8,7 +8,7 @@ import { TODAY, dateListing, daysFromToday, money, pluralise } from "@/lib/forma
 /** Section 7.17 — Offer inbox. */
 export function ArtistOffersScreen() {
   const navigate = useNavigate();
-  const { bookings, eventById, venueOf, users, emptyLists } = useStore();
+  const { bookings, eventById, venueOf, emptyLists } = useStore();
 
   const offers = emptyLists
     ? []
@@ -35,10 +35,10 @@ export function ArtistOffersScreen() {
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[15px]">
-                      {users.host.name} · {venue?.name}
+                      {event?.name ?? "Event offer"}
                     </p>
                     <p className="t-small mt-0.5 text-muted">
-                      {event?.name} · {event ? dateListing(event.date) : ""}
+                      {venue?.name}{event ? ` · ${dateListing(event.date)}` : ""}
                     </p>
                     <p className="t-mono mt-2 text-[19px]">
                       {money(last?.amount ?? 0)}

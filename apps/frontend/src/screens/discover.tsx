@@ -402,7 +402,7 @@ function HeroPhotoPanel({ event, venue, tok }: {
 
 // ─── Main DiscoverScreen ──────────────────────────────────────────────────────
 export function DiscoverScreen() {
-  const { role, users, events, artists, venueOf, theme, setTheme, lang, setLang } = useStore();
+  const { role, currentUser, events, artists, venueOf, theme, setTheme, lang, setLang } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -424,12 +424,6 @@ export function DiscoverScreen() {
       root.classList.add("theme-light");
     }
   }, [isDark]);
-
-  const account =
-    role === "listener" ? users.listener
-    : role === "artist"  ? users.artist
-    : role === "host"    ? users.host
-    : null;
 
   // Published upcoming events sorted by date (city-filtered)
   const published = useMemo(() => {
@@ -635,7 +629,7 @@ export function DiscoverScreen() {
           </button>
 
           {/* Log in */}
-          {!account && (
+          {role === "out" && (
             <span
               onClick={() => openAuth("Sign in to Naada")}
               style={{ fontSize: 15, fontWeight: 600, padding: "0 8px", cursor: "pointer", color: tok.paper }}
@@ -665,7 +659,7 @@ export function DiscoverScreen() {
           </button>
 
           {/* Account avatar */}
-          {account && (
+          {role !== "out" && currentUser && (
             <Link
               to={role === "host" ? "/host" : role === "artist" ? "/artist" : "/tickets"}
               style={{
@@ -682,7 +676,7 @@ export function DiscoverScreen() {
                 textDecoration: "none",
               }}
             >
-              {(account as { name: string }).name.charAt(0)}
+              {currentUser.full_name?.charAt(0) ?? "?"}
             </Link>
           )}
         </div>

@@ -21,7 +21,7 @@ function statusColor(status: string): string {
 
 /** Host dashboard — overview on login. */
 export function HostHomeLetterpressScreen() {
-  const { events, users, venueOf, soldOf, capacityOf, artists, emptyLists } = useStore();
+  const { events, users, currentUser, venueOf, soldOf, capacityOf, artists, emptyLists } = useStore();
 
   const upcoming = [...events]
     .filter((e) => (e.status === "published" || e.status === "live") && e.date >= TODAY)
@@ -84,7 +84,7 @@ export function HostHomeLetterpressScreen() {
               lineHeight: 0.95,
             }}
           >
-            {users.host.name.split(" ")[0]}
+            {(currentUser?.full_name ?? users.host.name).split(" ")[0]}
           </h1>
           <p
             style={{
@@ -96,7 +96,7 @@ export function HostHomeLetterpressScreen() {
               marginTop: 6,
             }}
           >
-            {users.host.org}
+            {currentUser?.email ?? users.host.org}
           </p>
         </div>
 

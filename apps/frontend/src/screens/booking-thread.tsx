@@ -44,7 +44,7 @@ export function BookingThreadScreen() {
     artistById,
     venueOf,
     role,
-    users,
+    currentUser,
     counterBooking,
     acceptBooking,
     declineBooking,
@@ -194,7 +194,9 @@ export function BookingThreadScreen() {
       <ol className="mt-6 space-y-3">
         {booking.quotes.map((quote, i) => {
           const fromHost = quote.by === "host";
-          const who = fromHost ? users.host.name.split(" ")[0] : artist?.name.split(" ")[0];
+          const who = fromHost
+            ? (role === "host" ? currentUser?.full_name?.split(" ")[0] ?? "You" : "Organizer")
+            : artist?.name.split(" ")[0];
           return (
             <motion.li
               key={`${quote.at}-${i}`}

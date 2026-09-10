@@ -1,9 +1,53 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AppStoreProvider } from "@/store/app-store";
+import * as api from "@/lib/api";
 import { AdminDisputesScreen } from "./admin-disputes";
+
+/**
+ * The screen reads the live queue rather than the in-memory fixtures it used
+ * to, so the API layer is what gets faked here. Everything else in the module
+ * (ApiError, tokens, API_BASE) stays real — the store imports it too.
+ */
+vi.mock("@/lib/api", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/api")>();
+  return { ...actual, get: vi.fn(), post: vi.fn() };
+});
+
+/**
+ * Shaped to `ApiDispute` in admin-disputes.tsx.
+ *
+ * FIXME(backend contract): the live endpoint does not match this on two
+ * fields — `DisputeSerializer` (apps/backend/apps/bookings/serializers.py)
+ * returns `raised_by` as a bare UUID plus a separate `raised_by_email`, and
+ * `created_at` as a full ISO-8601 datetime. `dateCompact` throws on a datetime,
+ * which takes the whole Open list down. Both are reported; neither is
+ * something a test can decide, so the fixture follows the frontend's own
+ * declared interface.
+ */
+const dispute = (over: Partial<ApiDispute> = {}): ApiDispute => ({
+  id: "d1",
+  booking_order: "bo-1",
+  raised_by: { id: "u1", full_name: "Tarana Collective", email: "book@tarana.in" },
+  reason: "The artist arrived 40 minutes late and cut the second set short.",
+  resolution: "pending",
+  admin_notes: "",
+  created_at: "2026-03-04",
+  ...over,
+});
+
+type ApiDispute = {
+  id: string;
+  booking_order: string;
+  raised_by: { id: string; full_name: string; email: string };
+  reason: string;
+  resolution: "pending" | "release" | "refund" | "split";
+  admin_notes: string;
+  created_at: string;
+  resolved_at?: string;
+};
 
 function renderScreen() {
   return render(
@@ -15,45 +59,93 @@ function renderScreen() {
   );
 }
 
+/** Open the resolve dialog for the first queued dispute. */
+async function openResolveDialog(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole("button", { name: "Resolve" }));
+  return screen.getByRole("dialog", { name: "Resolve dispute" });
+}
+
 describe("AdminDisputesScreen", () => {
-  it("lists the fixture's open dispute with its reason", () => {
-    renderScreen();
-    expect(screen.getByRole("heading", { name: "Open" })).toBeInTheDocument();
-    expect(screen.getByText(/Tarana Collective/)).toBeInTheDocument();
-    expect(screen.getByText(/40 minutes late/)).toBeInTheDocument();
+  const get = vi.mocked(api.get);
+  const post = vi.mocked(api.post);
+
+  beforeEach(() => {
+    get.mockReset();
+    post.mockReset();
+    // The queue endpoint only ever returns pending disputes, so a resolved one
+    // simply leaves the list on the next fetch.
+    get.mockResolvedValueOnce({ results: [dispute()] } as never);
+    get.mockResolvedValue({ results: [] } as never);
+    post.mockResolvedValue({} as never);
   });
 
-  it("moves a booking from Open to Resolved when released", async () => {
+  it("lists each queued dispute with who raised it and why", async () => {
+    renderScreen();
+
+    expect(await screen.findByText(/Tarana Collective/)).toBeInTheDocument();
+    expect(screen.getByText(/40 minutes late/)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Open" })).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith("/admin/disputes/");
+  });
+
+  it("releases funds to the artist with the admin's note and drops the dispute from the queue", async () => {
     const user = userEvent.setup();
     renderScreen();
 
-    await user.click(screen.getByRole("button", { name: "Resolve" }));
-
-    const dialog = screen.getByRole("dialog", { name: "Resolve dispute" });
+    const dialog = await openResolveDialog(user);
     await user.type(within(dialog).getByLabelText("Resolution note"), "Reviewed both sides.");
     await user.click(within(dialog).getByRole("button", { name: "Release to artist" }));
 
-    // Dialog closes and the booking no longer appears under Open …
-    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
-    expect(
-      screen.getByText(/No open disputes\./i, { exact: false }),
-    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/admin/disputes/d1/resolve/", {
+        resolution: "release",
+        admin_notes: "Reviewed both sides.",
+      }),
+    );
 
-    // … but shows up under Resolved with the outcome and note.
-    // Pill renders its label upper-cased.
-    expect(screen.getByRole("heading", { name: "Resolved" })).toBeInTheDocument();
-    expect(screen.getByText("RELEASED")).toBeInTheDocument();
-    expect(screen.getByText("Reviewed both sides.")).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(await screen.findByText(/No open disputes\./i)).toBeInTheDocument();
   });
 
-  it("moves a booking from Open to Resolved when refunded", async () => {
+  it("refunds the host and falls back to a default note when the admin leaves it blank", async () => {
     const user = userEvent.setup();
     renderScreen();
 
-    await user.click(screen.getByRole("button", { name: "Resolve" }));
-    const dialog = screen.getByRole("dialog", { name: "Resolve dispute" });
+    const dialog = await openResolveDialog(user);
     await user.click(within(dialog).getByRole("button", { name: "Refund host" }));
 
-    await waitFor(() => expect(screen.getByText("REFUNDED")).toBeInTheDocument());
+    await waitFor(() =>
+      expect(api.post).toHaveBeenCalledWith("/admin/disputes/d1/resolve/", {
+        resolution: "refund",
+        admin_notes: "Resolved by admin.",
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+  });
+
+  it("keeps the dialog open so the admin can retry when the resolve call fails", async () => {
+    const user = userEvent.setup();
+    post.mockRejectedValue(new api.ApiError(500, "Server error"));
+    renderScreen();
+
+    const dialog = await openResolveDialog(user);
+    await user.click(within(dialog).getByRole("button", { name: "Release to artist" }));
+
+    await waitFor(() => expect(api.post).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole("dialog", { name: "Resolve dispute" })).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("dialog", { name: "Resolve dispute" })).getByRole("button", {
+        name: "Release to artist",
+      }),
+    ).toBeEnabled();
+  });
+
+  it("shows the empty state rather than a broken list when the queue call fails", async () => {
+    get.mockReset();
+    get.mockRejectedValue(new api.ApiError(503, "Service unavailable"));
+    renderScreen();
+
+    expect(await screen.findByText(/No open disputes\./i)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Resolve" })).not.toBeInTheDocument();
   });
 });

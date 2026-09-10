@@ -20,6 +20,11 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: false,
+    // restoreMocks alone leaves call history on vi.fn()s created inside a
+    // vi.mock factory — they are not spies over a real object, so there is
+    // nothing to restore. Without clearMocks, "was never called" assertions
+    // see the previous test's calls.
+    clearMocks: true,
     restoreMocks: true,
     include: ["src/**/*.{test,spec}.{ts,tsx}"],
   },

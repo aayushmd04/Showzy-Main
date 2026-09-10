@@ -1,7 +1,9 @@
 import { Link } from "react-router-dom";
 import { PublicShell } from "@/components/naada/public-shell";
+import { usePageMeta } from "@/lib/use-meta";
 
 export function NotFoundScreen() {
+  usePageMeta({ title: "Page not found", description: "That page does not exist on Naada." });
   return (
     <PublicShell>
       <div className="mx-auto flex w-full max-w-[560px] flex-col items-center px-4 py-24 text-center">

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { PublicShell } from "@/components/naada/public-shell";
+import { usePageMeta } from "@/lib/use-meta";
 
 /**
  * Razorpay will not activate an Indian merchant account until Terms, Privacy,
@@ -63,6 +64,7 @@ function S({ heading, children }: { heading: string; children: React.ReactNode }
 
 export function LegalScreen({ doc }: { doc: Doc }) {
   const { title, blurb } = TITLES[doc];
+  usePageMeta({ title, description: blurb });
   const missing = Object.entries(LEGAL_ENTITY)
     .filter(([, v]) => v.startsWith(INCOMPLETE))
     .map(([k]) => k);

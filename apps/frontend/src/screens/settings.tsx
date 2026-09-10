@@ -9,6 +9,7 @@ import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import * as api from "@/lib/api";
 import { ApiError } from "@/lib/api";
+import { usePageMeta } from "@/lib/use-meta";
 
 const PREF_ROWS: { key: keyof api.NotificationPreferences; label: string; hint: string }[] = [
   { key: "ticket_confirmed_email", label: "Ticket confirmations", hint: "Your QR and receipt, by email" },
@@ -18,6 +19,7 @@ const PREF_ROWS: { key: keyof api.NotificationPreferences; label: string; hint: 
 ];
 
 export function SettingsScreen() {
+  usePageMeta({ title: "Settings", description: "Manage your Naada account, notifications and data." });
   const navigate = useNavigate();
   const { currentUser, setCurrentUser, role, setRole, lang, setLang, toast } = useStore();
   const { open: openAuth } = useAuthSheet();

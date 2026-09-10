@@ -14,10 +14,12 @@ import {
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import type { ApiNotification } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { usePageMeta } from "@/lib/use-meta";
 
 type Tab = "all" | "unread";
 
 export function NotificationsScreen() {
+  usePageMeta({ title: "Notifications", description: "Everything that has happened on your Naada account." });
   const navigate = useNavigate();
   const { open: openAuth } = useAuthSheet();
   const { signedIn, items, unread, markRead, markAllRead, error, isLoading, mutate } =

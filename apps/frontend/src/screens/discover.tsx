@@ -2,6 +2,7 @@ import { useMemo, useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
+import { NotificationBell } from "@/components/naada/notification-bell";
 import { TODAY } from "@/lib/format";
 import { getCities, type ApiCity } from "@/lib/api";
 import type { NaadaEvent } from "@/data/fixtures";
@@ -677,6 +678,8 @@ export function DiscoverScreen() {
           >
             {lang === "en" ? "Find tonight's show" : "ಇಂದಿನ ಕಾರ್ಯಕ್ರಮ"}
           </button>
+
+          {role !== "out" && currentUser && <NotificationBell />}
 
           {/* Account avatar */}
           {role !== "out" && currentUser && (

@@ -7,9 +7,11 @@ import { EmptyState } from "@/components/naada/empty-state";
 import { useStore } from "@/store/app-store";
 import { dateListing } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { usePageMeta } from "@/lib/use-meta";
 
 /** Section 7.8 — My tickets. Compact stub variant as the row. */
 export function MyTicketsScreen() {
+  usePageMeta({ title: "My tickets", description: "Your Naada tickets and QR codes." });
   const navigate = useNavigate();
   const { tickets, eventById, venueOf, emptyLists } = useStore();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");

@@ -4,6 +4,7 @@ import { PublicShell } from "@/components/naada/public-shell";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { money } from "@/lib/format";
+import { usePageMeta } from "@/lib/use-meta";
 
 function ArtistCard({ artist, tok }: { artist: import("@/data/fixtures").Artist; tok: { paper: string; muted: string; signal: string; surface: string; cardBorder: string } }) {
   return (
@@ -79,6 +80,7 @@ const CARD_TOKENS = {
 };
 
 export function ArtistsScreen() {
+  usePageMeta({ title: "Artists", description: "Independent musicians available to book across Mysuru and Bengaluru." });
   const { artists, theme } = useStore();
   const { open: openAuth } = useAuthSheet();
   const [query, setQuery] = useState("");

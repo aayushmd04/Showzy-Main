@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PublicShell } from "@/components/naada/public-shell";
 import { useStore } from "@/store/app-store";
+import { usePageMeta } from "@/lib/use-meta";
 
 const CARD_TOKENS = {
   dark:  { paper: "#F3E9D6", muted: "rgba(243,233,214,.55)", signal: "#C4472E", surface: "#1A1512", cardBorder: "rgba(243,233,214,.16)" },
@@ -8,6 +9,7 @@ const CARD_TOKENS = {
 };
 
 export function VenuesScreen() {
+  usePageMeta({ title: "Venues", description: "Intimate spaces hosting grassroots live music across Mysuru and Bengaluru." });
   const { venues, theme, events } = useStore();
   const [query, setQuery] = useState("");
   const isDark = theme === "dark";

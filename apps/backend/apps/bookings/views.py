@@ -99,10 +99,43 @@ def add_member(request, pk):
 
 # ─── GigApplication ─────────────────────────────────────────────────────────
 
-@api_view(["POST"])
+@api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
 def apply_to_gig(request):
-    """Artist applies to an event marked as seeking performers."""
+    """GET: applications the caller can see. POST: artist applies to an event.
+
+    The GET half was missing, so the host console's review queue was calling a
+    POST-only endpoint and could never load. Hosts see applications to their own
+    events; artists see their own applications.
+    """
+    from apps.artists.models import Artist as _Artist
+    from apps.events.models import Event as _Event
+
+    if request.method == "GET":
+        qs = GigApplication.objects.select_related("event", "artist", "artist__user")
+        event_id = request.query_params.get("event")
+
+        if event_id:
+            event = _Event.objects.filter(pk=event_id).first()
+            if not event:
+                return Response({"detail": "Event not found."}, status=404)
+            _assert_event_organizer(request.user, event)
+            qs = qs.filter(event=event)
+        else:
+            artist = _Artist.objects.filter(user=request.user).first()
+            qs = (
+                qs.filter(artist=artist)
+                if artist
+                else qs.filter(event__organizer=request.user)
+            )
+
+        status_filter = request.query_params.get("status")
+        if status_filter:
+            qs = qs.filter(status=status_filter)
+
+        rows = GigApplicationSerializer(qs.order_by("-created_at")[:200], many=True).data
+        return Response({"count": len(rows), "results": rows})
+
     from apps.artists.models import Artist
     from apps.events.models import Event
 
@@ -622,11 +655,28 @@ def _assert_conversation_participant(user, convo):
 
 
 def _assert_event_organizer(user, event):
-    from apps.artists.models import Artist
-    org_ids = user.memberships.filter(is_active=True).values_list("organizer_id", flat=True)
-    if event.organizer_id not in org_ids:
-        from rest_framework.exceptions import PermissionDenied
-        raise PermissionDenied("You don't manage this event.")
+    """Allow the event's own organiser, or a member of its organiser team.
+
+    This used to compare Event.organizer_id — a *User* id — against the user's
+    Organizer ids. Those are different models, so the check could never pass
+    and every application review returned 403, including from the host's own
+    console.
+    """
+    from rest_framework.exceptions import PermissionDenied
+
+    if event.organizer_id == user.id:
+        return
+
+    # Events may also belong to an Organizer that several people staff.
+    event_org_id = getattr(event, "organizer_account_id", None)
+    if event_org_id is not None:
+        member_org_ids = set(
+            user.memberships.filter(is_active=True).values_list("organizer_id", flat=True)
+        )
+        if event_org_id in member_org_ids:
+            return
+
+    raise PermissionDenied("You don't manage this event.")
 
 
 def _get_order_for_user(user, pk):

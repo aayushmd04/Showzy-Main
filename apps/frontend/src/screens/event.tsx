@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { useStore } from "@/store/app-store";
+import { usePageMeta } from "@/lib/use-meta";
 import { CONVENIENCE_FEE } from "@/data/fixtures";
 import { dateBody, dateListingFull, money } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -28,6 +29,19 @@ export function EventScreen() {
     [event],
   );
   const [selected, setSelected] = useState<string | null>(firstAvailable);
+
+  // Before the early return — hooks can't sit behind a conditional.
+  const metaVenue = event ? venueOf(event) : undefined;
+  usePageMeta({
+    title: event ? `${event.name} · ${dateListingFull(event.date)}` : undefined,
+    description: event
+      ? `${dateListingFull(event.date)} at ${metaVenue?.name ?? "a Naada venue"}${
+          metaVenue?.area ? `, ${metaVenue.area}` : ""
+        }. ${event.description ?? ""}`.trim()
+      : undefined,
+    image: (event as { _posterImage?: string } | undefined)?._posterImage,
+    type: "event",
+  });
 
   if (!event) return <NotFoundScreen />;
 

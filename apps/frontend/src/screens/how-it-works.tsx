@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { PublicShell } from "@/components/naada/public-shell";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
+import { usePageMeta } from "@/lib/use-meta";
 
 const CARD_TOKENS = {
   dark:  { paper: "#F3E9D6", muted: "rgba(243,233,214,.55)", signal: "#C4472E", surface: "#1A1512", cardBorder: "rgba(243,233,214,.16)" },
@@ -37,6 +38,7 @@ function StepCard({ icon, title, body, tok }: { icon: string; title: string; bod
 }
 
 export function HowItWorksScreen() {
+  usePageMeta({ title: "How it works", description: "How Naada connects audiences, artists and venues — and what it costs." });
   const { theme } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();

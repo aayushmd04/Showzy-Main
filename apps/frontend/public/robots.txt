@@ -1,0 +1,18 @@
+# Naada
+User-agent: *
+Allow: /
+
+# Nothing useful for a crawler behind these, and some need a session.
+Disallow: /checkout/
+Disallow: /settings
+Disallow: /host/
+Disallow: /artist/
+Disallow: /admin/
+Disallow: /bookings/
+Disallow: /ticket/
+Disallow: /tickets
+Disallow: /lab/
+
+# Generated from published events by the API. Replace the host with your own
+# API domain at deploy time — see DEPLOY.md.
+Sitemap: http://localhost:8000/api/v1/sitemap.xml

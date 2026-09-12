@@ -463,6 +463,90 @@ def razorpay_webhook(request):
     return Response({"status": "ok"})
 
 
+def _create_and_process_refund(*, payment, ticket, amount, reason, reason_detail, initiated_by):
+    """Create a Refund row and push it through the gateway (or settle it
+    offline). Shared by the buyer-facing `initiate_refund` endpoint and
+    ticket cancellation, so there is exactly one place that ever moves money
+    back to a buyer.
+
+    Returns `(refund, error_response)` — exactly one of the two is not None.
+    A non-None `error_response` is a DRF `Response` the caller should return
+    as-is; the refund row still exists (as FAILED) for the audit trail.
+    """
+    already_refunded = sum(
+        (r.amount for r in payment.refunds.filter(
+            status__in=[Refund.Status.SUCCESS, Refund.Status.PROCESSING])),
+        Decimal("0"),
+    )
+    if already_refunded + amount > payment.amount:
+        return None, Response(
+            {"detail": "Refund amount exceeds the remaining refundable balance."},
+            status=400,
+        )
+
+    refund = Refund.objects.create(
+        payment=payment,
+        order=payment.order,
+        ticket=ticket,
+        amount=amount,
+        reason=reason,
+        reason_detail=reason_detail,
+        initiated_by=initiated_by,
+        status=Refund.Status.PROCESSING,
+    )
+
+    # Cash / complimentary money never went through a gateway; settling it is
+    # an offline act, recorded here for the audit trail.
+    if payment.gateway in OFFLINE_GATEWAYS or payment.amount == Decimal("0") or amount == Decimal("0"):
+        refund.status = Refund.Status.SUCCESS
+        refund.processed_at = timezone.now()
+        refund.gateway_response = {"offline": True, "gateway": payment.gateway}
+        refund.save(update_fields=["status", "processed_at", "gateway_response"])
+        _apply_refund_to_payment(payment)
+        return refund, None
+
+    gateway, error = _resolve_gateway()
+    if error:
+        refund.status = Refund.Status.FAILED
+        refund.failure_reason = "Payment gateway is not configured."
+        refund.save(update_fields=["status", "failure_reason"])
+        return refund, error
+
+    try:
+        gw_refund = gateway.refund(
+            payment, amount,
+            notes={"order_id": str(payment.order_id), "reason": reason,
+                   "refund_id": str(refund.id)},
+        )
+    except GatewayError as exc:
+        # No money moved: leave a FAILED row rather than a PENDING one that
+        # looks like an in-flight refund forever.
+        logger.exception("Refund failed at gateway for payment %s", payment.pk)
+        refund.status = Refund.Status.FAILED
+        refund.failure_reason = str(exc)
+        refund.save(update_fields=["status", "failure_reason"])
+        return refund, Response(
+            {"detail": "Refund could not be processed by the payment gateway.",
+             "error": str(exc), "refund": RefundSerializer(refund).data},
+            status=status.HTTP_502_BAD_GATEWAY,
+        )
+
+    refund.gateway_refund_id = gw_refund.get("id", "")
+    refund.gateway_response = gw_refund
+    # Razorpay: "processed" = money returned, "pending" = still in flight.
+    refund.status = (Refund.Status.SUCCESS if gw_refund.get("status") == "processed"
+                     else Refund.Status.PROCESSING)
+    if refund.status == Refund.Status.SUCCESS:
+        refund.processed_at = timezone.now()
+    refund.save(update_fields=["gateway_refund_id", "gateway_response",
+                               "status", "processed_at"])
+
+    if refund.status == Refund.Status.SUCCESS:
+        _apply_refund_to_payment(payment)
+
+    return refund, None
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def initiate_refund(request):
@@ -486,77 +570,13 @@ def initiate_refund(request):
             return Response({"detail": "Ticket not found."}, status=404)
         amount = ticket.tier.price
 
-    already_refunded = sum(
-        (r.amount for r in payment.refunds.filter(
-            status__in=[Refund.Status.SUCCESS, Refund.Status.PROCESSING])),
-        Decimal("0"),
-    )
-    if already_refunded + amount > payment.amount:
-        return Response(
-            {"detail": "Refund amount exceeds the remaining refundable balance."},
-            status=400,
-        )
-
-    refund = Refund.objects.create(
-        payment=payment,
-        order=payment.order,
-        ticket=ticket,
-        amount=amount,
-        reason=d["reason"],
-        reason_detail=d.get("reason_detail", ""),
+    refund, error = _create_and_process_refund(
+        payment=payment, ticket=ticket, amount=amount,
+        reason=d["reason"], reason_detail=d.get("reason_detail", ""),
         initiated_by=request.user,
-        status=Refund.Status.PROCESSING,
     )
-
-    # Cash / complimentary money never went through a gateway; settling it is
-    # an offline act, recorded here for the audit trail.
-    if payment.gateway in OFFLINE_GATEWAYS or payment.amount == Decimal("0"):
-        refund.status = Refund.Status.SUCCESS
-        refund.processed_at = timezone.now()
-        refund.gateway_response = {"offline": True, "gateway": payment.gateway}
-        refund.save(update_fields=["status", "processed_at", "gateway_response"])
-        _apply_refund_to_payment(payment)
-        return Response(RefundSerializer(refund).data, status=201)
-
-    gateway, error = _resolve_gateway()
     if error:
-        refund.status = Refund.Status.FAILED
-        refund.failure_reason = "Payment gateway is not configured."
-        refund.save(update_fields=["status", "failure_reason"])
         return error
-
-    try:
-        gw_refund = gateway.refund(
-            payment, amount,
-            notes={"order_id": str(payment.order_id), "reason": d["reason"],
-                   "refund_id": str(refund.id)},
-        )
-    except GatewayError as exc:
-        # No money moved: leave a FAILED row rather than a PENDING one that
-        # looks like an in-flight refund forever.
-        logger.exception("Refund failed at gateway for payment %s", payment.pk)
-        refund.status = Refund.Status.FAILED
-        refund.failure_reason = str(exc)
-        refund.save(update_fields=["status", "failure_reason"])
-        return Response(
-            {"detail": "Refund could not be processed by the payment gateway.",
-             "error": str(exc), "refund": RefundSerializer(refund).data},
-            status=status.HTTP_502_BAD_GATEWAY,
-        )
-
-    refund.gateway_refund_id = gw_refund.get("id", "")
-    refund.gateway_response = gw_refund
-    # Razorpay: "processed" = money returned, "pending" = still in flight.
-    refund.status = (Refund.Status.SUCCESS if gw_refund.get("status") == "processed"
-                     else Refund.Status.PROCESSING)
-    if refund.status == Refund.Status.SUCCESS:
-        refund.processed_at = timezone.now()
-    refund.save(update_fields=["gateway_refund_id", "gateway_response",
-                               "status", "processed_at"])
-
-    if refund.status == Refund.Status.SUCCESS:
-        _apply_refund_to_payment(payment)
-
     return Response(RefundSerializer(refund).data, status=201)
 
 

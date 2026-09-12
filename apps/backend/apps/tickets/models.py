@@ -180,6 +180,9 @@ class Ticket(TimeStampedModel):
     scan_location = models.CharField(max_length=80, blank=True,
                                      help_text="Gate / entry point label")
 
+    cancelled_at = models.DateTimeField(null=True, blank=True)
+    cancellation_reason = models.CharField(max_length=200, blank=True)
+
     transfer_count = models.PositiveSmallIntegerField(default=0)
     original_purchaser = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
                                            null=True, related_name="originally_purchased_tickets")

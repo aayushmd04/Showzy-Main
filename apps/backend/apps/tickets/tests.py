@@ -583,3 +583,303 @@ class SeatReleaseTests(SeatTestCase):
         # And those seats can be sold again.
         again = self.order(quantity=2, zone_id="st1", seat_ids=["st1-s1", "st1-s3"])
         self.assertEqual(again.status_code, 201, again.data)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ticket cancellation and refund
+#
+# The buyer-facing "Cancel" button used to flip local React state and nothing
+# else — no refund, no freed inventory, reverted on the next page load. These
+# cover the real thing: a refund through the same payment machinery
+# `initiate_refund` uses, a tier count that actually drops, a floor-plan seat
+# that actually frees, and the 24-hour cutoff the confirmation dialog already
+# promises the buyer.
+# ─────────────────────────────────────────────────────────────────────────────
+
+from apps.payments.models import Payment, PaymentStatus, Gateway, Refund
+
+
+class TicketCancellationTests(ZoneTestCase):
+    def confirm_and_pay(self, order):
+        from apps.payments.views import _confirm_order
+        _confirm_order(order)
+        Payment.objects.create(
+            order=order, gateway=Gateway.CASH, amount=order.total_amount,
+            status=PaymentStatus.SUCCESS, completed_at=timezone.now())
+
+    def cancel(self, ticket, reason=None):
+        body = {"reason": reason} if reason else {}
+        return self.client.post(reverse("tickets-cancel", args=[ticket.id]), body, format="json")
+
+    def test_cancelling_a_paid_ticket_refunds_the_tier_price_and_frees_inventory(self):
+        resp = self.order(quantity=1)
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+        ticket = order.tickets.first()
+        before_sold = TicketTier.objects.get(pk=self.tier.pk).sold_quantity
+
+        cancel_resp = self.cancel(ticket, "Can't make it anymore")
+        self.assertEqual(cancel_resp.status_code, 200, cancel_resp.data)
+        self.assertEqual(cancel_resp.data["status"], "cancelled")
+
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.status, Ticket.Status.CANCELLED)
+        self.assertIsNotNone(ticket.cancelled_at)
+        self.assertEqual(ticket.cancellation_reason, "Can't make it anymore")
+
+        self.assertEqual(TicketTier.objects.get(pk=self.tier.pk).sold_quantity, before_sold - 1)
+
+        refund = Refund.objects.get(ticket=ticket)
+        self.assertEqual(refund.amount, self.tier.price)
+        self.assertEqual(refund.status, Refund.Status.SUCCESS)
+        self.assertEqual(refund.reason, Refund.Reason.USER_REQUEST)
+
+    def test_cancelling_within_24_hours_of_the_event_forfeits_the_refund(self):
+        near_event = self.make_event(self.venue, "Tonight Only")
+        near_event.start_datetime = timezone.now() + timedelta(hours=5)
+        near_event.save(update_fields=["start_datetime"])
+        near_tier = self.make_tier(near_event)
+
+        resp = self.order(quantity=1, event=near_event, tier=near_tier)
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+        ticket = order.tickets.first()
+
+        cancel_resp = self.cancel(ticket)
+        self.assertEqual(cancel_resp.status_code, 200, cancel_resp.data)
+
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.status, Ticket.Status.CANCELLED)
+
+        refund = Refund.objects.get(ticket=ticket)
+        self.assertEqual(refund.amount, Decimal("0"))
+        self.assertEqual(refund.status, Refund.Status.SUCCESS)
+
+    def test_cancelling_a_free_ticket_needs_no_payment_at_all(self):
+        free_tier = TicketTier.objects.create(
+            event=self.event, name="Free", price=Decimal("0"), total_quantity=50)
+        resp = self.order(quantity=1, tier=free_tier)
+        order = Order.objects.get(pk=resp.data["id"])
+        from apps.payments.views import _confirm_order
+        _confirm_order(order)  # deliberately no Payment row — mirrors a real free RSVP
+        ticket = order.tickets.first()
+
+        cancel_resp = self.cancel(ticket)
+        self.assertEqual(cancel_resp.status_code, 200, cancel_resp.data)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.status, Ticket.Status.CANCELLED)
+        self.assertFalse(Refund.objects.filter(ticket=ticket).exists())
+
+    def test_cancelling_someone_elses_ticket_404s(self):
+        resp = self.order(quantity=1)
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+        ticket = order.tickets.first()
+
+        intruder = get_user_model().objects.create_user(
+            email="cancel-intruder@naada.test", full_name="Nosy Neighbour")
+        intruder_client = APIClient()
+        intruder_client.force_authenticate(user=intruder)
+        resp2 = intruder_client.post(reverse("tickets-cancel", args=[ticket.id]))
+        self.assertEqual(resp2.status_code, 404)
+
+    def test_cancelling_twice_is_refused_the_second_time(self):
+        resp = self.order(quantity=1)
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+        ticket = order.tickets.first()
+
+        self.assertEqual(self.cancel(ticket).status_code, 200)
+        second = self.cancel(ticket)
+        self.assertEqual(second.status_code, 400)
+        # And no second refund was created for it.
+        self.assertEqual(Refund.objects.filter(ticket=ticket).count(), 1)
+
+    def test_a_checked_in_ticket_cannot_be_cancelled(self):
+        resp = self.order(quantity=1)
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+        ticket = order.tickets.first()
+        ticket.status = Ticket.Status.USED
+        ticket.save(update_fields=["status"])
+
+        resp2 = self.cancel(ticket)
+        self.assertEqual(resp2.status_code, 400)
+
+    def test_cancelling_the_only_ticket_fully_cancels_the_order(self):
+        resp = self.order(quantity=1)
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+        ticket = order.tickets.first()
+
+        self.cancel(ticket)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.FULLY_CANCELLED)
+        self.assertIsNotNone(order.cancelled_at)
+
+    def test_cancelling_one_of_several_partially_cancels_the_order(self):
+        resp = self.order(quantity=3)
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+        ticket = order.tickets.first()
+
+        self.cancel(ticket)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.PARTIALLY_CANCELLED)
+
+    def test_cancelling_a_whole_zone_ticket_frees_exactly_one_place(self):
+        resp = self.order(quantity=2, zone_id="v1")
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+        ticket = order.tickets.first()
+
+        before = self.zone("v1")["available"]
+        self.cancel(ticket)
+        after = self.zone("v1")["available"]
+        self.assertEqual(after, before + 1)
+
+
+class SeatTicketCancellationTests(SeatTestCase):
+    """Cancelling one seated ticket must free only that seat."""
+
+    def confirm_and_pay(self, order):
+        from apps.payments.views import _confirm_order
+        _confirm_order(order)
+        Payment.objects.create(
+            order=order, gateway=Gateway.CASH, amount=order.total_amount,
+            status=PaymentStatus.SUCCESS, completed_at=timezone.now())
+
+    def test_cancelling_one_seated_ticket_frees_only_that_seat(self):
+        resp = self.order(quantity=2, zone_id="st1", seat_ids=["st1-s1", "st1-s3"])
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+
+        ticket_s1 = order.tickets.get(seat_label="Table A · Seat 1")
+        cancel_resp = self.client.post(reverse("tickets-cancel", args=[ticket_s1.id]))
+        self.assertEqual(cancel_resp.status_code, 200, cancel_resp.data)
+
+        table = self.zone("st1")
+        seat_by_id = {s["id"]: s for s in table["seats"]}
+        self.assertFalse(seat_by_id["st1-s1"]["taken"])
+        self.assertTrue(seat_by_id["st1-s3"]["taken"])
+
+        allocation = ZoneAllocation.objects.get(order=order)
+        self.assertEqual(len(allocation.seat_ids), 1)
+        self.assertEqual(allocation.quantity, 1)
+        self.assertEqual(allocation.status, ZoneAllocation.Status.HELD)
+
+    def test_cancelling_the_last_seated_ticket_releases_the_whole_allocation(self):
+        resp = self.order(quantity=1, zone_id="st1", seat_ids=["st1-s1"])
+        order = Order.objects.get(pk=resp.data["id"])
+        self.confirm_and_pay(order)
+        ticket = order.tickets.first()
+
+        self.client.post(reverse("tickets-cancel", args=[ticket.id]))
+
+        allocation = ZoneAllocation.objects.get(order=order)
+        self.assertEqual(allocation.status, ZoneAllocation.Status.RELEASED)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Ticket transfer
+#
+# The model (`TicketTransfer`, `Ticket.transfer_count`) already existed but was
+# never wired to anything. The door only cares about `status`, never who holds
+# a ticket, so reassigning the same row is enough — a new ticket number or QR
+# would be pointless churn.
+# ─────────────────────────────────────────────────────────────────────────────
+
+class TicketTransferTests(ZoneTestCase):
+    def setUp(self):
+        super().setUp()
+        self.recipient = get_user_model().objects.create_user(
+            email="recipient@naada.test", full_name="Recipient Person", phone="+919000000099")
+
+    def issue_ticket(self, quantity=1):
+        resp = self.order(quantity=quantity)
+        order = Order.objects.get(pk=resp.data["id"])
+        from apps.payments.views import _confirm_order
+        _confirm_order(order)
+        return order.tickets.first()
+
+    def transfer(self, ticket, email, client=None):
+        return (client or self.client).post(
+            reverse("tickets-transfer", args=[ticket.id]),
+            {"recipient_email": email}, format="json")
+
+    def test_transferring_to_an_existing_account_reassigns_the_ticket(self):
+        ticket = self.issue_ticket()
+        resp = self.transfer(ticket, "recipient@naada.test")
+        self.assertEqual(resp.status_code, 200, resp.data)
+
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.user_id, self.recipient.id)
+        self.assertEqual(ticket.holder_email, "recipient@naada.test")
+        self.assertEqual(ticket.holder_name, self.recipient.name)
+        self.assertEqual(ticket.transfer_count, 1)
+        self.assertEqual(ticket.original_purchaser_id, self.buyer.id)
+        self.assertEqual(ticket.status, Ticket.Status.VALID)
+
+        from apps.tickets.models import TicketTransfer
+        record = TicketTransfer.objects.get(ticket=ticket)
+        self.assertEqual(record.from_user_id, self.buyer.id)
+        self.assertEqual(record.to_user_id, self.recipient.id)
+
+    def test_transferred_ticket_moves_between_my_tickets_lists(self):
+        ticket = self.issue_ticket()
+        self.transfer(ticket, "recipient@naada.test")
+
+        mine = self.client.get(reverse("tickets-mine"))
+        self.assertEqual(mine.data["count"], 0)
+
+        recipient_client = APIClient()
+        recipient_client.force_authenticate(user=self.recipient)
+        theirs = recipient_client.get(reverse("tickets-mine"))
+        self.assertEqual(theirs.data["count"], 1)
+
+    def test_transferring_to_a_nonexistent_email_is_refused(self):
+        ticket = self.issue_ticket()
+        resp = self.transfer(ticket, "nobody-here@naada.test")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_transferring_to_yourself_is_refused(self):
+        ticket = self.issue_ticket()
+        resp = self.transfer(ticket, self.buyer.email)
+        self.assertEqual(resp.status_code, 400)
+
+    def test_a_used_ticket_cannot_be_transferred(self):
+        ticket = self.issue_ticket()
+        ticket.status = Ticket.Status.USED
+        ticket.save(update_fields=["status"])
+        resp = self.transfer(ticket, "recipient@naada.test")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_a_cancelled_ticket_cannot_be_transferred(self):
+        ticket = self.issue_ticket()
+        ticket.status = Ticket.Status.CANCELLED
+        ticket.save(update_fields=["status"])
+        resp = self.transfer(ticket, "recipient@naada.test")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_a_transferred_ticket_can_be_transferred_again_by_its_new_holder(self):
+        ticket = self.issue_ticket()
+        self.transfer(ticket, "recipient@naada.test")
+
+        third = get_user_model().objects.create_user(
+            email="third-person@naada.test", full_name="Third Person")
+        recipient_client = APIClient()
+        recipient_client.force_authenticate(user=self.recipient)
+        resp = self.transfer(ticket, "third-person@naada.test", client=recipient_client)
+        self.assertEqual(resp.status_code, 200, resp.data)
+
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.transfer_count, 2)
+        self.assertEqual(ticket.user_id, third.id)
+        self.assertEqual(ticket.original_purchaser_id, self.buyer.id)
+
+    def test_original_sender_can_no_longer_act_on_a_transferred_ticket(self):
+        ticket = self.issue_ticket()
+        self.transfer(ticket, "recipient@naada.test")
+
+        resp = self.client.post(reverse("tickets-cancel", args=[ticket.id]))
+        self.assertEqual(resp.status_code, 404)

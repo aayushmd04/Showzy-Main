@@ -377,6 +377,7 @@ export function getVenues(): Promise<ApiVenueList> {
  */
 export interface ApiTicket {
   id: string;
+  order: string;
   ticket_number: string;
   qr_data: string;
   qr_image_url: string | null;
@@ -385,16 +386,61 @@ export interface ApiTicket {
   event_date: string;
   venue_name: string | null;
   tier_name: string | null;
+  tier_price: string;
   holder_name: string;
   holder_email: string;
   holder_phone: string;
   seat_label: string | null;
   status: string;
   checked_in_at?: string | null;
+  cancelled_at?: string | null;
+  cancellation_reason?: string;
+  transfer_count: number;
 }
 
 export function getMyTickets(): Promise<{ results: ApiTicket[] }> {
   return get<{ results: ApiTicket[] }>("/tickets/mine/");
+}
+
+/** Refunds the ticket's admission price — see the backend for the exact
+ * cutoff policy. `reason` is optional, shown back to the buyer nowhere but
+ * kept for support. */
+export function cancelTicketApi(ticketId: string, reason?: string): Promise<ApiTicket> {
+  return post(`/tickets/${ticketId}/cancel/`, reason ? { reason } : {});
+}
+
+/** The recipient must already have a Naada account — found by email. */
+export function transferTicketApi(
+  ticketId: string,
+  recipientEmail: string,
+  reason?: string,
+): Promise<ApiTicket> {
+  return post(`/tickets/${ticketId}/transfer/`, {
+    recipient_email: recipientEmail,
+    ...(reason ? { reason } : {}),
+  });
+}
+
+export interface ApiInvoice {
+  invoice_number: string;
+  issued_at: string;
+  seller: { name: string; address: string; gstin: string };
+  buyer: { name: string; email: string };
+  event: { title: string; starts_at: string; venue: string };
+  lines: Array<{ description: string; quantity: number; unit_price: string; amount: string }>;
+  subtotal: string;
+  discount: string;
+  booking_fee: string;
+  cgst: string;
+  sgst: string;
+  taxes_total: string;
+  total: string;
+  currency: string;
+  is_tax_invoice: boolean;
+}
+
+export function getOrderInvoice(orderId: string): Promise<ApiInvoice> {
+  return get(`/ticket-orders/${orderId}/invoice/`);
 }
 
 // ─── Bookings (Marketplace B) ─────────────────────────────────────────────────

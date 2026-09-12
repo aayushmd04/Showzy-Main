@@ -79,6 +79,7 @@ function apiEvent(over: Partial<ApiEvent> = {}): ApiEvent {
 /** Flat, exactly as TicketSerializer returns it — `event` is a bare UUID. */
 const ISSUED_TICKET: ApiTicket = {
   id: "tk-1",
+  order: "order-1",
   ticket_number: "NAADA-0001",
   qr_data: "qr",
   qr_image_url: "/qr.png",
@@ -87,12 +88,14 @@ const ISSUED_TICKET: ApiTicket = {
   event_date: "2026-09-19T20:00:00.000Z",
   venue_name: "The Humming Tree",
   tier_name: "General",
+  tier_price: "0",
   holder_name: "Test Buyer",
   holder_email: "buyer@example.com",
   holder_phone: "",
   seat_label: null,
   status: "valid",
   checked_in_at: null,
+  transfer_count: 0,
 };
 
 /**

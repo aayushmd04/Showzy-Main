@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django.conf import settings as django_settings
+from django.contrib.auth import get_user_model
 from django.utils import timezone
 from django.db import models, transaction
 from rest_framework import exceptions, generics, permissions, status
@@ -14,9 +15,11 @@ from .tax import compute_gst
 from . import zones as zone_map
 from .serializers import (
     OrderSerializer, TicketSerializer, CreateOrderSerializer,
-    PromoCodeValidateSerializer, ZoneSerializer,
+    PromoCodeValidateSerializer, ZoneSerializer, TransferTicketSerializer,
 )
 from apps.events.models import Event
+
+User = get_user_model()
 
 
 class ZoneUnavailable(exceptions.APIException):
@@ -242,6 +245,189 @@ def ticket_detail(request, pk):
         ticket.save(update_fields=["qr_image"])
     serializer = TicketSerializer(ticket, context={"request": request})
     return Response(serializer.data)
+
+
+#: Cancelling this close to the event forfeits the ticket price — the buyer
+#: sees this exact policy stated on the confirmation dialog before they tap
+#: through, so it must actually hold rather than just being copy.
+FREE_CANCEL_CUTOFF_HOURS = 24
+
+
+def _release_ticket_allocation(ticket: Ticket):
+    """Hand back whatever floor-plan place this one ticket was holding.
+
+    `ZoneAllocation` is one row per *order*, not per ticket, so cancelling one
+    ticket out of a multi-ticket order must shrink the allocation rather than
+    releasing the whole thing — the other tickets in the order are still
+    valid and still need their places. A seat-level booking frees exactly the
+    seat this ticket names (matched by the same `"{zone_label} · {seat
+    label}"` string `_confirm_order` stamped onto it); a whole-zone booking
+    just frees one place from the shared headcount.
+    """
+    allocation = getattr(ticket.order, "zone_allocation", None)
+    if not allocation or allocation.status != ZoneAllocation.Status.HELD:
+        return
+
+    if allocation.seat_ids:
+        remaining = []
+        freed = False
+        for seat in allocation.seat_ids:
+            label = f"{allocation.zone_label} · {seat.get('label', '')}"
+            if not freed and ticket.seat_label and label == ticket.seat_label:
+                freed = True
+                continue
+            remaining.append(seat)
+        allocation.seat_ids = remaining
+        if freed:
+            allocation.quantity = max(0, allocation.quantity - 1)
+    else:
+        allocation.quantity = max(0, allocation.quantity - 1)
+
+    if allocation.quantity <= 0:
+        allocation.release()
+    else:
+        allocation.save(update_fields=["seat_ids", "quantity", "updated_at"])
+
+
+def _sync_order_cancellation_status(order: Order):
+    """Reflect a ticket cancellation on the order it belongs to.
+
+    Only ever moves an order that is still live (confirmed, or already
+    partially cancelled) — an order that expired or was fully refunded some
+    other way is left exactly as it is.
+    """
+    if order.status not in (Order.Status.CONFIRMED, Order.Status.PARTIALLY_CANCELLED):
+        return
+    if order.tickets.filter(status=Ticket.Status.VALID).exists():
+        if order.status != Order.Status.PARTIALLY_CANCELLED:
+            order.status = Order.Status.PARTIALLY_CANCELLED
+            order.save(update_fields=["status"])
+    else:
+        order.status = Order.Status.FULLY_CANCELLED
+        order.cancelled_at = timezone.now()
+        order.save(update_fields=["status", "cancelled_at"])
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def cancel_ticket(request, pk):
+    """A buyer cancels their own ticket.
+
+    Refunds the ticket's admission price (the tier price at purchase time) —
+    the booking fee and any tax on it are not refundable, the same convention
+    `initiate_refund` already used for a single-ticket refund. Cancelling
+    within `FREE_CANCEL_CUTOFF_HOURS` of the event forfeits that price
+    entirely: the ticket is still cancelled and the place still freed, but no
+    money moves. Free tickets skip the refund machinery altogether — there is
+    nothing to give back.
+    """
+    from apps.payments.models import Payment, PaymentStatus, Refund
+    from apps.payments.views import _create_and_process_refund
+
+    ticket = generics.get_object_or_404(
+        Ticket.objects.select_related("order", "tier", "event"), pk=pk, user=request.user
+    )
+    reason_detail = (request.data.get("reason") or "").strip()[:200]
+
+    with transaction.atomic():
+        locked = Ticket.objects.select_for_update().select_related(
+            "order", "tier", "event"
+        ).get(pk=ticket.pk)
+        if locked.status != Ticket.Status.VALID:
+            return Response(
+                {"detail": f"This ticket is {locked.get_status_display().lower()} and can't be cancelled."},
+                status=400,
+            )
+
+        refund = None
+        if locked.tier.price > 0:
+            hours_left = (locked.event.start_datetime - timezone.now()).total_seconds() / 3600
+            refund_amount = Decimal("0") if hours_left < FREE_CANCEL_CUTOFF_HOURS else locked.tier.price
+
+            payment = Payment.objects.filter(
+                order=locked.order, status__in=[PaymentStatus.SUCCESS, PaymentStatus.PARTIALLY_REFUNDED]
+            ).order_by("-completed_at").first()
+            if not payment:
+                return Response(
+                    {"detail": "No successful payment found for this ticket — contact support."},
+                    status=400,
+                )
+            refund, error = _create_and_process_refund(
+                payment=payment, ticket=locked, amount=refund_amount,
+                reason=Refund.Reason.USER_REQUEST, reason_detail=reason_detail,
+                initiated_by=request.user,
+            )
+            if error:
+                return error
+
+        locked.status = Ticket.Status.CANCELLED
+        locked.cancelled_at = timezone.now()
+        locked.cancellation_reason = reason_detail
+        locked.save(update_fields=["status", "cancelled_at", "cancellation_reason"])
+
+        tier = locked.tier
+        tier.sold_quantity = max(0, tier.sold_quantity - 1)
+        tier.save(update_fields=["sold_quantity"])
+
+        _release_ticket_allocation(locked)
+        _sync_order_cancellation_status(locked.order)
+
+    return Response(TicketSerializer(locked, context={"request": request}).data)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def transfer_ticket(request, pk):
+    """Give this ticket to someone else who already has a Naada account.
+
+    Reassigns the same row — same QR, same ticket number — rather than
+    issuing a new one, so the door's check-in flow (which only ever cares
+    about `status`, never who holds the ticket) needs no changes at all.
+    `original_purchaser` is left untouched as the audit trail of who
+    actually paid; `holder_*` and `user` move to whoever is meant to attend.
+    """
+    serializer = TransferTicketSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    d = serializer.validated_data
+
+    ticket = generics.get_object_or_404(Ticket, pk=pk, user=request.user)
+    if ticket.status != Ticket.Status.VALID:
+        return Response(
+            {"detail": f"This ticket is {ticket.get_status_display().lower()} and can't be transferred."},
+            status=400,
+        )
+
+    recipient = User.objects.filter(email__iexact=d["recipient_email"]).first()
+    if not recipient:
+        return Response(
+            {"detail": "No Naada account with that email — they'll need to sign up first."},
+            status=404,
+        )
+    if recipient.id == request.user.id:
+        return Response({"detail": "You already have this ticket."}, status=400)
+
+    with transaction.atomic():
+        locked = Ticket.objects.select_for_update().get(pk=ticket.pk)
+        if locked.status != Ticket.Status.VALID:
+            return Response(
+                {"detail": f"This ticket is {locked.get_status_display().lower()} and can't be transferred."},
+                status=400,
+            )
+
+        TicketTransfer.objects.create(
+            ticket=locked, from_user=request.user, to_user=recipient,
+            transfer_reason=d.get("reason", "")[:200],
+        )
+        locked.user = recipient
+        locked.holder_name = recipient.name
+        locked.holder_email = recipient.email
+        locked.holder_phone = recipient.phone or ""
+        locked.transfer_count += 1
+        locked.save(update_fields=[
+            "user", "holder_name", "holder_email", "holder_phone", "transfer_count",
+        ])
+
+    return Response(TicketSerializer(locked, context={"request": request}).data)
 
 
 @api_view(["POST"])

@@ -147,7 +147,6 @@ interface AppStore {
   setGuestDetails: (guest: CheckoutDraft["guest"], isGuest: boolean) => void;
   clearCheckout: () => void;
 
-  cancelTicket: (code: string) => void;
   checkIn: (eventId: string, code: string) => "ok" | "duplicate" | "invalid";
   setEmptyLists: (value: boolean) => void;
 
@@ -473,12 +472,6 @@ export function AppStoreProvider({
   );
 
   const clearCheckout = useCallback(() => setCheckout(EMPTY_CHECKOUT), []);
-
-  const cancelTicket = useCallback((code: string) => {
-    setTickets((prev) =>
-      prev.map((t) => (t.code === code ? { ...t, status: "cancelled" as const } : t)),
-    );
-  }, []);
 
   const checkIn = useCallback(
     (eventId: string, code: string): "ok" | "duplicate" | "invalid" => {
@@ -813,7 +806,6 @@ export function AppStoreProvider({
       setGuestDetails,
       clearCheckout,
 
-      cancelTicket,
       checkIn,
       setEmptyLists,
       updateEvent,
@@ -847,7 +839,7 @@ export function AppStoreProvider({
       checkout, artistProfile, bankAdded, emptyLists, toasts, toast, dismissToast,
       eventById, artistById, venueById, bookingById, ticketByCode, messagesFor, reviewsFor,
       venueOf, soldOf, capacityOf, startCheckout, setGuestDetails, clearCheckout,
-      cancelTicket, checkIn, updateEvent, setEventStatus, addTier, removeTier,
+      checkIn, updateEvent, setEventStatus, addTier, removeTier,
       sendBrief, counterBooking, acceptBooking, declineBooking, fundBooking, setBookingState,
       setSettlementStatus, updateArtistProfile, countersUsed, sendMessage, setArtistKycStatus,
       resolveDispute, reviewFlaggedMessage, applyToGig, setApplicationStatus, submitReview,

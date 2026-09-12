@@ -97,15 +97,18 @@ class TicketSerializer(serializers.ModelSerializer):
     event_date = serializers.DateTimeField(source="event.start_datetime", read_only=True)
     venue_name = serializers.CharField(source="event.venue.name", read_only=True)
     tier_name = serializers.CharField(source="tier.name", read_only=True)
+    tier_price = serializers.DecimalField(source="tier.price", max_digits=10,
+                                          decimal_places=2, read_only=True)
     qr_image_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
         fields = [
-            "id", "ticket_number", "qr_data", "qr_image_url",
+            "id", "order", "ticket_number", "qr_data", "qr_image_url",
             "event", "event_title", "event_date", "venue_name",
-            "tier_name", "holder_name", "holder_email", "holder_phone",
+            "tier_name", "tier_price", "holder_name", "holder_email", "holder_phone",
             "seat_label", "status", "checked_in_at",
+            "cancelled_at", "cancellation_reason", "transfer_count",
         ]
 
     def get_qr_image_url(self, obj):
@@ -113,6 +116,11 @@ class TicketSerializer(serializers.ModelSerializer):
         if obj.qr_image and request:
             return request.build_absolute_uri(obj.qr_image.url)
         return None
+
+
+class TransferTicketSerializer(serializers.Serializer):
+    recipient_email = serializers.EmailField()
+    reason = serializers.CharField(required=False, allow_blank=True, max_length=200)
 
 
 class PromoCodeValidateSerializer(serializers.Serializer):

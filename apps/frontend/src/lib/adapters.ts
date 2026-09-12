@@ -144,12 +144,18 @@ export function adaptTicket(t: ApiTicket): Ticket {
     _eventTitle: t.event_title,
     _eventDate: t.event_date,
     _venueName: t.venue_name ?? undefined,
+    _orderId: t.order,
+    _tierPrice: Number(t.tier_price) || 0,
+    _transferCount: t.transfer_count,
   } as Ticket & {
     _qrImageUrl?: string;
     _qrData: string;
     _eventTitle: string;
     _eventDate: string;
     _venueName?: string;
+    _orderId: string;
+    _tierPrice: number;
+    _transferCount: number;
   };
 }
 

@@ -8,6 +8,7 @@ urlpatterns = [
     path("auth/refresh/", TokenRefreshView.as_view(), name="auth-token-refresh"),
     path("auth/logout/", TokenBlacklistView.as_view(), name="auth-logout"),
     path("auth/me/", views.MeView.as_view(), name="auth-me"),
+    path("auth/set-role/", views.set_role, name="auth-set-role"),
     path("auth/me/export/", views.export_my_data, name="auth-me-export"),
     path("auth/device/", views.register_device, name="auth-device"),
 ]

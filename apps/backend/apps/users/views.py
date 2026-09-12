@@ -146,22 +146,6 @@ class MeView(generics.RetrieveUpdateDestroyAPIView):
     def get_object(self):
         return self.request.user
 
-    def perform_update(self, serializer):
-        user = serializer.save()
-        # Selecting the artist role has to actually make the user bookable.
-        # Setting User.role alone left them invisible to search and to hosts,
-        # so signing up as an artist produced a dead account.
-        if user.role == UserRole.ARTIST:
-            from apps.artists.models import Artist
-
-            Artist.objects.get_or_create(
-                user=user,
-                defaults={
-                    "stage_name": user.display_name or user.full_name or user.email.split("@")[0],
-                    "bio": user.bio or "",
-                },
-            )
-
     def destroy(self, request, *args, **kwargs):
         """Erasure request under the DPDP Act, 2023.
 
@@ -197,6 +181,47 @@ class MeView(generics.RetrieveUpdateDestroyAPIView):
             {"detail": "Your account has been deleted."},
             status=status.HTTP_200_OK,
         )
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def set_role(request):
+    """A user chooses (or later changes) their own role.
+
+    Deliberately its own endpoint rather than a field on `UserUpdateSerializer`
+    — that serializer backs the general `PATCH /auth/me/` profile edit, and a
+    self-service `role` field there would let any signed-in user PATCH their
+    way to `admin`. This is the one place a role change can happen at all, and
+    it only ever accepts the roles a person can pick for themselves.
+
+    Selecting the artist role has to actually make the user bookable — setting
+    `User.role` alone leaves them invisible to search and to hosts, so this
+    also creates the `Artist` row a bookable account needs.
+    """
+    new_role = request.data.get("role")
+    selectable = {UserRole.ATTENDEE, UserRole.ARTIST, UserRole.VENUE_OWNER}
+    if new_role not in selectable:
+        return Response(
+            {"detail": "role must be one of: attendee, artist, venue_owner."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    user = request.user
+    user.role = new_role
+    user.save(update_fields=["role"])
+
+    if user.role == UserRole.ARTIST:
+        from apps.artists.models import Artist
+
+        Artist.objects.get_or_create(
+            user=user,
+            defaults={
+                "stage_name": user.display_name or user.full_name or user.email.split("@")[0],
+                "bio": user.bio or "",
+            },
+        )
+
+    return Response(UserProfileSerializer(user).data)
 
 
 @api_view(["GET"])

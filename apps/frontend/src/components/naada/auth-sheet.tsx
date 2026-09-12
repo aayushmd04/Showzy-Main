@@ -8,11 +8,17 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Input, Label } from "@/components/ui/input";
+import { Field, Input, Label, Textarea } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { useStore } from "@/store/app-store";
-import { requestOtp, verifyOtp, updateMe, logout as apiLogout } from "@/lib/api";
+import {
+  requestOtp, verifyOtp, updateMe, setUserRole, logout as apiLogout,
+  getMyArtistProfile, updateArtist, createVenue, getCities, getGenres, post,
+} from "@/lib/api";
+import type { ApiArtist, ApiCity, ApiGenre } from "@/lib/api";
 import type { Role } from "@/data/fixtures";
 
 type Outcome = "authed" | "guest";
@@ -40,10 +46,13 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
   const { setRole, role, toast, hydrateFromApi, setCurrentUser } = useStore();
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("Sign in to Naada");
-  const [step, setStep] = useState<"email" | "code" | "role" | "profile">("email");
+  const [step, setStep] = useState<
+    "email" | "code" | "role" | "profile" | "artistRequired" | "hostRequired"
+  >("email");
   const [email, setEmail] = useState("");
   const [debugOtp, setDebugOtp] = useState<string | undefined>();
   const [loading, setLoading] = useState(false);
+  const [stepError, setStepError] = useState("");
   const [pendingRole, setPendingRole] = useState<Role>("listener");
   const optionsRef = useRef<AuthOptions>({});
 
@@ -53,6 +62,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     setStep("email");
     setEmail("");
     setDebugOtp(undefined);
+    setStepError("");
     setOpen(true);
   }, []);
 
@@ -71,24 +81,34 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
 
   const handleRoleSelect = useCallback(async (chosenRole: Role) => {
     setLoading(true);
-    const apiRoleMap: Record<Role, string> = {
-      listener: "listener", artist: "artist", host: "venue_owner", admin: "admin", out: "listener",
+    setStepError("");
+    // RoleStep only ever offers these three — "listener" here means
+    // attendee, the backend's actual name for that role.
+    const apiRoleMap: Record<"listener" | "artist" | "host", "attendee" | "artist" | "venue_owner"> = {
+      listener: "attendee", artist: "artist", host: "venue_owner",
     };
     try {
-      await updateMe({ role: apiRoleMap[chosenRole] });
+      await setUserRole(apiRoleMap[chosenRole as "listener" | "artist" | "host"]);
     } catch {
-      // Non-fatal — proceed with local role
-    } finally {
       setLoading(false);
+      setStepError("Couldn't save your role — check your connection and try again.");
+      return;
     }
+    setLoading(false);
     setPendingRole(chosenRole);
-    setStep("profile");
+    setStep(
+      chosenRole === "artist" ? "artistRequired"
+      : chosenRole === "host" ? "hostRequired"
+      : "profile",
+    );
   }, []);
 
-  const handleProfileDone = useCallback(async (name: string, bio: string) => {
+  // Listener only — artist/host have their own required-fields steps below,
+  // since a display name is the only thing a buyer's account actually needs.
+  const handleProfileDone = useCallback(async (name: string) => {
     setLoading(true);
     try {
-      const updated = await updateMe({ full_name: name, bio });
+      const updated = await updateMe({ full_name: name });
       setCurrentUser({
         id: updated.id,
         email: updated.email,
@@ -96,12 +116,83 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
         role: updated.role,
       });
     } catch {
-      // Non-fatal
+      // Non-fatal — a display name is a nicety here, not a gate.
     } finally {
       setLoading(false);
     }
     finish("authed", pendingRole);
   }, [finish, pendingRole, setCurrentUser]);
+
+  /**
+   * Selecting "artist" during signup already created a bare `Artist` row
+   * server-side (see `MeView.perform_update`) with a throwaway stage name —
+   * that's what made "finish setup later" so easy to skip before: the row
+   * existed, so the dashboard never had a genuinely-missing profile to nag
+   * about. This step collects the fields a booking actually needs — stage
+   * name, city, genres, bio — and writes them for real before the artist
+   * ever sees their dashboard, no separate "complete your profile" step
+   * involved.
+   */
+  const handleArtistRequiredSubmit = useCallback(
+    async (data: { name: string; stageName: string; city: string; genres: number[]; bio: string }) => {
+      setLoading(true);
+      setStepError("");
+      try {
+        const updatedUser = await updateMe({ full_name: data.name });
+        setCurrentUser({
+          id: updatedUser.id, email: updatedUser.email,
+          full_name: updatedUser.full_name, role: updatedUser.role,
+        });
+
+        let artistId: string;
+        try {
+          artistId = (await getMyArtistProfile()).id;
+        } catch {
+          artistId = (await post<ApiArtist>("/artists/", { stage_name: data.stageName })).id;
+        }
+        await updateArtist(artistId, {
+          stage_name: data.stageName, bio: data.bio, city: data.city, genres: data.genres,
+        });
+      } catch {
+        setStepError("Couldn't save your profile — check your connection and try again.");
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+      finish("authed", pendingRole);
+    },
+    [finish, pendingRole, setCurrentUser],
+  );
+
+  /**
+   * Nothing was ever created when a new user picked "host" — no Venue, no
+   * way to reach one from the dashboard afterwards. This is the only place
+   * in the app a host's venue gets created; without it they'd land on their
+   * console with no venue and no path to make one.
+   */
+  const handleHostRequiredSubmit = useCallback(
+    async (data: { name: string; venueName: string; address: string; city: string; capacity: number }) => {
+      setLoading(true);
+      setStepError("");
+      try {
+        const updatedUser = await updateMe({ full_name: data.name });
+        setCurrentUser({
+          id: updatedUser.id, email: updatedUser.email,
+          full_name: updatedUser.full_name, role: updatedUser.role,
+        });
+        await createVenue({
+          name: data.venueName, address_line1: data.address, city: data.city, capacity: data.capacity,
+        });
+      } catch {
+        setStepError("Couldn't save your venue — check your connection and try again.");
+        setLoading(false);
+        return;
+      }
+      setLoading(false);
+      finish("authed", pendingRole);
+    },
+    [finish, pendingRole, setCurrentUser],
+  );
 
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -161,21 +252,26 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     step === "email" ? title
     : step === "code" ? "Enter your code"
     : step === "role" ? "How are you using Naada?"
+    : step === "artistRequired" ? "Set up your artist profile"
+    : step === "hostRequired" ? "Add your venue"
     : "Set up your profile";
 
   return (
     <AuthContext.Provider value={api}>
       {children}
       <Modal open={open} onClose={() => setOpen(false)} title={modalTitle}>
-        {step === "profile" ? (
+        {step === "artistRequired" ? (
+          <ArtistRequiredStep loading={loading} error={stepError} onSubmit={handleArtistRequiredSubmit} />
+        ) : step === "hostRequired" ? (
+          <HostRequiredStep loading={loading} error={stepError} onSubmit={handleHostRequiredSubmit} />
+        ) : step === "profile" ? (
           <ProfileStep
-            role={pendingRole}
             loading={loading}
             onSubmit={handleProfileDone}
             onSkip={() => finish("authed", pendingRole)}
           />
         ) : step === "role" ? (
-          <RoleStep loading={loading} onSelect={handleRoleSelect} />
+          <RoleStep loading={loading} error={stepError} onSelect={handleRoleSelect} />
         ) : step === "email" ? (
           <form onSubmit={handleSendOtp}>
             <p className="t-small text-muted mb-4">
@@ -235,12 +331,19 @@ const ROLE_OPTIONS: { role: Role; label: string; description: string; emoji: str
   { role: "host",     label: "I host events",         description: "Create events, hire artists, sell tickets",         emoji: "🎪" },
 ];
 
-function RoleStep({ loading, onSelect }: { loading: boolean; onSelect: (role: Role) => void }) {
+function RoleStep({
+  loading, error, onSelect,
+}: {
+  loading: boolean; error: string; onSelect: (role: Role) => void;
+}) {
   return (
     <div>
       <p className="t-small text-muted mb-4">
         Tell us how you'd like to use Naada — you can change this later in settings.
       </p>
+      {error && (
+        <p className="t-small mb-4 text-fault" role="alert">{error}</p>
+      )}
       <div className="flex flex-col gap-3">
         {ROLE_OPTIONS.map(({ role, label, description, emoji }) => (
           <button
@@ -410,37 +513,23 @@ function CodeStep({
   );
 }
 
+/** Listeners only — a display name is the only thing a buyer's account
+ * needs, so this stays a one-field, skippable nicety. Artists and hosts
+ * have their own required-fields steps below instead. */
 function ProfileStep({
-  role,
   loading,
   onSubmit,
   onSkip,
 }: {
-  role: Role;
   loading: boolean;
-  onSubmit: (name: string, bio: string) => void;
+  onSubmit: (name: string) => void;
   onSkip: () => void;
 }) {
   const [name, setName] = useState("");
-  const [bio, setBio] = useState("");
-  const showBio = role === "artist" || role === "host";
-
-  const placeholder =
-    role === "artist"
-      ? "Genre, city, instruments you play…"
-      : role === "host"
-      ? "Venue type, city, typical events you host…"
-      : "";
 
   return (
-    <form onSubmit={(e) => { e.preventDefault(); onSubmit(name.trim(), bio.trim()); }}>
-      <p className="t-small text-muted mb-4">
-        {role === "artist"
-          ? "Let venue hosts know who you are so they can book you with confidence."
-          : role === "host"
-          ? "Help artists and fans find and trust your venue."
-          : "A display name helps personalise your experience."}
-      </p>
+    <form onSubmit={(e) => { e.preventDefault(); onSubmit(name.trim()); }}>
+      <p className="t-small text-muted mb-4">A display name helps personalise your experience.</p>
 
       <Label htmlFor="p-name">Your name</Label>
       <Input
@@ -452,21 +541,6 @@ function ProfileStep({
         required
         className="mt-1"
       />
-
-      {showBio && (
-        <div className="mt-4">
-          <Label htmlFor="p-bio">Short bio</Label>
-          <textarea
-            id="p-bio"
-            value={bio}
-            onChange={(e) => setBio(e.target.value)}
-            placeholder={placeholder}
-            maxLength={200}
-            className="field mt-1 h-[72px] w-full resize-none text-[14px]"
-          />
-          <p className="t-micro mt-1 text-muted">{bio.length}/200</p>
-        </div>
-      )}
 
       <Button
         type="submit"
@@ -484,6 +558,229 @@ function ProfileStep({
       >
         Skip for now
       </button>
+    </form>
+  );
+}
+
+/** A single-choice chip list backed by reference data, shared by the genre
+ * multi-select below — fetches once on mount, shows nothing if it fails
+ * (the picker just becomes empty rather than blocking signup on it). */
+function useReferenceList<T>(loader: () => Promise<T[]>): T[] {
+  const [items, setItems] = useState<T[]>([]);
+  useEffect(() => {
+    let alive = true;
+    loader().then((data) => { if (alive) setItems(data); }).catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  return items;
+}
+
+/**
+ * Required fields for a working artist profile — stage name, city, at least
+ * one genre, and a real bio. Selecting "artist" already created a bare
+ * `Artist` row server-side with a throwaway stage name; this is what
+ * actually fills it in, before the artist ever reaches their dashboard.
+ */
+function ArtistRequiredStep({
+  loading,
+  error,
+  onSubmit,
+}: {
+  loading: boolean;
+  error: string;
+  onSubmit: (data: { name: string; stageName: string; city: string; genres: number[]; bio: string }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [stageName, setStageName] = useState("");
+  const [city, setCity] = useState("");
+  const [genres, setGenres] = useState<number[]>([]);
+  const [genreToAdd, setGenreToAdd] = useState("");
+  const [bio, setBio] = useState("");
+
+  const cities = useReferenceList<ApiCity>(getCities);
+  const allGenres = useReferenceList<ApiGenre>(getGenres);
+  const unusedGenres = allGenres.filter((g) => !genres.includes(g.id));
+  const genreName = (id: number) => allGenres.find((g) => g.id === id)?.name;
+
+  const bioOk = bio.trim().length >= 10;
+  const canSubmit = name.trim() && stageName.trim() && city && genres.length > 0 && bioOk && !loading;
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canSubmit) onSubmit({ name: name.trim(), stageName: stageName.trim(), city, genres, bio: bio.trim() });
+      }}
+    >
+      <p className="t-small text-muted mb-4">
+        Venue hosts book off this — the more real it is, the better the fit.
+      </p>
+
+      <Field label="Your name" htmlFor="ar-name">
+        <Input id="ar-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
+      </Field>
+
+      <Field label="Stage / performing name" htmlFor="ar-stage" className="mt-4">
+        <Input id="ar-stage" value={stageName} onChange={(e) => setStageName(e.target.value)} required />
+      </Field>
+
+      <Field label="City" htmlFor="ar-city" className="mt-4">
+        <Select
+          id="ar-city"
+          value={city}
+          onChange={setCity}
+          options={[
+            { value: "", label: cities.length === 0 ? "Loading cities…" : "Pick your city…" },
+            ...cities.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+        />
+      </Field>
+
+      <div className="mt-4">
+        <Label>Genres — pick at least one</Label>
+        {genres.length > 0 && (
+          <div className="mt-2 flex flex-wrap gap-2">
+            {genres.map((id) => (
+              <span key={id} className="flex items-center gap-2 border border-line bg-surface px-3 py-1.5 text-[14px]">
+                {genreName(id) ?? `Genre ${id}`}
+                <button
+                  type="button"
+                  onClick={() => setGenres(genres.filter((x) => x !== id))}
+                  aria-label={`Remove ${genreName(id)}`}
+                  className="text-muted transition-colors hover:text-fault"
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="mt-2 flex gap-2">
+          <select
+            aria-label="Add a genre"
+            value={genreToAdd}
+            disabled={allGenres.length === 0}
+            onChange={(e) => setGenreToAdd(e.target.value)}
+            className="field flex-1"
+          >
+            <option value="">{allGenres.length === 0 ? "Loading genres…" : "Add a genre…"}</option>
+            {unusedGenres.map((g) => (
+              <option key={g.id} value={String(g.id)} className="bg-surface">{g.name}</option>
+            ))}
+          </select>
+          <Button
+            type="button"
+            disabled={!genreToAdd}
+            onClick={() => { setGenres([...genres, Number(genreToAdd)]); setGenreToAdd(""); }}
+          >
+            Add
+          </Button>
+        </div>
+      </div>
+
+      <Field label="Bio" htmlFor="ar-bio" className="mt-4" hint={`${bio.length}/500 · a sentence or two is enough`}>
+        <Textarea
+          id="ar-bio"
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          placeholder="What you play, your influences, how long you've been performing…"
+          maxLength={500}
+          className="h-[80px] resize-none"
+        />
+      </Field>
+
+      {error && <p className="t-small mt-3 text-fault" role="alert">{error}</p>}
+
+      <Button type="submit" variant="primary" full className="mt-5" disabled={!canSubmit}>
+        {loading ? "Saving…" : "Finish setting up"}
+      </Button>
+    </form>
+  );
+}
+
+/**
+ * Required fields for a working venue — name, address, city, capacity.
+ * Nothing was ever created for a host before this; this is where their
+ * `Venue` row actually gets made, before they reach their console.
+ */
+function HostRequiredStep({
+  loading,
+  error,
+  onSubmit,
+}: {
+  loading: boolean;
+  error: string;
+  onSubmit: (data: { name: string; venueName: string; address: string; city: string; capacity: number }) => void;
+}) {
+  const [name, setName] = useState("");
+  const [venueName, setVenueName] = useState("");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
+  const [capacity, setCapacity] = useState("");
+
+  const cities = useReferenceList<ApiCity>(getCities);
+
+  const capacityNum = Number(capacity);
+  const canSubmit =
+    name.trim() && venueName.trim() && address.trim() && city &&
+    capacity.trim() && capacityNum > 0 && !loading;
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (canSubmit) {
+          onSubmit({ name: name.trim(), venueName: venueName.trim(), address: address.trim(), city, capacity: capacityNum });
+        }
+      }}
+    >
+      <p className="t-small text-muted mb-4">
+        Artists and fans need to know where you are and how big the room is before your
+        first event can go live.
+      </p>
+
+      <Field label="Your name" htmlFor="hr-name">
+        <Input id="hr-name" value={name} onChange={(e) => setName(e.target.value)} autoFocus required />
+      </Field>
+
+      <Field label="Venue name" htmlFor="hr-venue" className="mt-4">
+        <Input id="hr-venue" value={venueName} onChange={(e) => setVenueName(e.target.value)} required />
+      </Field>
+
+      <Field label="Address" htmlFor="hr-address" className="mt-4">
+        <Input id="hr-address" value={address} onChange={(e) => setAddress(e.target.value)} required />
+      </Field>
+
+      <Field label="City" htmlFor="hr-city" className="mt-4">
+        <Select
+          id="hr-city"
+          value={city}
+          onChange={setCity}
+          options={[
+            { value: "", label: cities.length === 0 ? "Loading cities…" : "Pick your city…" },
+            ...cities.map((c) => ({ value: c.id, label: c.name })),
+          ]}
+        />
+      </Field>
+
+      <Field label="Capacity" htmlFor="hr-capacity" className="mt-4" hint="How many people fit, roughly">
+        <Input
+          id="hr-capacity"
+          type="number"
+          inputMode="numeric"
+          min={1}
+          value={capacity}
+          onChange={(e) => setCapacity(e.target.value)}
+          required
+        />
+      </Field>
+
+      {error && <p className="t-small mt-3 text-fault" role="alert">{error}</p>}
+
+      <Button type="submit" variant="primary" full className="mt-5" disabled={!canSubmit}>
+        {loading ? "Saving…" : "Finish setting up"}
+      </Button>
     </form>
   );
 }

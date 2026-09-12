@@ -215,7 +215,6 @@ export async function getMe(): Promise<MeResponse> {
 }
 
 export async function updateMe(data: {
-  role?: string;
   full_name?: string;
   display_name?: string;
   bio?: string;
@@ -224,6 +223,17 @@ export async function updateMe(data: {
   phone?: string;
 }): Promise<MeResponse> {
   return patch<MeResponse>("/auth/me/", data);
+}
+
+/**
+ * Choose (or later change) a role. Deliberately not a field on `updateMe` —
+ * that PATCHes the general profile and must never be able to touch role, or
+ * any signed-in user could PATCH their way to admin. `role` never accepted
+ * "admin" being silently dropped by the general endpoint used to mean role
+ * selection at signup looked like it worked but never actually persisted.
+ */
+export async function setUserRole(role: "attendee" | "artist" | "venue_owner"): Promise<MeResponse> {
+  return post<MeResponse>("/auth/set-role/", { role });
 }
 
 /** Erasure request under the DPDP Act. Irreversible. */

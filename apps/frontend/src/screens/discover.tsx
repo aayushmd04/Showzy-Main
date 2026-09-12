@@ -118,9 +118,10 @@ function isSoldOut(event: NaadaEvent): boolean {
   return event.tiers.every((t) => t.sold >= t.capacity);
 }
 
-function priceLabel(event: NaadaEvent): string {
+function priceLabel(event: NaadaEvent, lang: "en" | "kn"): string {
   const p = lowestPrice(event);
-  return p === 0 ? "Free" : `₹${p}`;
+  if (p !== 0) return `₹${p}`;
+  return lang === "en" ? "Free" : "ಉಚಿತ";
 }
 
 function soldPct(event: NaadaEvent): number {
@@ -186,7 +187,7 @@ function EventCard({
   const left  = seatsLeft(event);
   const sold  = isSoldOut(event);
   const free  = isFree(event);
-  const price = priceLabel(event);
+  const price = priceLabel(event, lang);
 
   const seatsText = sold
     ? (lang === "en" ? "Sold out" : "ಟಿಕೆಟ್ ಮುಗಿದಿದೆ")
@@ -342,13 +343,14 @@ function EventCard({
 }
 
 // ─── Hero photo panel ─────────────────────────────────────────────────────────
-function HeroPhotoPanel({ event, index, venue, tok }: {
+function HeroPhotoPanel({ event, index, venue, tok, lang }: {
   event: NaadaEvent;
   index: number;
   venue?: { name: string; area: string };
   tok: typeof T.dark;
+  lang: "en" | "kn";
 }) {
-  const price = priceLabel(event);
+  const price = priceLabel(event, lang);
   const left  = seatsLeft(event);
   // Prefer the event's own image, exactly like EventCard — a hardcoded photo
   // here meant the hero never actually looked like whichever event it named.
@@ -386,7 +388,9 @@ function HeroPhotoPanel({ event, index, venue, tok }: {
         }}
       >
         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: tok.gold }}>
-          {venue ? `Tonight · ${venue.name}` : "Tonight"}
+          {lang === "en"
+            ? (venue ? `Tonight · ${venue.name}` : "Tonight")
+            : (venue ? `ಇಂದು · ${venue.name}` : "ಇಂದು")}
         </div>
         <div style={{ fontFamily: "'Baloo Tamma 2',system-ui", fontWeight: 800, fontSize: 24, lineHeight: 1.2, marginTop: 8 }}>
           {event.name}
@@ -396,13 +400,13 @@ function HeroPhotoPanel({ event, index, venue, tok }: {
             {event.time}{venue?.area ? ` · ${venue.area}` : ""}
           </span>
           <span style={{ fontFamily: "'Baloo Tamma 2',system-ui", fontWeight: 800, fontSize: 20, color: tok.gold }}>
-            {price === "Free" ? "Free entry" : price}
+            {isFree(event) ? (lang === "en" ? "Free entry" : "ಉಚಿತ ಪ್ರವೇಶ") : price}
           </span>
         </div>
         {left > 0 && !isSoldOut(event) && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: "rgba(243,233,214,.6)" }}>
             <PulsingDot color={tok.signal} />
-            <span>{left} seats left</span>
+            <span>{lang === "en" ? `${left} seats left` : `${left} ಆಸನಗಳು ಉಳಿದಿವೆ`}</span>
           </div>
         )}
       </div>
@@ -800,22 +804,6 @@ export function DiscoverScreen() {
             )}
           </h1>
 
-          {/* Kannada subtitle (shown alongside English headline always) */}
-          {lang === "en" && (
-            <div
-              style={{
-                fontFamily: "'Anek Kannada',sans-serif",
-                fontWeight: 600,
-                fontSize: 26,
-                lineHeight: 1.4,
-                color: tok.muted,
-                marginBottom: 20,
-              }}
-            >
-              ಸಣ್ಣ ಸಭಾಂಗಣ. ನಿಜವಾದ ಕಲಾವಿದರು.
-            </div>
-          )}
-
           {/* Body copy */}
           <p
             style={{
@@ -854,17 +842,13 @@ export function DiscoverScreen() {
                 lineHeight: 1.3,
               }}
             >
-              <span style={{ display: lang === "kn" ? "none" : "block" }}>Show me tonight's gigs</span>
-              <span
-                style={{
-                  fontFamily: "'Anek Kannada',sans-serif",
-                  fontWeight: 700,
-                  fontSize: lang === "kn" ? 19 : 14,
-                  opacity: lang === "kn" ? 1 : 0.8,
-                }}
-              >
-                ಇಂದಿನ ಕಾರ್ಯಕ್ರಮ ತೋರಿಸಿ
-              </span>
+              {lang === "en" ? (
+                <span>Show me tonight's gigs</span>
+              ) : (
+                <span style={{ fontFamily: "'Anek Kannada',sans-serif", fontWeight: 700, fontSize: 19 }}>
+                  ಇಂದಿನ ಕಾರ್ಯಕ್ರಮ ತೋರಿಸಿ
+                </span>
+              )}
             </button>
 
             <button
@@ -912,7 +896,7 @@ export function DiscoverScreen() {
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
-              <HeroPhotoPanel event={heroEvent} index={heroIndex} venue={heroVenue} tok={tok} />
+              <HeroPhotoPanel event={heroEvent} index={heroIndex} venue={heroVenue} tok={tok} lang={lang} />
             </motion.div>
 
             {heroEvents.length > 1 && (
@@ -990,10 +974,17 @@ export function DiscoverScreen() {
         }}
       >
         {[
-          { val: "₹0",      label: lang === "en" ? "Booking fee, always" : "ಯಾವಾಗಲೂ ₹0 ಬುಕಿಂಗ್ ಶುಲ್ಕ" },
-          { val: "UPI",     label: lang === "en" ? "GPay, PhonePe, Paytm" : "GPay, PhonePe, Paytm" },
-          { val: "ಕನ್ನಡ",  label: lang === "en" ? "Book in your language" : "ನಿಮ್ಮ ಭಾಷೆಯಲ್ಲಿ ಬುಕ್ ಮಾಡಿ", kannada: true },
-          { val: "2 cities", label: lang === "en" ? "Mysuru & Bengaluru" : "ಮೈಸೂರು & ಬೆಂಗಳೂರು" },
+          { val: "₹0", label: lang === "en" ? "Booking fee, always" : "ಯಾವಾಗಲೂ ₹0 ಬುಕಿಂಗ್ ಶುಲ್ಕ" },
+          { val: "UPI", label: "GPay, PhonePe, Paytm" },
+          {
+            val: lang === "en" ? "Kannada" : "ಕನ್ನಡ",
+            label: lang === "en" ? "Book in your language" : "ನಿಮ್ಮ ಭಾಷೆಯಲ್ಲಿ ಬುಕ್ ಮಾಡಿ",
+            kannada: lang === "kn",
+          },
+          {
+            val: lang === "en" ? "2 cities" : "2 ನಗರಗಳು",
+            label: lang === "en" ? "Mysuru & Bengaluru" : "ಮೈಸೂರು & ಬೆಂಗಳೂರು",
+          },
         ].map(({ val, label, kannada }, i) => (
           <div
             key={i}
@@ -1034,18 +1025,6 @@ export function DiscoverScreen() {
             >
               {lang === "en" ? "This week" : "ಈ ವಾರ"}
             </div>
-            {lang === "en" && (
-              <div
-                style={{
-                  fontFamily: "'Anek Kannada',sans-serif",
-                  fontSize: 22,
-                  color: tok.muted,
-                  marginTop: 2,
-                }}
-              >
-                ಈ ವಾರ
-              </div>
-            )}
           </div>
           <span
             style={{ fontSize: 16, fontWeight: 600, color: tok.signal, cursor: "pointer" }}
@@ -1207,16 +1186,6 @@ export function DiscoverScreen() {
             >
               {lang === "en" ? "Rooted in Karnataka" : "ಕರ್ನಾಟಕದ ಬೇರುಗಳಲ್ಲಿ"}
             </div>
-            <div
-              style={{
-                fontFamily: "'Anek Kannada',sans-serif",
-                fontSize: 19,
-                color: tok.muted,
-                marginTop: 4,
-              }}
-            >
-              ಕರ್ನಾಟಕದ ಬೇರುಗಳು
-            </div>
           </div>
           <div className="discover-karnataka">
             {[
@@ -1279,19 +1248,6 @@ export function DiscoverScreen() {
           >
             {lang === "en" ? "Something is on tonight." : "ಇಂದು ರಾತ್ರಿ ಏನೋ ನಡೆಯುತ್ತಿದೆ."}
           </div>
-          {lang === "en" && (
-            <div
-              style={{
-                fontFamily: "'Anek Kannada',sans-serif",
-                fontWeight: 600,
-                fontSize: 22,
-                color: tok.muted,
-                marginTop: 6,
-              }}
-            >
-              ಇಂದು ರಾತ್ರಿ ಏನೋ ನಡೆಯುತ್ತಿದೆ.
-            </div>
-          )}
         </div>
         <button
           onClick={() => heroEvent && navigate(`/e/${heroEvent.id}`)}

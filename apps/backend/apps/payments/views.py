@@ -43,9 +43,22 @@ def _confirm_order(order: Order):
     order.confirmed_at = timezone.now()
     order.save(update_fields=["status", "confirmed_at"])
 
+    # A per-seat booking snapshot, if the buyer picked specific seats — a list
+    # of {"id","label","furniture"} in the order they were claimed. Consumed
+    # one at a time as tickets are issued below, across every tier in the
+    # order, so the pointer lives outside the per-item loop.
+    allocation = getattr(order, "zone_allocation", None)
+    seat_queue = list(allocation.seat_ids) if allocation and allocation.seat_ids else []
+    seat_index = 0
+
     for item in order.items.filter(status=OrderItem.Status.ACTIVE):
         tier = item.tier
         for _ in range(item.quantity):
+            seat_label = ""
+            if seat_index < len(seat_queue):
+                seat = seat_queue[seat_index]
+                seat_label = f"{allocation.zone_label} · {seat['label']}"
+                seat_index += 1
             t = Ticket.objects.create(
                 order=order,
                 order_item=item,
@@ -57,6 +70,7 @@ def _confirm_order(order: Order):
                 holder_email=order.user.email,
                 holder_phone=order.user.phone or "",
                 original_purchaser=order.user,
+                **({"seat_label": seat_label} if seat_label else {}),
             )
             t.generate_qr_image()
             t.save(update_fields=["qr_image"])

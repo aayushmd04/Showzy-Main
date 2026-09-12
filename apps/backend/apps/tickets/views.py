@@ -110,6 +110,7 @@ def create_order(request):
         # Optional throughout. Only a venue with a layout can offer one, and a
         # buyer who does not care never sends one.
         zone = None
+        matched_seats = []
         if requested_zone_id:
             # Lock this zone's existing claims for the length of the
             # transaction so two buyers racing for the last table cannot both
@@ -134,6 +135,24 @@ def create_order(request):
                     else f"Only {zone['available']} place"
                          f"{'' if zone['available'] == 1 else 's'} left in {zone['label']}."
                 )
+
+            # Seat-level booking: this zone has named seats, so a quantity
+            # alone is not enough — the buyer must say which ones.
+            if zone.get("seats"):
+                requested_seat_ids = data.get("seat_ids") or []
+                if not requested_seat_ids:
+                    raise ZoneUnavailable("Pick a seat for each ticket.")
+                if len(requested_seat_ids) != ticket_count:
+                    raise ZoneUnavailable(
+                        f"You picked {len(requested_seat_ids)} seats for {ticket_count} tickets."
+                    )
+                matched_seats = zone_map.find_seats(zone, requested_seat_ids)
+                if matched_seats is None:
+                    raise ZoneUnavailable(
+                        "One of those seats has just been taken — pick again."
+                    )
+            # A zone with no seats ignores any seat_ids the buyer sent —
+            # whole-zone booking, exactly as before.
 
         if promo:
             if promo.discount_type == "pct":
@@ -189,6 +208,7 @@ def create_order(request):
                 zone_type=zone["type"],
                 quantity=ticket_count,
                 capacity_at_booking=zone["capacity"],
+                seat_ids=matched_seats,
             )
 
     return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)

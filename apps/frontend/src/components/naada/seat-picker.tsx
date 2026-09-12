@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, MapPin, RotateCw } from "lucide-react";
+import { Armchair, Loader2, MapPin, RotateCw, Sofa, StretchHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getEventZones } from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { resolveTableShape, seatOffset } from "@/components/naada/table-seats";
 
 /**
  * The buyer's half of the venue layout designer.
@@ -28,10 +29,21 @@ import { cn } from "@/lib/utils";
  * every number that matters written out in words.
  */
 
+export interface VenueZoneSeat {
+  id: string;
+  /** 0..1, position walked around the table's perimeter — see table-seats.ts. */
+  t: number;
+  furniture: string;
+  groupId: string | null;
+  label: string;
+  taken: boolean;
+}
+
 export interface VenueZone {
   id: string;
   label: string;
   type: string;
+  shape: string;
   x: number;
   y: number;
   w: number;
@@ -40,6 +52,125 @@ export interface VenueZone {
   bookable: boolean;
   taken: number;
   available: number;
+  /** Individually bookable seats around this zone. Empty = whole-zone
+   *  quantity booking, exactly as before this field existed. */
+  seats: VenueZoneSeat[];
+}
+
+const FURNITURE_ICON: Record<string, typeof Armchair> = {
+  chair: Armchair,
+  sofa: Sofa,
+  bench: StretchHorizontal,
+};
+
+/** A seat's position inside the table's own box, as a percent of its w/h — same math as the editor. */
+function seatLocalPercent(shape: string, t: number, w: number, h: number) {
+  const { dx, dy } = seatOffset(resolveTableShape(shape), t, w, h);
+  return { left: 50 + (dx / w) * 100, top: 50 + (dy / h) * 100 };
+}
+
+/** Bounding box (table-local percent) spanning a group's seats, for the sofa/bench backing shape. */
+function seatGroupBounds(seats: VenueZoneSeat[], groupId: string, shape: string, w: number, h: number) {
+  const members = seats.filter((s) => s.groupId === groupId);
+  let minX = 50, maxX = 50, minY = 50, maxY = 50;
+  members.forEach((s) => {
+    const { left, top } = seatLocalPercent(shape, s.t, w, h);
+    minX = Math.min(minX, left); maxX = Math.max(maxX, left);
+    minY = Math.min(minY, top); maxY = Math.max(maxY, top);
+  });
+  return { minX, maxX, minY, maxY };
+}
+
+/**
+ * The buyer's per-seat picker for one table — a small geometric diagram of
+ * just that table, with a real tappable, keyboard-focusable button per seat
+ * (native `<button>`, so space/enter toggling comes for free). Sofa/bench
+ * seats sharing a `groupId` get one continuous backing shape drawn behind
+ * them, while each seat inside stays its own separately tappable target.
+ */
+function TableSeatGrid({
+  zone,
+  quantity,
+  seatIds,
+  onToggle,
+  disabled,
+}: {
+  zone: VenueZone;
+  quantity: number;
+  seatIds: string[];
+  onToggle: (seatId: string, taken: boolean) => void;
+  disabled: boolean;
+}) {
+  const shape = resolveTableShape(zone.shape);
+  const groupIds = Array.from(
+    new Set(zone.seats.map((s) => s.groupId).filter((g): g is string => g !== null)),
+  );
+
+  return (
+    <div className="mt-4 border-t border-line pt-4">
+      <p className="t-micro text-muted">
+        Pick {quantity === 1 ? "your seat" : `your ${quantity} seats`} at{" "}
+        <span className="text-paper/80">{zone.label}</span>
+      </p>
+
+      <div
+        className="relative mx-auto mt-3 w-full max-w-[280px] border border-line bg-ink"
+        style={{ aspectRatio: `${zone.w} / ${zone.h}`, borderRadius: shape === "round" ? "50%" : 8 }}
+      >
+        {groupIds.map((gid) => {
+          const { minX, maxX, minY, maxY } = seatGroupBounds(zone.seats, gid, zone.shape, zone.w, zone.h);
+          const pad = 5;
+          return (
+            <div
+              key={gid}
+              aria-hidden="true"
+              className="absolute rounded-md border border-signal/40 bg-signal/10"
+              style={{
+                left: `${minX - pad}%`,
+                top: `${minY - pad}%`,
+                width: `${Math.max(maxX - minX + pad * 2, pad * 2)}%`,
+                height: `${Math.max(maxY - minY + pad * 2, pad * 2)}%`,
+              }}
+            />
+          );
+        })}
+
+        {zone.seats.map((seat) => {
+          const { left, top } = seatLocalPercent(zone.shape, seat.t, zone.w, zone.h);
+          const Icon = FURNITURE_ICON[seat.furniture] ?? Armchair;
+          const isSelected = seatIds.includes(seat.id);
+          return (
+            <button
+              key={seat.id}
+              type="button"
+              aria-pressed={isSelected}
+              aria-label={`${seat.label} — ${
+                seat.taken ? "already taken" : isSelected ? "selected, tap to remove" : "tap to select"
+              }`}
+              disabled={disabled || seat.taken}
+              onClick={() => onToggle(seat.id, seat.taken)}
+              className={cn(
+                "absolute flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border transition-colors",
+                seat.taken
+                  ? "cursor-not-allowed border-line bg-surface-2 text-muted/50"
+                  : isSelected
+                    ? "cursor-pointer border-signal bg-signal/20 text-paper"
+                    : "cursor-pointer border-line bg-surface-2 text-paper/80 hover:border-paper/40",
+              )}
+              style={{ left: `${left}%`, top: `${top}%` }}
+            >
+              <Icon className="size-4" aria-hidden="true" />
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="t-micro mt-2 text-center text-muted">
+        {seatIds.length} of {quantity} {quantity === 1 ? "seat" : "seats"} picked
+        {seatIds.length < quantity ? " — tap a seat above" : ""}
+      </p>
+    </div>
+  );
 }
 
 export interface ZonesResponse {
@@ -62,6 +193,15 @@ export interface SeatPickerProps {
   disabled?: boolean;
   /** Bump to re-read availability, e.g. after the server refuses a zone. */
   refreshToken?: number;
+  /**
+   * Which of `value`'s seats (when it has any) are currently held. Optional
+   * so a caller that hasn't wired seat selection yet — nothing in this repo
+   * does, today — keeps working exactly as before; the component falls back
+   * to owning this itself when omitted.
+   */
+  selectedSeatIds?: string[];
+  /** Called on every toggle, and to clear the pick when the zone or quantity changes. */
+  onSeatIdsChange?: (ids: string[]) => void;
 }
 
 type Phase = "loading" | "ready" | "error";
@@ -76,10 +216,10 @@ const SERVER_EVENT_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-
 /**
  * Reads a venue's floor plan and its live availability for one event.
  *
- * Deliberately not routed through the shared API client: this endpoint is
- * public and additive, and the client has no helper for it yet. Any failure is
- * reported as an error the caller can shrug off — nobody must ever be blocked
- * from paying because a floor plan would not load.
+ * Routed through the shared API client (`getEventZones`), same as every
+ * other read in the app. This endpoint is public and additive, though: any
+ * failure here is reported as an error the caller can shrug off — nobody
+ * must ever be blocked from paying because a floor plan would not load.
  */
 export function useVenueZones(eventId: string, refreshToken = 0) {
   const [phase, setPhase] = useState<Phase>("loading");
@@ -104,7 +244,12 @@ export function useVenueZones(eventId: string, refreshToken = 0) {
     getEventZones(eventId)
       .then((body) => {
         if (!alive) return;
-        setData(body);
+        // `api.ts` is off-limits for this change, and its `VenueZone`/
+        // `EventZonesResponse` types predate `shape`/`seats` — the live
+        // response already carries them per the updated zones contract, so
+        // this is the one boundary where the wider local type is asserted
+        // rather than left for `api.ts` to catch up on its own schedule.
+        setData(body as unknown as ZonesResponse);
         setPhase("ready");
       })
       .catch(() => {
@@ -171,11 +316,22 @@ export function SeatPicker({
   onChange,
   disabled = false,
   refreshToken = 0,
+  selectedSeatIds,
+  onSeatIdsChange,
 }: SeatPickerProps) {
   const { phase, data, retry } = useVenueZones(eventId, refreshToken);
 
   const zones = data?.zones ?? [];
   const bookable = zones.filter((z) => z.bookable);
+
+  // Uncontrolled fallback: nothing in the repo wires `selectedSeatIds` yet,
+  // so this component holds its own copy until a caller starts passing one.
+  const [internalSeatIds, setInternalSeatIds] = useState<string[]>([]);
+  const seatIds = selectedSeatIds ?? internalSeatIds;
+  const setSeatIds = (ids: string[]) => {
+    setInternalSeatIds(ids);
+    onSeatIdsChange?.(ids);
+  };
 
   /*
    * A zone that fills up (or is redrawn by the host) while this screen is open
@@ -192,6 +348,28 @@ export function SeatPicker({
     // Re-checked whenever fresh availability arrives.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, phase, quantity]);
+
+  // A different zone, or a different party size, invalidates whatever seats
+  // were held against the old one — clear the pick rather than let it ride
+  // along to a table it no longer describes.
+  useEffect(() => {
+    setSeatIds([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value?.id, quantity]);
+
+  const toggleSeat = (seatId: string, taken: boolean) => {
+    if (disabled || taken) return;
+    if (seatIds.includes(seatId)) {
+      setSeatIds(seatIds.filter((id) => id !== seatId));
+      return;
+    }
+    if (seatIds.length >= quantity) {
+      // Never silently exceed the ticket quantity — bump the oldest pick.
+      setSeatIds([...seatIds.slice(1), seatId]);
+      return;
+    }
+    setSeatIds([...seatIds, seatId]);
+  };
 
   if (phase === "loading") {
     return (
@@ -375,6 +553,16 @@ export function SeatPicker({
             })}
           </div>
         </fieldset>
+
+        {value && value.seats.length > 0 && (
+          <TableSeatGrid
+            zone={value}
+            quantity={quantity}
+            seatIds={seatIds}
+            onToggle={toggleSeat}
+            disabled={disabled}
+          />
+        )}
 
         {value && (
           <p className="t-small mt-3 flex items-start gap-1.5 text-paper/90">

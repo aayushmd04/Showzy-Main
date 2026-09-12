@@ -38,6 +38,10 @@ class CreateOrderSerializer(serializers.Serializer):
     # they picked one. Absent means "seat me anywhere", which is how every
     # standing-room gig has always worked and must keep working.
     zone_id = serializers.CharField(required=False, allow_blank=True, max_length=64)
+    # Specific seat ids within that zone, only meaningful (and only required)
+    # when the zone itself has seats — see create_order's own validation.
+    seat_ids = serializers.ListField(
+        child=serializers.CharField(max_length=64), required=False, default=list)
 
 
 class ZoneSerializer(serializers.Serializer):
@@ -54,6 +58,10 @@ class ZoneSerializer(serializers.Serializer):
     bookable = serializers.BooleanField()
     taken = serializers.IntegerField()
     available = serializers.IntegerField()
+    # Table-only fields, present (with harmless defaults) on every zone so the
+    # frontend never has to branch on their absence.
+    shape = serializers.CharField()
+    seats = serializers.ListField(child=serializers.DictField(), default=list)
 
 
 class ZoneAllocationSerializer(serializers.ModelSerializer):

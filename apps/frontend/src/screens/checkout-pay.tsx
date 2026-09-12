@@ -74,6 +74,12 @@ export function CheckoutPayScreen() {
    */
   const [zone, setZone] = useState<VenueZone | null>(null);
   const [zoneRefresh, setZoneRefresh] = useState(0);
+  /*
+   * Which of the zone's named seats this buyer picked, if it has any. Reset
+   * by SeatPicker itself whenever the zone or quantity changes, so this only
+   * ever describes seats that make sense for the current selection.
+   */
+  const [seatIds, setSeatIds] = useState<string[]>([]);
   const cancelled = useRef(false);
 
   useEffect(() => () => { cancelled.current = true; }, []);
@@ -198,6 +204,7 @@ export function CheckoutPayScreen() {
         items: [{ tier_id: tierId, quantity: qty }],
         promo_code: promoState?.valid ? promo.trim() : undefined,
         ...(zone ? { zone_id: zone.id } : {}),
+        ...(zone && zone.seats.length > 0 ? { seat_ids: seatIds } : {}),
       };
       const order = await api.createTicketOrder(orderPayload);
 
@@ -255,9 +262,14 @@ export function CheckoutPayScreen() {
       if (cancelled.current) return;
       setPhase("failed");
       setError(err instanceof ApiError ? err.detail : (err as Error).message);
-      // Somebody else may have taken the table between rendering the plan and
-      // pressing pay, so re-read availability before they try again.
-      if (zone) setZoneRefresh((n) => n + 1);
+      // Somebody else may have taken the table (or a specific seat on it)
+      // between rendering the plan and pressing pay — re-read availability,
+      // and drop the stale pick rather than let it point at a seat that's
+      // just been claimed by someone else.
+      if (zone) {
+        setZoneRefresh((n) => n + 1);
+        setSeatIds([]);
+      }
     }
   };
 
@@ -300,6 +312,9 @@ export function CheckoutPayScreen() {
   if (!event || !tier) return <Navigate to="/" replace />;
 
   const busy = phase === "reserving" || phase === "verifying";
+  // A zone with named seats needs exactly one seat per ticket before paying —
+  // a bare quantity against it is not enough for the server to accept.
+  const seatsIncomplete = zone !== null && zone.seats.length > 0 && seatIds.length !== qty;
 
   return (
     <PublicShell>
@@ -364,7 +379,15 @@ export function CheckoutPayScreen() {
           // not the buyer's — changing it would need the order cancelling.
           disabled={phase !== "review" || placed !== null}
           refreshToken={zoneRefresh}
+          selectedSeatIds={seatIds}
+          onSeatIdsChange={setSeatIds}
         />
+
+        {zone && zone.seats.length > 0 && seatIds.length < qty && (
+          <p className="t-small mt-2 text-gold">
+            Pick {qty === 1 ? "a seat" : `all ${qty} seats`} at {zone.label} to continue.
+          </p>
+        )}
 
         {/* ── Promo code ────────────────────────────────────────────── */}
         {!isFree && phase === "review" && (
@@ -426,7 +449,12 @@ export function CheckoutPayScreen() {
         {/* ── Pay ───────────────────────────────────────────────────── */}
         {phase !== "failed" && (
           <section className="mt-6">
-            <Button variant="primary" full disabled={busy || phase === "paying"} onClick={pay}>
+            <Button
+              variant="primary"
+              full
+              disabled={busy || phase === "paying" || seatsIncomplete}
+              onClick={pay}
+            >
               {phase === "reserving" ? (
                 <><Loader2 className="size-4 animate-spin" aria-hidden="true" />Holding your seats…</>
               ) : phase === "verifying" ? (

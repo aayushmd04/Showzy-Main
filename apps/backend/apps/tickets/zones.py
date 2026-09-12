@@ -8,10 +8,14 @@ can sell.
 
 Two deliberate limits:
 
-* **Zone level, not seat level.** The designer produces areas with a capacity
-  each ("Table A seats 6"), not numbered chairs, so that is exactly what a
-  buyer can claim. "The table by the stage" is answerable; "seat 4B" is not,
-  and pretending otherwise would need a different editor.
+* **Zone level by default, seat level when the host draws seats.** A table
+  the host has only given a headcount ("Table A seats 6") stays a zone, and a
+  buyer claims a quantity from it exactly as before. A table the host has
+  placed named seats/furniture on ("chair", "sofa", "bench", walked around the
+  table's `shape` at position `t`) becomes seat-level: a buyer claims specific
+  seat ids, and `capacity` is then derived from the seat list rather than the
+  typed-in number. Every other zone type (VIP, dance floor, stage) is
+  unaffected either way.
 * **Optional.** A standing-room open mic has no layout at all. Every function
   here returns empty for such an event, and checkout carries on unchanged.
 
@@ -31,6 +35,16 @@ STRUCTURAL_TYPES = frozenset({"stage", "entrance", "exit"})
 ZONE_ID_MAX = 64
 ZONE_LABEL_MAX = 40
 
+#: Table shapes the host editor can draw. Anything else falls back to round,
+#: which is what every table drawn before this field existed looks like.
+TABLE_SHAPES = frozenset({"round", "square", "rectangle"})
+
+#: Furniture a seat can be. Purely descriptive — the backend attaches no
+#: business meaning to it beyond "this is one bookable place".
+SEAT_FURNITURE = frozenset({"chair", "sofa", "bench"})
+
+SEAT_ID_MAX = 64
+
 
 def _num(value, default=0.0):
     try:
@@ -41,6 +55,34 @@ def _num(value, default=0.0):
 
 def _clamp(value, low, high):
     return max(low, min(high, value))
+
+
+def _normalise_seat(raw):
+    """One seat on a table, or None if it is unusable.
+
+    Same defensive posture as `_normalise`: the layout is host-authored JSON
+    that may predate this field, so a malformed seat is skipped rather than
+    allowed to break a sale.
+    """
+    if not isinstance(raw, dict):
+        return None
+    seat_id = str(raw.get("id") or "").strip()[:SEAT_ID_MAX]
+    if not seat_id:
+        return None
+
+    furniture = str(raw.get("furniture") or "chair").strip().lower()
+    if furniture not in SEAT_FURNITURE:
+        furniture = "chair"
+
+    group_id = raw.get("groupId")
+    group_id = str(group_id).strip() if group_id not in (None, "") else None
+
+    return {
+        "id": seat_id,
+        "t": _clamp(_num(raw.get("t"), 0), 0, 1),
+        "furniture": furniture,
+        "groupId": group_id,
+    }
 
 
 def _normalise(raw):
@@ -59,7 +101,7 @@ def _normalise(raw):
     except (ValueError, OverflowError):
         capacity = 0
 
-    return {
+    element = {
         "id": zone_id,
         "label": label,
         "type": zone_type,
@@ -71,7 +113,34 @@ def _normalise(raw):
         # A capacity of zero means the host never said how many fit, so there
         # is nothing to sell and nothing to oversell.
         "bookable": capacity > 0 and zone_type not in STRUCTURAL_TYPES,
+        # "round" for every non-table zone too (the field is meaningless there,
+        # but ZoneSerializer expects every zone dict to carry it).
+        "shape": "round",
     }
+
+    if zone_type == "table":
+        shape = str(raw.get("shape") or "round").strip().lower()
+        if shape not in TABLE_SHAPES:
+            shape = "round"
+        element["shape"] = shape
+
+        seats = []
+        seen_seat_ids = set()
+        for seat_raw in raw.get("seats") or []:
+            seat = _normalise_seat(seat_raw)
+            if seat and seat["id"] not in seen_seat_ids:
+                seen_seat_ids.add(seat["id"])
+                seats.append(seat)
+        element["seats"] = seats
+
+        if seats:
+            # Seats are the source of truth for a table's capacity once the
+            # host has placed any — the typed-in number was only ever a
+            # stand-in for "however many chairs actually fit".
+            element["capacity"] = len(seats)
+            element["bookable"] = zone_type not in STRUCTURAL_TYPES
+
+    return element
 
 
 def layout_elements(venue):
@@ -106,14 +175,13 @@ def elements_for_event(event):
     return layout_elements(venue) if venue else []
 
 
-def taken_by_zone(event):
-    """Places already spoken for in each zone of this event, keyed by zone id.
+def _live_allocations(event):
+    """`ZoneAllocation` rows that still count against a zone's capacity.
 
-    Counts both issued tickets and live checkout holds, because from the next
-    buyer's point of view there is no difference — the chair is claimed either
-    way. A hold stops counting the moment its order expires, is cancelled, or
-    is swept by `release_expired_orders`; the clock is honoured here as well as
-    by the sweeper so that availability is right even when the worker is down.
+    Shared by `taken_by_zone` and `taken_seat_ids_by_zone` so the two can never
+    diverge on what "still live" means: issued tickets and live checkout holds
+    both count, and a hold stops counting the moment its order expires, is
+    cancelled, or is swept by `release_expired_orders`.
     """
     from .models import Order, ZoneAllocation
 
@@ -125,17 +193,43 @@ def taken_by_zone(event):
     ]
     unpaid = [Order.Status.INITIATED, Order.Status.PAYMENT_PENDING]
 
-    rows = (
-        ZoneAllocation.objects.filter(
-            event=event,
-            status=ZoneAllocation.Status.HELD,
-            order__status__in=live_statuses,
-        )
-        .exclude(order__status__in=unpaid, order__expires_at__lt=timezone.now())
-        .values("zone_id")
-        .annotate(total=Sum("quantity"))
-    )
+    return ZoneAllocation.objects.filter(
+        event=event,
+        status=ZoneAllocation.Status.HELD,
+        order__status__in=live_statuses,
+    ).exclude(order__status__in=unpaid, order__expires_at__lt=timezone.now())
+
+
+def taken_by_zone(event):
+    """Places already spoken for in each zone of this event, keyed by zone id.
+
+    Counts both issued tickets and live checkout holds, because from the next
+    buyer's point of view there is no difference — the chair is claimed either
+    way. A hold stops counting the moment its order expires, is cancelled, or
+    is swept by `release_expired_orders`; the clock is honoured here as well as
+    by the sweeper so that availability is right even when the worker is down.
+    """
+    rows = _live_allocations(event).values("zone_id").annotate(total=Sum("quantity"))
     return {row["zone_id"]: row["total"] or 0 for row in rows}
+
+
+def taken_seat_ids_by_zone(event):
+    """Specific seat ids already spoken for, keyed by zone id.
+
+    Mirrors `taken_by_zone` exactly — same live/expiry filtering — but instead
+    of a headcount it returns which named seats are held, for zones that book
+    at the seat level.
+    """
+    taken = {}
+    for row in _live_allocations(event).values("zone_id", "seat_ids"):
+        zone_id = row["zone_id"]
+        seat_ids = row["seat_ids"] or []
+        bucket = taken.setdefault(zone_id, set())
+        for seat in seat_ids:
+            seat_id = seat.get("id") if isinstance(seat, dict) else None
+            if seat_id:
+                bucket.add(seat_id)
+    return taken
 
 
 def zone_availability(event):
@@ -145,7 +239,10 @@ def zone_availability(event):
     if not elements:
         return []
 
-    taken_map = taken_by_zone(event) if any(e["bookable"] for e in elements) else {}
+    any_bookable = any(e["bookable"] for e in elements)
+    taken_map = taken_by_zone(event) if any_bookable else {}
+    any_seats = any(e.get("seats") for e in elements)
+    taken_seats_map = taken_seat_ids_by_zone(event) if any_seats else {}
 
     zones = []
     for element in elements:
@@ -157,6 +254,25 @@ def zone_availability(event):
         else:
             zone["taken"] = 0
             zone["available"] = 0
+
+        seats = element.get("seats") or []
+        if seats:
+            taken_seat_ids = taken_seats_map.get(zone["id"], set())
+            zone["seats"] = [
+                {
+                    "id": seat["id"],
+                    "t": seat["t"],
+                    "furniture": seat["furniture"],
+                    "groupId": seat["groupId"],
+                    "label": f"Seat {i + 1}",
+                    "taken": seat["id"] in taken_seat_ids,
+                }
+                for i, seat in enumerate(seats)
+            ]
+        else:
+            # Always present, even for zones with no seats at all, so the
+            # frontend never has to branch on the key's absence.
+            zone["seats"] = []
         zones.append(zone)
     return zones
 
@@ -169,3 +285,26 @@ def find_zone(event, zone_id):
         if zone["id"] == zone_id:
             return zone
     return None
+
+
+def find_seats(zone, seat_ids):
+    """The requested seats from this zone, in the order requested.
+
+    Returns None — rather than a partial list — if any requested id is not a
+    seat in this zone, or if any requested seat is already taken. Checkout
+    treats both cases identically: "pick again", not "here is what's left".
+    """
+    if not seat_ids or len(set(seat_ids)) != len(seat_ids):
+        return None
+    by_id = {seat["id"]: seat for seat in (zone.get("seats") or [])}
+    matched = []
+    for seat_id in seat_ids:
+        seat = by_id.get(seat_id)
+        if seat is None or seat.get("taken"):
+            return None
+        matched.append({
+            "id": seat["id"],
+            "label": seat["label"],
+            "furniture": seat["furniture"],
+        })
+    return matched

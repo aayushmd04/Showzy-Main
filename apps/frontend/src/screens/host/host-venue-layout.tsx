@@ -1,9 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Building2, Grid3X3, RotateCcw, Save, Trash2, Plus } from "lucide-react";
+import { Armchair, Building2, Grid3X3, RotateCcw, Save, Sofa, StretchHorizontal, Trash2, Plus } from "lucide-react";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/input";
 import { ApiError, getMyVenues, updateVenue, type ApiVenue } from "@/lib/api";
+import { cn } from "@/lib/utils";
+import {
+  addSeatGroup,
+  autoGenerateSeats,
+  resolveTableShape,
+  seatOffset,
+  type Furniture,
+  type TableSeat,
+  type TableShape,
+  type TableSide,
+} from "@/components/naada/table-seats";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -20,7 +31,25 @@ interface LE {
   h: number;   // 0–100
   label: string;
   capacity: number;
+  /** Only meaningful for type "table". Absent on layouts saved before this
+   *  shipped — always read it through `resolveTableShape`, never directly. */
+  shape?: TableShape;
+  /** Per-seat booking for a table. Absent/empty = today's whole-table
+   *  quantity booking, unchanged. */
+  seats?: TableSeat[];
 }
+
+const FURNITURE_ICON: Record<Furniture, typeof Armchair> = {
+  chair: Armchair,
+  sofa: Sofa,
+  bench: StretchHorizontal,
+};
+
+const FURNITURE_LABEL: Record<Furniture, string> = {
+  chair: "chair",
+  sofa: "sofa",
+  bench: "bench",
+};
 
 interface DragState {
   id: string;
@@ -64,10 +93,59 @@ const DEFAULT_LAYOUT: LE[] = [
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
+/**
+ * Seats are the source of truth for a table's capacity once it has any — the
+ * editor enforces this on every in-session edit (see `patch` below), but a
+ * plan loaded from the server or an older localStorage draft may have been
+ * written before that rule applied (or edited directly against the API), so
+ * re-assert it once on load rather than trusting whatever number is stored.
+ */
+function normalizeElements(elements: LE[]): LE[] {
+  return elements.map((e) =>
+    e.seats && e.seats.length > 0 && e.capacity !== e.seats.length
+      ? { ...e, capacity: e.seats.length }
+      : e,
+  );
+}
+
 let _counter = 0;
 function uid() { return `el_${Date.now()}_${++_counter}`; }
 function snap(v: number, on: boolean) { return on ? Math.round(v / 2.5) * 2.5 : v; }
 function clamp(v: number, lo: number, hi: number) { return Math.max(lo, Math.min(hi, v)); }
+
+/** "4 chairs, 1 sofa (3 seats)" — a plain-English readout of a table's seats. */
+function seatBreakdown(seats: TableSeat[]): string {
+  if (seats.length === 0) return "No seats yet";
+  const parts: string[] = [];
+  (["chair", "sofa", "bench"] as Furniture[]).forEach((furniture) => {
+    const matching = seats.filter((s) => s.furniture === furniture);
+    if (matching.length === 0) return;
+    const groupIds = new Set(matching.map((s) => s.groupId).filter((g): g is string => g !== null));
+    const ungrouped = matching.filter((s) => s.groupId === null).length;
+    const units = groupIds.size + ungrouped;
+    if (units === matching.length) {
+      // Nothing grouped — plain count.
+      parts.push(`${matching.length} ${FURNITURE_LABEL[furniture]}${matching.length === 1 ? "" : "s"}`);
+    } else {
+      parts.push(`${units} ${FURNITURE_LABEL[furniture]}${units === 1 ? "" : "s"} (${matching.length} seats)`);
+    }
+  });
+  return parts.join(", ");
+}
+
+/** Bounding box (in the table's own 0–100 local box, i.e. 0–100 = full w/h) for a group's seats, for the "one continuous shape" backing shape. */
+function groupBounds(seats: TableSeat[], groupId: string, shape: TableShape, w: number, h: number) {
+  const members = seats.filter((s) => s.groupId === groupId).sort((a, b) => a.t - b.t);
+  let minX = 50, maxX = 50, minY = 50, maxY = 50;
+  members.forEach((s) => {
+    const { dx, dy } = seatOffset(shape, s.t, w, h);
+    const lx = 50 + (dx / w) * 100;
+    const ly = 50 + (dy / h) * 100;
+    minX = Math.min(minX, lx); maxX = Math.max(maxX, lx);
+    minY = Math.min(minY, ly); maxY = Math.max(maxY, ly);
+  });
+  return { minX, maxX, minY, maxY, members };
+}
 
 const STORAGE_KEY = "naada_venue_layout";
 
@@ -85,7 +163,7 @@ export function HostVenueLayoutScreen() {
   const [elements, setElements] = useState<LE[]>(() => {
     try {
       const s = localStorage.getItem(STORAGE_KEY);
-      return s ? JSON.parse(s) : DEFAULT_LAYOUT;
+      return normalizeElements(s ? JSON.parse(s) : DEFAULT_LAYOUT);
     } catch {
       return DEFAULT_LAYOUT;
     }
@@ -106,6 +184,16 @@ export function HostVenueLayoutScreen() {
   useEffect(() => { gridRef.current = gridOn; }, [gridOn]);
 
   const sel = elements.find((e) => e.id === selected) ?? null;
+  const selShape = sel ? resolveTableShape(sel.shape) : "round";
+  const selSeats = sel?.seats ?? [];
+
+  // Seats sub-panel form state — one shared draft, fine to leave stale
+  // across selection changes since it's just an input the host is about to
+  // fill in again anyway.
+  const [fillCount, setFillCount] = useState(4);
+  const [groupFurniture, setGroupFurniture] = useState<Furniture>("sofa");
+  const [groupCount, setGroupCount] = useState(3);
+  const [groupSide, setGroupSide] = useState<TableSide>("top");
 
   // Load this host's venue and whatever plan it already has.
   useEffect(() => {
@@ -115,12 +203,17 @@ export function HostVenueLayoutScreen() {
         if (!alive) return;
         const mine = venues[0];
         if (!mine) {
+          // No venue to save to yet, but edits should still survive a
+          // reload via the localStorage draft buffer — without this the
+          // auto-save effect below stays gated forever and "kept in this
+          // browser" (see the banner) would quietly not be true.
+          loadedRef.current = true;
           setLoadPhase("no-venue");
           return;
         }
         setVenue(mine);
         const stored = (mine as { layout?: { elements?: LE[] } }).layout;
-        if (stored?.elements?.length) setElements(stored.elements);
+        if (stored?.elements?.length) setElements(normalizeElements(stored.elements));
         loadedRef.current = true;
         setLoadPhase("ready");
       })
@@ -198,6 +291,25 @@ export function HostVenueLayoutScreen() {
   const patch = (fields: Partial<LE>) => {
     if (!selected) return;
     setElements((prev) => prev.map((e) => (e.id === selected ? { ...e, ...fields } : e)));
+  };
+
+  // Seats are the source of truth for capacity once a table has any — keep
+  // that number in sync with whatever the seat list actually holds.
+  const setTableSeats = (seats: TableSeat[]) => {
+    patch(seats.length > 0 ? { seats, capacity: seats.length } : { seats });
+  };
+
+  // Canvas seat markers render for every table regardless of which is
+  // currently selected, so removing one there can't go through `patch`
+  // (which only ever targets `selected`) — it addresses the table directly.
+  const removeSeatFromTable = (elId: string, seatId: string) => {
+    setElements((prev) =>
+      prev.map((e) => {
+        if (e.id !== elId || !e.seats) return e;
+        const seats = e.seats.filter((s) => s.id !== seatId);
+        return { ...e, seats, ...(seats.length > 0 ? { capacity: seats.length } : {}) };
+      }),
+    );
   };
 
   const reset = () => {
@@ -382,6 +494,14 @@ export function HostVenueLayoutScreen() {
             {elements.map((el) => {
               const p = PALETTE[el.type];
               const isSel = el.id === selected;
+              // A table's own shape overrides the palette default once it's
+              // been set; every other element type keeps the palette's call.
+              const isRoundVisual = el.type === "table" ? resolveTableShape(el.shape) === "round" : p.round;
+              const tableSeats = el.type === "table" ? (el.seats ?? []) : [];
+              const tableGroupIds =
+                tableSeats.length > 0
+                  ? Array.from(new Set(tableSeats.map((s) => s.groupId).filter((g): g is string => g !== null)))
+                  : [];
               return (
                 <div
                   key={el.id}
@@ -392,7 +512,7 @@ export function HostVenueLayoutScreen() {
                     width: `${el.w}%`,
                     height: `${el.h}%`,
                     background: p.bg,
-                    borderRadius: p.round ? "50%" : 3,
+                    borderRadius: isRoundVisual ? "50%" : 3,
                     border: `1.5px solid ${isSel ? "#E8B85C" : "rgba(255,255,255,.1)"}`,
                     boxShadow: isSel
                       ? "0 0 0 2px rgba(232,184,92,.25), 0 0 16px rgba(232,184,92,.1)"
@@ -438,7 +558,7 @@ export function HostVenueLayoutScreen() {
                     </span>
                   )}
                   {/* Resize handle — only on non-round selected elements */}
-                  {isSel && !p.round && (
+                  {isSel && !isRoundVisual && (
                     <div
                       title="Drag to resize"
                       style={{
@@ -455,6 +575,71 @@ export function HostVenueLayoutScreen() {
                       onPointerDown={(e) => startDrag(e, el.id, "resize")}
                     />
                   )}
+
+                  {/* Sofa/bench backing shapes — one continuous shape per group,
+                      drawn under the individually-clickable seat markers. */}
+                  {tableGroupIds.map((gid) => {
+                    const { minX, maxX, minY, maxY } = groupBounds(tableSeats, gid, resolveTableShape(el.shape), el.w, el.h);
+                    const pad = 3.5;
+                    return (
+                      <div
+                        key={gid}
+                        style={{
+                          position: "absolute",
+                          left: `${minX - pad}%`,
+                          top: `${minY - pad}%`,
+                          width: `${Math.max(maxX - minX + pad * 2, pad * 2)}%`,
+                          height: `${Math.max(maxY - minY + pad * 2, pad * 2)}%`,
+                          borderRadius: 7,
+                          background: "rgba(232,184,92,.22)",
+                          border: "1px solid rgba(232,184,92,.55)",
+                          pointerEvents: "none",
+                          zIndex: 4,
+                        }}
+                      />
+                    );
+                  })}
+
+                  {/* Seat markers — click one to remove it. Building up a
+                      table's seats is done via the sub-panel actions on the
+                      right, not by editing markers here. */}
+                  {tableSeats.map((seat) => {
+                    const { dx, dy } = seatOffset(resolveTableShape(el.shape), seat.t, el.w, el.h);
+                    const Icon = FURNITURE_ICON[seat.furniture];
+                    return (
+                      <button
+                        key={seat.id}
+                        type="button"
+                        title={`Remove this ${FURNITURE_LABEL[seat.furniture]} seat`}
+                        style={{
+                          position: "absolute",
+                          left: `${50 + (dx / el.w) * 100}%`,
+                          top: `${50 + (dy / el.h) * 100}%`,
+                          transform: "translate(-50%,-50%)",
+                          width: 15,
+                          height: 15,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          borderRadius: "50%",
+                          background: "#20160A",
+                          border: "1px solid rgba(232,184,92,.75)",
+                          color: "#E8B85C",
+                          padding: 0,
+                          cursor: "pointer",
+                          zIndex: 6,
+                        }}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelected(el.id);
+                          removeSeatFromTable(el.id, seat.id);
+                        }}
+                      >
+                        <Icon style={{ width: 9, height: 9 }} strokeWidth={2.25} />
+                      </button>
+                    );
+                  })}
                 </div>
               );
             })}
@@ -507,7 +692,7 @@ export function HostVenueLayoutScreen() {
         </div>
 
         {/* Right properties panel */}
-        <aside className="w-[192px] shrink-0 border border-line bg-surface">
+        <aside className="w-[228px] shrink-0 border border-line bg-surface">
           <div className="border-b border-line px-3 py-2">
             <p className="t-micro">Properties</p>
           </div>
@@ -525,16 +710,138 @@ export function HostVenueLayoutScreen() {
               </div>
 
               <div>
-                <Label htmlFor="el-cap" className="t-micro">Capacity (0 = no limit)</Label>
+                <Label htmlFor="el-cap" className="t-micro">
+                  {selSeats.length > 0 ? "Capacity (from seats)" : "Capacity (0 = no limit)"}
+                </Label>
                 <Input
                   id="el-cap"
                   type="number"
                   min={0}
                   value={sel.capacity}
+                  readOnly={selSeats.length > 0}
+                  disabled={selSeats.length > 0}
                   onChange={(e) => patch({ capacity: Math.max(0, Number(e.target.value)) })}
                   className="mt-1 h-8 text-[13px]"
                 />
+                {selSeats.length > 0 && (
+                  <p className="t-micro mt-1 text-muted">
+                    This table has seats, so capacity follows the seat count — edit seats below.
+                  </p>
+                )}
               </div>
+
+              {sel.type === "table" && (
+                <div className="border-t border-line pt-3">
+                  <p className="t-micro mb-2 text-muted">Table shape</p>
+                  <div className="grid grid-cols-3 gap-1">
+                    {(["round", "square", "rectangle"] as TableShape[]).map((shape) => (
+                      <button
+                        key={shape}
+                        type="button"
+                        onClick={() => patch({ shape })}
+                        className={cn(
+                          "rounded border px-1 py-1 text-[11px] transition-colors",
+                          selShape === shape
+                            ? "border-signal bg-signal/15 text-paper"
+                            : "border-line text-paper/70 hover:bg-surface-2",
+                        )}
+                      >
+                        {shape === "round" ? "Round" : shape === "square" ? "Square" : "Rect."}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between">
+                    <p className="t-micro text-muted">Seats</p>
+                    <p className="t-micro text-paper/70">{seatBreakdown(selSeats)}</p>
+                  </div>
+
+                  <div className="mt-2 flex items-end gap-1.5">
+                    <div className="flex-1">
+                      <label className="t-micro text-muted">Chairs</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={24}
+                        value={fillCount}
+                        onChange={(e) => setFillCount(Math.max(0, Number(e.target.value)))}
+                        className="mt-0.5 h-7 text-[12px]"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      className="h-7 shrink-0 px-2 text-[11px]"
+                      onClick={() => setTableSeats(autoGenerateSeats(selShape, fillCount, "chair"))}
+                    >
+                      Fill
+                    </Button>
+                  </div>
+                  <p className="t-micro mt-1 text-muted">Replaces all seats with evenly spaced chairs.</p>
+
+                  <div className="mt-3 border-t border-line pt-3">
+                    <p className="t-micro mb-1.5 text-muted">Add a bench or sofa</p>
+                    <div className="flex flex-col gap-1.5">
+                      <select
+                        value={groupFurniture}
+                        onChange={(e) => setGroupFurniture(e.target.value as Furniture)}
+                        className="field h-7 text-[12px]"
+                      >
+                        <option value="sofa">Sofa</option>
+                        <option value="bench">Bench</option>
+                      </select>
+                      <div className="flex items-center gap-1.5">
+                        <label className="t-micro shrink-0 text-muted">Seats</label>
+                        <Input
+                          type="number"
+                          min={2}
+                          max={6}
+                          value={groupCount}
+                          onChange={(e) => setGroupCount(clamp(Number(e.target.value), 2, 6))}
+                          className="h-7 text-[12px]"
+                        />
+                      </div>
+                      {selShape !== "round" && (
+                        <select
+                          value={groupSide}
+                          onChange={(e) => setGroupSide(e.target.value as TableSide)}
+                          className="field h-7 text-[12px]"
+                        >
+                          <option value="top">Top side</option>
+                          <option value="right">Right side</option>
+                          <option value="bottom">Bottom side</option>
+                          <option value="left">Left side</option>
+                        </select>
+                      )}
+                      <Button
+                        size="sm"
+                        className="h-7 text-[11px]"
+                        onClick={() =>
+                          setTableSeats(
+                            addSeatGroup(selSeats, selShape, groupSide, groupCount, groupFurniture, {
+                              w: sel.w,
+                              h: sel.h,
+                            }),
+                          )
+                        }
+                      >
+                        <Plus className="size-3" />
+                        Add {FURNITURE_LABEL[groupFurniture]}
+                      </Button>
+                    </div>
+                    {selShape === "round" && (
+                      <p className="t-micro mt-1 text-muted">
+                        Round tables place new seats right after the last one — no side to pick.
+                      </p>
+                    )}
+                  </div>
+
+                  {selSeats.length > 0 && (
+                    <p className="t-micro mt-3 text-muted">
+                      Click a seat marker on the table to remove it.
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="border-t border-line pt-3">
                 <p className="t-micro mb-2 text-muted">Position & size (%)</p>

@@ -181,7 +181,7 @@ class ZoneTestCase(TestCase):
         return TicketTier.objects.create(
             event=event, name="General", price=Decimal("400.00"), total_quantity=100)
 
-    def order(self, quantity=1, zone_id=None, event=None, tier=None):
+    def order(self, quantity=1, zone_id=None, event=None, tier=None, seat_ids=None):
         """POST the checkout the frontend posts. Returns the DRF response."""
         event = event or self.event
         tier = tier or self.tier
@@ -189,6 +189,8 @@ class ZoneTestCase(TestCase):
                 "items": [{"tier_id": str(tier.id), "quantity": quantity}]}
         if zone_id is not None:
             body["zone_id"] = zone_id
+        if seat_ids is not None:
+            body["seat_ids"] = seat_ids
         return self.client.post(reverse("orders-create"), body, format="json")
 
     def zones(self, event=None):
@@ -389,3 +391,195 @@ class NoLayoutCheckoutTests(ZoneTestCase):
         resp = self.order(zone_id="t1", event=self.bare_event, tier=self.bare_tier)
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(ZoneAllocation.objects.exists())
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-seat booking
+#
+# A table can now carry named seats (chairs/sofas/benches walked around its
+# shape). When it does, a buyer claims specific seats rather than a bare
+# quantity, and the zone's capacity is derived from the seat list. A table
+# with no seats, and every non-table zone, must go on behaving exactly as
+# ZoneTestCase above already proves.
+# ─────────────────────────────────────────────────────────────────────────────
+
+SEATED_FLOOR_PLAN = {
+    "version": 1,
+    "elements": [
+        {"id": "st1", "type": "table", "shape": "round", "x": 7, "y": 30,
+         "w": 10, "h": 10, "label": "Table A", "capacity": 6,
+         "seats": [
+             {"id": "st1-s1", "t": 0.0, "furniture": "chair", "groupId": None},
+             {"id": "st1-s2", "t": 0.33, "furniture": "chair", "groupId": None},
+             {"id": "st1-s3", "t": 0.66, "furniture": "sofa", "groupId": "st1-g1"},
+         ]},
+        {"id": "t2", "type": "table", "x": 40, "y": 30, "w": 10, "h": 10,
+         "label": "Table B", "capacity": 4},
+        {"id": "v1", "type": "vip", "x": 72, "y": 60, "w": 22, "h": 20,
+         "label": "VIP Section", "capacity": 20},
+    ],
+}
+
+
+class SeatTestCase(ZoneTestCase):
+    """Adds a venue whose floor plan has a seated table, on top of the
+    whole-zone fixtures ZoneTestCase already sets up."""
+
+    def setUp(self):
+        super().setUp()
+        self.seated_venue = Venue.objects.create(
+            owner=self.host, name="Nadaprabhu Hall", slug="nadaprabhu-seats",
+            address_line1="9, Palace Road", city=self.city, capacity=150,
+            layout=SEATED_FLOOR_PLAN)
+        self.seated_event = self.make_event(self.seated_venue, "Kavya & The Ragas")
+        self.seated_tier = self.make_tier(self.seated_event)
+
+    def order(self, quantity=1, zone_id=None, event=None, tier=None, seat_ids=None):
+        event = event or self.seated_event
+        tier = tier or self.seated_tier
+        return super().order(quantity=quantity, zone_id=zone_id, event=event,
+                              tier=tier, seat_ids=seat_ids)
+
+    def zones(self, event=None):
+        return super().zones(event or self.seated_event)
+
+
+class SeatBookingTests(SeatTestCase):
+    """Booking specific seats, rather than a bare quantity, on a seated table."""
+
+    def test_booking_two_of_three_seats_succeeds(self):
+        resp = self.order(quantity=2, zone_id="st1", seat_ids=["st1-s1", "st1-s3"])
+        self.assertEqual(resp.status_code, 201, resp.data)
+
+        order = Order.objects.get(pk=resp.data["id"])
+        allocation = ZoneAllocation.objects.get(order=order)
+        self.assertEqual(len(allocation.seat_ids), 2)
+        self.assertEqual(
+            {s["id"] for s in allocation.seat_ids}, {"st1-s1", "st1-s3"})
+        self.assertEqual(allocation.seat_ids[0]["label"], "Seat 1")
+        self.assertEqual(allocation.seat_ids[1]["label"], "Seat 3")
+        self.assertEqual(allocation.seat_ids[1]["furniture"], "sofa")
+
+        table = self.zone("st1")
+        self.assertEqual(table["available"], 1)
+        seat_by_id = {s["id"]: s for s in table["seats"]}
+        self.assertTrue(seat_by_id["st1-s1"]["taken"])
+        self.assertFalse(seat_by_id["st1-s2"]["taken"])
+        self.assertTrue(seat_by_id["st1-s3"]["taken"])
+
+    def test_booking_an_already_taken_seat_is_refused_and_rolls_back(self):
+        first = self.order(quantity=1, zone_id="st1", seat_ids=["st1-s1"])
+        self.assertEqual(first.status_code, 201, first.data)
+
+        before_orders = Order.objects.filter(user=self.buyer).count()
+        before_reserved = TicketTier.objects.get(pk=self.seated_tier.pk).reserved_quantity
+
+        second = self.order(quantity=1, zone_id="st1", seat_ids=["st1-s1"])
+        self.assertEqual(second.status_code, 400)
+        self.assertIn("just been taken", str(second.data["detail"]))
+
+        # No stray order, no stray allocation, and the tier reservation the
+        # rejected attempt made was rolled back — same guarantee whole-zone
+        # booking already gets from ZoneUnavailable.
+        self.assertEqual(Order.objects.filter(user=self.buyer).count(), before_orders)
+        self.assertEqual(
+            TicketTier.objects.get(pk=self.seated_tier.pk).reserved_quantity, before_reserved)
+        self.assertEqual(ZoneAllocation.objects.filter(order__user=self.buyer).count(), 1)
+
+    def test_booking_a_seat_already_held_by_another_live_order_is_refused(self):
+        other_buyer = get_user_model().objects.create_user(
+            email="zone-buyer-2@naada.test", full_name="Priya Iyer", phone="+919000000092")
+        other_client = APIClient()
+        other_client.force_authenticate(user=other_buyer)
+        body = {"event_id": str(self.seated_event.id),
+                "items": [{"tier_id": str(self.seated_tier.id), "quantity": 1}],
+                "zone_id": "st1", "seat_ids": ["st1-s2"]}
+        held = other_client.post(reverse("orders-create"), body, format="json")
+        self.assertEqual(held.status_code, 201, held.data)
+
+        mine = self.order(quantity=1, zone_id="st1", seat_ids=["st1-s2"])
+        self.assertEqual(mine.status_code, 400)
+
+    def test_wrong_seat_count_is_refused(self):
+        too_few = self.order(quantity=2, zone_id="st1", seat_ids=["st1-s1"])
+        self.assertEqual(too_few.status_code, 400)
+        self.assertIn("1 seats for 2 tickets", str(too_few.data["detail"]))
+
+        too_many = self.order(quantity=1, zone_id="st1", seat_ids=["st1-s1", "st1-s2"])
+        self.assertEqual(too_many.status_code, 400)
+        self.assertIn("2 seats for 1 tickets", str(too_many.data["detail"]))
+
+        none_picked = self.order(quantity=1, zone_id="st1")
+        self.assertEqual(none_picked.status_code, 400)
+        self.assertIn("Pick a seat for each ticket", str(none_picked.data["detail"]))
+
+    def test_an_unseated_table_and_a_vip_zone_still_book_by_quantity_alone(self):
+        """Regression check: no seat_ids sent, behaviour is unchanged."""
+        table = self.order(quantity=3, zone_id="t2")
+        self.assertEqual(table.status_code, 201, table.data)
+        self.assertEqual(self.zone("t2")["available"], 1)
+        self.assertEqual(self.zone("t2")["seats"], [])
+
+        vip = self.order(quantity=2, zone_id="v1")
+        self.assertEqual(vip.status_code, 201, vip.data)
+        self.assertEqual(self.zone("v1")["available"], 18)
+        self.assertEqual(self.zone("v1")["seats"], [])
+
+    def test_seats_list_becomes_the_effective_capacity(self):
+        table = self.zone("st1")
+        self.assertEqual(table["capacity"], 3)
+        self.assertEqual(table["available"], 3)
+        self.assertEqual(len(table["seats"]), 3)
+        self.assertEqual([s["label"] for s in table["seats"]], ["Seat 1", "Seat 2", "Seat 3"])
+
+
+class SeatTicketLabelTests(SeatTestCase):
+    """The seat a buyer picked has to reach the ticket, distinctly per seat."""
+
+    def test_confirmed_tickets_carry_their_own_seat_label(self):
+        from apps.payments.views import _confirm_order
+
+        resp = self.order(quantity=2, zone_id="st1", seat_ids=["st1-s1", "st1-s2"])
+        order = Order.objects.get(pk=resp.data["id"])
+
+        _confirm_order(order)
+
+        labels = sorted(order.tickets.values_list("seat_label", flat=True))
+        self.assertEqual(labels, ["Table A · Seat 1", "Table A · Seat 2"])
+        self.assertNotEqual(labels[0], labels[1])
+
+    def test_whole_zone_booking_keeps_the_shared_label(self):
+        """Regression check: a zone without seats still stamps the plain
+        zone label on every ticket, unchanged."""
+        from apps.payments.views import _confirm_order
+
+        resp = self.order(quantity=2, zone_id="v1")
+        order = Order.objects.get(pk=resp.data["id"])
+
+        _confirm_order(order)
+
+        labels = list(order.tickets.values_list("seat_label", flat=True))
+        self.assertEqual(labels, ["VIP Section", "VIP Section"])
+
+
+class SeatReleaseTests(SeatTestCase):
+    """An abandoned checkout must free its exact seats, not just a headcount."""
+
+    def test_releasing_an_expired_order_frees_its_specific_seats(self):
+        resp = self.order(quantity=2, zone_id="st1", seat_ids=["st1-s1", "st1-s3"])
+        order = Order.objects.get(pk=resp.data["id"])
+
+        order.expires_at = timezone.now() - timedelta(minutes=1)
+        order.save(update_fields=["expires_at"])
+
+        self.assertEqual(release_expired_orders(), 1)
+
+        table = self.zone("st1")
+        seat_by_id = {s["id"]: s for s in table["seats"]}
+        self.assertFalse(seat_by_id["st1-s1"]["taken"])
+        self.assertFalse(seat_by_id["st1-s3"]["taken"])
+        self.assertEqual(table["available"], 3)
+
+        # And those seats can be sold again.
+        again = self.order(quantity=2, zone_id="st1", seat_ids=["st1-s1", "st1-s3"])
+        self.assertEqual(again.status_code, 201, again.data)

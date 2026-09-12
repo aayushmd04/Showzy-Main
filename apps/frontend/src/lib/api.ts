@@ -591,6 +591,8 @@ export function createTicketOrder(data: {
   promo_code?: string;
   /** Optional floor-plan zone. Omitted for standing-room events. */
   zone_id?: string;
+  /** Required, one per ticket, when the chosen zone has named seats. */
+  seat_ids?: string[];
 }): Promise<ApiTicketOrder> {
   return post<ApiTicketOrder>("/ticket-orders/", data);
 }

@@ -258,6 +258,9 @@ class ZoneAllocation(TimeStampedModel):
     quantity = models.PositiveSmallIntegerField(default=1,
                                                 help_text="Places claimed in this zone")
     capacity_at_booking = models.PositiveIntegerField(default=0)
+    seat_ids = models.JSONField(
+        default=list, blank=True,
+        help_text="Specific seats claimed, snapshotted as {id,label,furniture} at booking time")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.HELD)
     released_at = models.DateTimeField(null=True, blank=True)
 

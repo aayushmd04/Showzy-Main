@@ -7,7 +7,7 @@ import hmac
 import logging
 from decimal import Decimal
 from django.conf import settings as django_settings
-from django.db import transaction
+from django.db import models, transaction
 from django.utils import timezone
 from rest_framework import permissions, status
 from rest_framework.decorators import api_view, permission_classes
@@ -21,7 +21,7 @@ from .models import (
 from .serializers import (
     OrganizerSerializer, MembershipSerializer, GigApplicationSerializer,
     BookingConversationSerializer, BookingMessageSerializer, OfferSerializer,
-    BookingOrderSerializer, LedgerEntrySerializer, DisputeSerializer,
+    BookingOrderSerializer, LedgerEntrySerializer, AdminLedgerEntrySerializer, DisputeSerializer,
     FundOrderSerializer, MakeOfferSerializer, compute_fees,
 )
 
@@ -624,11 +624,120 @@ def dispute_queue(request):
 @api_view(["GET"])
 @permission_classes([permissions.IsAdminUser])
 def flagged_messages(request):
-    """Admin view of contact-info flagged messages (disintermediation monitor)."""
-    msgs = BookingMessage.objects.filter(is_flagged=True, is_deleted=False).select_related(
-        "conversation", "sender"
+    """Admin queue of contact-info flagged messages (disintermediation monitor).
+
+    Only unreviewed ones — once someone marks a message reviewed it's off the
+    queue for good, or the queue would never shrink. Pass ?reviewed=1 to see
+    the ones already cleared instead.
+    """
+    want_reviewed = request.query_params.get("reviewed") == "1"
+    msgs = BookingMessage.objects.filter(
+        is_flagged=True, is_deleted=False, reviewed_at__isnull=not want_reviewed,
+    ).select_related(
+        "conversation__organizer", "conversation__artist", "conversation__event", "sender", "reviewed_by"
     ).order_by("-created_at")[:100]
     return Response(BookingMessageSerializer(msgs, many=True).data)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAdminUser])
+def review_flagged_message(request, pk):
+    """Mark one flagged message as looked at. Idempotent — reviewing twice is a no-op."""
+    msg = BookingMessage.objects.filter(pk=pk).first()
+    if not msg:
+        return Response({"detail": "Not found."}, status=404)
+    if msg.reviewed_at is None:
+        msg.reviewed_at = timezone.now()
+        msg.reviewed_by = request.user
+        msg.save(update_fields=["reviewed_at", "reviewed_by"])
+    return Response(BookingMessageSerializer(msg).data)
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAdminUser])
+def admin_ledger(request):
+    """Platform-wide ledger — every LedgerEntry across every booking order.
+
+    This covers the host↔artist escrow side of the ledger, the only side with
+    a real backing model today; ticket-sale/commission rows have no model yet.
+    """
+    entries = LedgerEntry.objects.select_related(
+        "booking_order__organizer", "booking_order__artist", "booking_order__event"
+    ).order_by("-created_at")
+
+    entry_type = request.query_params.get("type")
+    if entry_type:
+        entries = entries.filter(entry_type=entry_type)
+
+    entries = entries[:200]
+    data = AdminLedgerEntrySerializer(entries, many=True).data
+    return Response({"count": len(data), "results": data})
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAdminUser])
+def admin_overview(request):
+    """Headline counts for the ops console home — every number here is a
+    live query, not a cache, since this screen exists precisely so ops can
+    trust what it says."""
+    return Response({
+        "pending_kyc": Organizer.objects.filter(
+            kyc_status__in=[Organizer.KYCStatus.PENDING, Organizer.KYCStatus.SUBMITTED]
+        ).count(),
+        "open_disputes": Dispute.objects.filter(resolution=Dispute.Resolution.PENDING).count(),
+        "flagged_messages": BookingMessage.objects.filter(
+            is_flagged=True, is_deleted=False, reviewed_at__isnull=True
+        ).count(),
+        "held_transfers": Transfer.objects.filter(on_hold=True).count(),
+    })
+
+
+# ─── Admin — organizer KYC ─────────────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAdminUser])
+def organizer_kyc_queue(request):
+    """Admin view of every organizer, pending KYC first — this is the real
+    gate on `can_book_artists` (see Organizer model), unlike artists, who
+    have no KYC concept of their own."""
+    order = models.Case(
+        models.When(kyc_status=Organizer.KYCStatus.SUBMITTED, then=0),
+        models.When(kyc_status=Organizer.KYCStatus.PENDING, then=1),
+        models.When(kyc_status=Organizer.KYCStatus.REJECTED, then=2),
+        default=3,
+        output_field=models.IntegerField(),
+    )
+    organizers_qs = Organizer.objects.filter(is_active=True).annotate(_kyc_order=order).order_by(
+        "_kyc_order", "name"
+    )
+    return Response(OrganizerSerializer(organizers_qs, many=True).data)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAdminUser])
+def set_organizer_kyc(request, pk):
+    """Admin approves or rejects an organizer's KYC — the real gate on whether
+    they can fund a booking (`Organizer.can_book_artists`)."""
+    organizer = Organizer.objects.filter(pk=pk).first()
+    if not organizer:
+        return Response({"detail": "Not found."}, status=404)
+
+    new_status = request.data.get("status")
+    if new_status not in [Organizer.KYCStatus.VERIFIED, Organizer.KYCStatus.REJECTED]:
+        return Response({"detail": "status must be verified or rejected."}, status=400)
+
+    organizer.kyc_status = new_status
+    if new_status == Organizer.KYCStatus.VERIFIED:
+        organizer.kyc_verified_at = timezone.now()
+        organizer.is_verified = True
+        organizer.kyc_rejection_reason = ""
+    else:
+        organizer.kyc_rejection_reason = request.data.get("rejection_reason", "")
+        organizer.is_verified = False
+    organizer.save(update_fields=[
+        "kyc_status", "kyc_verified_at", "is_verified", "kyc_rejection_reason",
+    ])
+    return Response(OrganizerSerializer(organizer).data)
 
 
 # ─── Helpers ─────────────────────────────────────────────────────────────────

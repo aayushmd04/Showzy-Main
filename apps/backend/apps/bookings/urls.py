@@ -30,7 +30,12 @@ urlpatterns = [
     path("orders/<uuid:pk>/ledger/", views.order_ledger, name="booking-ledger"),
 
     # Admin
+    path("admin/overview/", views.admin_overview, name="admin-overview"),
     path("admin/disputes/", views.dispute_queue, name="admin-dispute-queue"),
     path("admin/disputes/<uuid:dispute_id>/resolve/", views.resolve_dispute, name="admin-dispute-resolve"),
     path("admin/flagged-messages/", views.flagged_messages, name="admin-flagged-messages"),
+    path("admin/flagged-messages/<uuid:pk>/review/", views.review_flagged_message, name="admin-flagged-message-review"),
+    path("admin/ledger/", views.admin_ledger, name="admin-ledger"),
+    path("admin/organizers/", views.organizer_kyc_queue, name="admin-organizer-kyc-queue"),
+    path("admin/organizers/<uuid:pk>/kyc/", views.set_organizer_kyc, name="admin-organizer-kyc-set"),
 ]

@@ -16,11 +16,15 @@ class OrganizerSerializer(serializers.ModelSerializer):
         model = Organizer
         fields = [
             "id", "name", "name_kn", "slug", "description", "organizer_type",
-            "kyc_status", "contact_email", "contact_phone", "website",
+            "kyc_status", "kyc_submitted_at", "kyc_verified_at", "kyc_rejection_reason",
+            "contact_email", "contact_phone", "website",
             "city", "address", "logo", "gst_number", "pan_number",
             "is_active", "is_verified", "can_book_artists", "created_at",
         ]
-        read_only_fields = ["id", "kyc_status", "is_verified", "can_book_artists", "created_at"]
+        read_only_fields = [
+            "id", "kyc_status", "kyc_submitted_at", "kyc_verified_at", "kyc_rejection_reason",
+            "is_verified", "can_book_artists", "created_at",
+        ]
 
 
 class MembershipSerializer(serializers.ModelSerializer):
@@ -48,11 +52,22 @@ class GigApplicationSerializer(serializers.ModelSerializer):
 
 class BookingMessageSerializer(serializers.ModelSerializer):
     sender_name = serializers.CharField(source="sender.name", read_only=True)
+    flag_reason = serializers.CharField(read_only=True)
+    reviewed_by_name = serializers.CharField(source="reviewed_by.name", read_only=True, default=None)
+    organizer_name = serializers.CharField(source="conversation.organizer.name", read_only=True, default=None)
+    artist_name = serializers.CharField(source="conversation.artist.stage_name", read_only=True, default=None)
+    event_title = serializers.CharField(source="conversation.event.title", read_only=True, default=None)
+    conversation_id = serializers.UUIDField(read_only=True)
 
     class Meta:
         model = BookingMessage
-        fields = ["id", "sender", "sender_name", "content", "message_type", "linked_offer", "is_flagged", "created_at"]
-        read_only_fields = ["id", "sender", "is_flagged", "created_at"]
+        fields = [
+            "id", "sender", "sender_name", "content", "message_type", "linked_offer",
+            "is_flagged", "flag_reason", "reviewed_at", "reviewed_by_name",
+            "conversation_id", "organizer_name", "artist_name", "event_title",
+            "created_at",
+        ]
+        read_only_fields = ["id", "sender", "is_flagged", "flag_reason", "reviewed_at", "created_at"]
 
 
 class BookingConversationSerializer(serializers.ModelSerializer):
@@ -121,6 +136,26 @@ class LedgerEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = LedgerEntry
         fields = ["id", "entry_type", "amount", "currency", "description", "reference_id", "created_at"]
+
+
+class AdminLedgerEntrySerializer(serializers.ModelSerializer):
+    """Same rows as `LedgerEntrySerializer`, with the booking context an
+    ops-wide view needs — which the per-order endpoint can omit since the
+    caller already knows which order they're looking at."""
+
+    booking_order_id = serializers.UUIDField(read_only=True)
+    organizer_name = serializers.CharField(source="booking_order.organizer.name", read_only=True)
+    artist_name = serializers.CharField(source="booking_order.artist.stage_name", read_only=True)
+    event_title = serializers.CharField(
+        source="booking_order.event.title", read_only=True, default=None, allow_null=True
+    )
+
+    class Meta:
+        model = LedgerEntry
+        fields = [
+            "id", "entry_type", "amount", "currency", "description", "reference_id",
+            "booking_order_id", "organizer_name", "artist_name", "event_title", "created_at",
+        ]
 
 
 class DisputeSerializer(serializers.ModelSerializer):

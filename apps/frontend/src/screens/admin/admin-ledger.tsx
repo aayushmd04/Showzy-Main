@@ -1,42 +1,58 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { ConsoleShell, ADMIN_NAV } from "@/components/naada/console-shell";
 import { Select } from "@/components/ui/select";
-import { useStore } from "@/store/app-store";
-import { buildLedger, LEDGER_DIRECTION, type LedgerEntryType } from "@/lib/ledger";
+import { getAdminLedger, type AdminLedgerRow } from "@/lib/api";
 import { money } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
-const TYPE_LABEL: Record<LedgerEntryType, string> = {
-  ticket_sale: "Ticket sale",
-  commission: "Commission",
-  booking_funded: "Booking funded",
+const TYPE_LABEL: Record<AdminLedgerRow["entry_type"], string> = {
+  gross_charge: "Gross charge (from host)",
   platform_fee: "Platform fee",
+  tds: "TDS deducted",
   artist_payout: "Artist payout",
-  refund: "Refund",
+  refund_host: "Refund to host",
+  reversal: "Razorpay reversal",
 };
 
-const FILTERS: { value: "all" | LedgerEntryType; label: string }[] = [
-  { value: "all", label: "All types" },
-  { value: "ticket_sale", label: "Ticket sales" },
-  { value: "commission", label: "Commission" },
-  { value: "booking_funded", label: "Booking funded" },
+/** Credits show as money in; the rest are money leaving the platform. */
+const CREDIT_TYPES = new Set<AdminLedgerRow["entry_type"]>(["gross_charge"]);
+
+const FILTERS: { value: string; label: string }[] = [
+  { value: "", label: "All types" },
+  { value: "gross_charge", label: "Gross charges" },
   { value: "platform_fee", label: "Platform fee" },
+  { value: "tds", label: "TDS" },
   { value: "artist_payout", label: "Artist payouts" },
-  { value: "refund", label: "Refunds" },
+  { value: "refund_host", label: "Refunds" },
+  { value: "reversal", label: "Reversals" },
 ];
 
 /**
- * Read-only audit trail (mind map §14 / §16 `LedgerEntry`) — recomputed from
- * settlements and bookings on every render, so it can never drift from what
- * hosts and artists see on their own screens.
+ * Read-only audit trail over every host↔artist booking's escrow ledger,
+ * platform-wide (`GET /admin/ledger/`) — this used to be recomputed client-side
+ * from the signed-in user's own settlements and bookings, which is empty for
+ * an admin account.
+ *
+ * Ticket-sale revenue has no ledger-backed model yet on the backend, so this
+ * table covers the booking-escrow side only (gross charge, platform fee, TDS,
+ * artist payout, refunds, reversals) — it does not invent numbers for the
+ * side that isn't tracked.
  */
 export function AdminLedgerScreen() {
-  const { settlements, bookings, eventById, artistById } = useStore();
-  const [filter, setFilter] = useState<"all" | LedgerEntryType>("all");
+  const [filter, setFilter] = useState("");
+  const [rows, setRows] = useState<AdminLedgerRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
-  const rows = useMemo(() => buildLedger(settlements, bookings), [settlements, bookings]);
-  const filtered = filter === "all" ? rows : rows.filter((r) => r.type === filter);
+  useEffect(() => {
+    let alive = true;
+    setLoading(true);
+    getAdminLedger(filter || undefined)
+      .then((data) => { if (alive) { setRows(data.results); setError(false); } })
+      .catch(() => { if (alive) { setRows([]); setError(true); } })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [filter]);
 
   return (
     <ConsoleShell nav={ADMIN_NAV} breadcrumb={["Ledger"]}>
@@ -44,56 +60,50 @@ export function AdminLedgerScreen() {
         <h1 className="t-h1">Ledger</h1>
         <Select
           value={filter}
-          onChange={(v) => setFilter(v as typeof filter)}
+          onChange={setFilter}
           options={FILTERS}
           aria-label="Filter by entry type"
-          className="w-[200px]"
+          className="w-[220px]"
         />
       </div>
+      <p className="t-small mt-2 max-w-[60ch] text-muted">
+        Every money movement on a host↔artist booking, platform-wide. Ticket-sale revenue isn't
+        on a ledger yet, so it isn't shown here rather than guessed at.
+      </p>
 
       <div className="mt-6 overflow-x-auto border border-line bg-surface">
-        <table className="w-full min-w-[560px] text-left">
+        <table className="w-full min-w-[680px] text-left">
           <caption className="sr-only">Ledger entries</caption>
           <thead>
             <tr className="border-b border-line">
               <th scope="col" className="t-micro px-4 py-3">Type</th>
-              <th scope="col" className="t-micro px-4 py-3">Event / booking</th>
+              <th scope="col" className="t-micro px-4 py-3">Booking</th>
               <th scope="col" className="t-micro px-4 py-3 text-right">Amount</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => {
-              const event = row.eventId ? eventById(row.eventId) : undefined;
-              const artist = row.artistId ? artistById(row.artistId) : undefined;
-              const direction = LEDGER_DIRECTION[row.type];
-              return (
-                <tr key={row.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-3 text-[14px]">{TYPE_LABEL[row.type]}</td>
-                  <td className="px-4 py-3 text-[14px] text-muted">
-                    {row.bookingId ? (
-                      <Link to={`/bookings/${row.bookingId}`} className="hover:text-signal">
-                        {event?.name ?? row.bookingId} {artist ? `· ${artist.name}` : ""}
-                      </Link>
-                    ) : (
-                      event?.name ?? "—"
-                    )}
-                  </td>
-                  <td
-                    className={cn(
-                      "t-mono px-4 py-3 text-right text-[14px]",
-                      direction === "out" && "text-muted",
-                    )}
-                  >
-                    {direction === "out" ? "−" : "+"}
-                    {money(row.amount)}
-                  </td>
-                </tr>
-              );
-            })}
-            {filtered.length === 0 && (
+            {rows.map((row) => (
+              <tr key={row.id} className="border-b border-line last:border-0">
+                <td className="px-4 py-3 text-[14px]">{TYPE_LABEL[row.entry_type]}</td>
+                <td className="px-4 py-3 text-[14px] text-muted">
+                  {row.event_title ?? "—"} · {row.artist_name}
+                  <span className="block text-muted/70">{row.organizer_name}</span>
+                </td>
+                <td
+                  className={cn(
+                    "t-mono px-4 py-3 text-right text-[14px]",
+                    !CREDIT_TYPES.has(row.entry_type) && "text-muted",
+                  )}
+                >
+                  {CREDIT_TYPES.has(row.entry_type) ? "+" : "−"}
+                  {money(Math.abs(Number(row.amount)))}
+                </td>
+              </tr>
+            ))}
+            {!loading && rows.length === 0 && (
               <tr>
                 <td colSpan={3} className="px-4 py-10 text-center text-muted">
-                  No entries for this filter.
+                  {error ? "Couldn't load the ledger." : "No entries for this filter."}
                 </td>
               </tr>
             )}
@@ -102,8 +112,9 @@ export function AdminLedgerScreen() {
       </div>
 
       <p className="t-small mt-4 text-muted">
-        {filtered.length} {filtered.length === 1 ? "entry" : "entries"}. Recomputed from
-        settlements and bookings — nothing here is stored separately.
+        {loading
+          ? "Loading…"
+          : `${rows.length} ${rows.length === 1 ? "entry" : "entries"}${rows.length === 200 ? " (showing the most recent 200)" : ""}.`}
       </p>
     </ConsoleShell>
   );

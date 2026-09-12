@@ -533,6 +533,96 @@ export function getOrderLedger(
   return get(`/orders/${orderId}/ledger/`);
 }
 
+// ─── Admin / ops console ───────────────────────────────────────────────────────
+//
+// Every endpoint here requires is_staff and returns platform-wide data — the
+// ops console has no bookings, settlements or messages of its own to read.
+
+export interface AdminOverview {
+  pending_kyc: number;
+  open_disputes: number;
+  flagged_messages: number;
+  held_transfers: number;
+}
+
+export function getAdminOverview(): Promise<AdminOverview> {
+  return get("/admin/overview/");
+}
+
+export interface AdminLedgerRow {
+  id: string;
+  entry_type: "gross_charge" | "platform_fee" | "tds" | "artist_payout" | "refund_host" | "reversal";
+  amount: string;
+  currency: string;
+  description: string;
+  reference_id: string;
+  booking_order_id: string;
+  organizer_name: string;
+  artist_name: string;
+  event_title: string | null;
+  created_at: string;
+}
+
+export function getAdminLedger(entryType?: string): Promise<{ count: number; results: AdminLedgerRow[] }> {
+  return get(`/admin/ledger/${entryType ? `?type=${encodeURIComponent(entryType)}` : ""}`);
+}
+
+export interface AdminFlaggedMessage {
+  id: string;
+  sender: string;
+  sender_name: string;
+  content: string;
+  message_type: string;
+  is_flagged: boolean;
+  flag_reason: string;
+  reviewed_at: string | null;
+  reviewed_by_name: string | null;
+  conversation_id: string;
+  organizer_name: string | null;
+  artist_name: string | null;
+  event_title: string | null;
+  created_at: string;
+}
+
+/** Unreviewed by default — pass true once a caller wants the cleared queue instead. */
+export function getFlaggedMessages(reviewed = false): Promise<AdminFlaggedMessage[]> {
+  return get(`/admin/flagged-messages/${reviewed ? "?reviewed=1" : ""}`);
+}
+
+export function reviewFlaggedMessage(id: string): Promise<AdminFlaggedMessage> {
+  return post(`/admin/flagged-messages/${id}/review/`);
+}
+
+export interface AdminOrganizer {
+  id: string;
+  name: string;
+  name_kn: string;
+  organizer_type: "venue" | "company" | "individual";
+  kyc_status: "pending" | "submitted" | "verified" | "rejected";
+  kyc_submitted_at: string | null;
+  kyc_verified_at: string | null;
+  kyc_rejection_reason: string;
+  is_verified: boolean;
+  can_book_artists: boolean;
+  created_at: string;
+}
+
+/** Every organizer, pending/submitted KYC first — the real gate on whether they can fund a booking. */
+export function getOrganizerKycQueue(): Promise<AdminOrganizer[]> {
+  return get("/admin/organizers/");
+}
+
+export function setOrganizerKyc(
+  organizerId: string,
+  status: "verified" | "rejected",
+  rejectionReason?: string,
+): Promise<AdminOrganizer> {
+  return post(`/admin/organizers/${organizerId}/kyc/`, {
+    status,
+    ...(rejectionReason ? { rejection_reason: rejectionReason } : {}),
+  });
+}
+
 // ─── Gig applications ─────────────────────────────────────────────────────────
 
 /**

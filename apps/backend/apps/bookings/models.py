@@ -177,6 +177,14 @@ class BookingMessage(TimeStampedModel):
     flag_reason = models.CharField(max_length=200, blank=True)
     is_deleted = models.BooleanField(default=False)
 
+    # Ops review of a flagged message — set once someone has looked at it.
+    # Flagging never blocked delivery; this is purely a queue-management state.
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name="reviewed_flagged_messages"
+    )
+
     class Meta:
         ordering = ["created_at"]
 

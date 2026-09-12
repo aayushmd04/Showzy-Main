@@ -1,20 +1,35 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ConsoleShell, ADMIN_NAV } from "@/components/naada/console-shell";
 import { StatTile } from "@/components/naada/stat-tile";
-import { useStore } from "@/store/app-store";
+import { getAdminOverview, type AdminOverview } from "@/lib/api";
 
 /**
  * Admin / Ops console home — mind map §14. Verification, disputes and
  * flagged messages are the first-class deliverables here, not a ledger
  * with a "view more" link nobody opens.
+ *
+ * Every count below is a platform-wide query (`GET /admin/overview/`) — an
+ * admin has no bookings, settlements or messages of their own, so a screen
+ * built against "my" data would always read zero or wrong for this role.
  */
 export function AdminHomeScreen() {
-  const { artists, bookings, messages, settlements } = useStore();
+  const [overview, setOverview] = useState<AdminOverview | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const pendingKyc = artists.filter((a) => a.kycStatus === "pending").length;
-  const openDisputes = bookings.filter((b) => b.state === "disputed").length;
-  const flagged = messages.filter((m) => m.flagged).length;
-  const held = settlements.filter((s) => s.status === "held").length;
+  useEffect(() => {
+    let alive = true;
+    getAdminOverview()
+      .then((data) => { if (alive) setOverview(data); })
+      .catch(() => { if (alive) setOverview(null); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
+
+  const pendingKyc = overview?.pending_kyc ?? 0;
+  const openDisputes = overview?.open_disputes ?? 0;
+  const flagged = overview?.flagged_messages ?? 0;
+  const held = overview?.held_transfers ?? 0;
 
   return (
     <ConsoleShell nav={ADMIN_NAV} breadcrumb={["Overview"]}>
@@ -24,12 +39,16 @@ export function AdminHomeScreen() {
         goes — the process matters more than the code.
       </p>
 
-      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile value={String(pendingKyc)} label="Artists awaiting KYC" tone="brass" />
-        <StatTile value={String(openDisputes)} label="Open disputes" tone="signal" />
-        <StatTile value={String(flagged)} label="Flagged messages" tone="signal" />
-        <StatTile value={String(held)} label="Settlements held" />
-      </div>
+      {loading ? (
+        <p className="t-small mt-6 text-muted">Loading…</p>
+      ) : (
+        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <StatTile value={String(pendingKyc)} label="Organizers awaiting KYC" tone="brass" />
+          <StatTile value={String(openDisputes)} label="Open disputes" tone="signal" />
+          <StatTile value={String(flagged)} label="Flagged messages" tone="signal" />
+          <StatTile value={String(held)} label="Transfers on hold" />
+        </div>
+      )}
 
       <div className="mt-10 grid gap-3 sm:grid-cols-3">
         <Link

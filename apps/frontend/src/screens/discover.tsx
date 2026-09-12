@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { motion, useReducedMotion } from "motion/react";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { NotificationBell } from "@/components/naada/notification-bell";
@@ -341,13 +342,17 @@ function EventCard({
 }
 
 // ─── Hero photo panel ─────────────────────────────────────────────────────────
-function HeroPhotoPanel({ event, venue, tok }: {
+function HeroPhotoPanel({ event, index, venue, tok }: {
   event: NaadaEvent;
+  index: number;
   venue?: { name: string; area: string };
   tok: typeof T.dark;
 }) {
   const price = priceLabel(event);
   const left  = seatsLeft(event);
+  // Prefer the event's own image, exactly like EventCard — a hardcoded photo
+  // here meant the hero never actually looked like whichever event it named.
+  const photo = (event as NaadaEvent & { _posterImage?: string })._posterImage ?? gigPhoto(index);
 
   return (
     <div
@@ -361,7 +366,7 @@ function HeroPhotoPanel({ event, venue, tok }: {
       }}
     >
       <img
-        src="/gig-1.jpg"
+        src={photo}
         alt={event.name}
         style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", filter: "saturate(1.05) contrast(1.05)" }}
       />
@@ -416,6 +421,8 @@ export function DiscoverScreen() {
   const [cityFilter, setCityFilter]     = useState("all");
   const [cities, setCities]             = useState<ApiCity[]>([]);
   const tickerRef = useRef<HTMLDivElement>(null);
+  const cardsStripRef = useRef<HTMLDivElement>(null);
+  const [cardsStripPaused, setCardsStripPaused] = useState(false);
 
   // Cities come from the API. They used to be hardcoded, matched by substrings
   // like "gokulam" and "koramangala", so launching in a third city meant
@@ -486,8 +493,59 @@ export function DiscoverScreen() {
     [published, activeTabName, urlQuery, venueOf, artists],
   );
 
-  const heroEvent = published[0];
+  // A primitive fingerprint of `filtered`, not the array itself — `filtered`
+  // is a fresh array reference on plenty of renders that don't actually
+  // change which events are in it (e.g. an unrelated store update), and an
+  // effect keyed on the array itself would tear down and rebuild every one
+  // of those times, never surviving long enough for its own interval to fire.
+  const filteredKey = useMemo(() => filtered.map((e) => e.id).join(","), [filtered]);
+
+  // The hero rotates through the next 5 published events rather than
+  // freezing on whichever one happened to sort first.
+  const heroEvents = useMemo(() => published.slice(0, 5), [published]);
+  // Same reasoning as `filteredKey` above — key the rotation effects on the
+  // actual set of ids, not the `heroEvents` array reference.
+  const heroEventsKey = useMemo(() => heroEvents.map((e) => e.id).join(","), [heroEvents]);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [heroPaused, setHeroPaused] = useState(false);
+  const reduceMotion = useReducedMotion();
+
+  // A city switch or a fresher list can leave the old index pointing past
+  // the end of the new one — snap back to the start rather than show nothing.
+  useEffect(() => {
+    setHeroIndex(0);
+  }, [heroEventsKey]);
+
+  useEffect(() => {
+    if (reduceMotion || heroPaused || heroEvents.length <= 1) return;
+    const id = window.setInterval(() => {
+      setHeroIndex((i) => (i + 1) % heroEvents.length);
+    }, 6000);
+    return () => window.clearInterval(id);
+  }, [heroEventsKey, heroEvents.length, reduceMotion, heroPaused]);
+
+  const heroEvent = heroEvents[heroIndex] ?? published[0];
   const heroVenue = heroEvent ? venueOf(heroEvent) : undefined;
+
+  // "This week" is a horizontally auto-scrolling strip (see the
+  // `.discover-cards` flex-row CSS), not a grid that just wraps once it runs
+  // out of room. Reset to the start whenever the filtered list changes, so
+  // switching tabs never leaves the strip scrolled into what used to be there.
+  useEffect(() => {
+    cardsStripRef.current?.scrollTo({ left: 0 });
+  }, [filteredKey]);
+
+  useEffect(() => {
+    if (reduceMotion || cardsStripPaused) return;
+    const el = cardsStripRef.current;
+    if (!el || el.scrollWidth <= el.clientWidth + 4) return;
+
+    const id = window.setInterval(() => {
+      const nearEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
+      el.scrollTo({ left: nearEnd ? 0 : el.scrollLeft + 320, behavior: "smooth" });
+    }, 3500);
+    return () => window.clearInterval(id);
+  }, [filteredKey, reduceMotion, cardsStripPaused]);
 
   // Ticker items: areas + genres
   const tickerItems = useMemo(() => {
@@ -836,10 +894,54 @@ export function DiscoverScreen() {
           </div>
         </div>
 
-        {/* Right: hero photo */}
+        {/* Right: hero photo — rotates through the top 5 events; hovering
+            pauses it so reading the caption doesn't race the timer. */}
         {heroEvent && (
-          <div className="discover-hero-photo">
-            <HeroPhotoPanel event={heroEvent} venue={heroVenue} tok={tok} />
+          <div
+            className="discover-hero-photo"
+            onMouseEnter={() => setHeroPaused(true)}
+            onMouseLeave={() => setHeroPaused(false)}
+          >
+            {/* A fresh `key` per event forces a real remount rather than an
+                update — simpler than AnimatePresence, and correct by
+                construction: there is no "old" instance left holding stale
+                props to get stuck showing. */}
+            <motion.div
+              key={heroEvent.id}
+              initial={reduceMotion ? false : { opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4 }}
+            >
+              <HeroPhotoPanel event={heroEvent} index={heroIndex} venue={heroVenue} tok={tok} />
+            </motion.div>
+
+            {heroEvents.length > 1 && (
+              <div
+                role="tablist"
+                aria-label="Featured events"
+                style={{ display: "flex", justifyContent: "center", gap: 8, marginTop: 14 }}
+              >
+                {heroEvents.map((ev, i) => (
+                  <button
+                    key={ev.id}
+                    role="tab"
+                    aria-selected={i === heroIndex}
+                    aria-label={`Show ${ev.name}`}
+                    onClick={() => setHeroIndex(i)}
+                    style={{
+                      width: i === heroIndex ? 22 : 8,
+                      height: 8,
+                      borderRadius: 999,
+                      border: "none",
+                      padding: 0,
+                      cursor: "pointer",
+                      background: i === heroIndex ? tok.signal : tok.cardBorder,
+                      transition: "all .25s ease",
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
       </section>
@@ -947,7 +1049,7 @@ export function DiscoverScreen() {
           </div>
           <span
             style={{ fontSize: 16, fontWeight: 600, color: tok.signal, cursor: "pointer" }}
-            onClick={() => navigate("/events")}
+            onClick={() => { setActiveFilter(0); setSearchInput(""); setSearchParams({}); }}
           >
             {lang === "en" ? `See all ${filtered.length} →` : `ಎಲ್ಲಾ ${filtered.length} ನೋಡಿ →`}
           </span>
@@ -1028,9 +1130,18 @@ export function DiscoverScreen() {
           </form>
         </div>
 
-        {/* Cards grid */}
+        {/* Cards strip — auto-scrolls horizontally; hovering or touching it
+            pauses the advance so browsing doesn't fight the timer. */}
         {filtered.length > 0 ? (
-          <div className="discover-cards">
+          <div
+            className="discover-cards"
+            ref={cardsStripRef}
+            onMouseEnter={() => setCardsStripPaused(true)}
+            onMouseLeave={() => setCardsStripPaused(false)}
+            onTouchStart={() => setCardsStripPaused(true)}
+            onTouchEnd={() => setCardsStripPaused(false)}
+            onTouchCancel={() => setCardsStripPaused(false)}
+          >
             {filtered.map((ev, i) => (
               <EventCard
                 key={ev.id}

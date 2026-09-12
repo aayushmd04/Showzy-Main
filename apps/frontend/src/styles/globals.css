@@ -299,10 +299,25 @@
 .discover-hero-photo {
   display: block;
 }
+/* A horizontally auto-scrolling strip, not a wrapping grid — see
+   discover.tsx's useAutoScroll for the actual scrolling. Snap points make the
+   manual-scroll fallback (reduced motion, or a mid-scroll tap) land cleanly on
+   a card edge instead of half a card in. */
 .discover-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  display: flex;
   gap: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scroll-behavior: smooth;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.discover-cards::-webkit-scrollbar {
+  display: none;
+}
+.discover-cards > * {
+  flex: 0 0 300px;
+  scroll-snap-align: start;
 }
 .discover-trust {
   display: grid;

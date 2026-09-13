@@ -5,6 +5,7 @@ from rest_framework import serializers
 from .models import Artist, ArtistPhoto, ArtistFollower
 from apps.core.serializers import GenreSerializer
 from apps.core.urlfields import ForgivingURLField, SocialHandleField
+from apps.core.payout_fields import PayoutFieldsMixin, PAYOUT_READ_ONLY_FIELDS
 
 #: Ceiling on stored blackout dates. A year of blocked dates is already an
 #: artist who is not taking bookings; beyond that it is a client bug.
@@ -140,10 +141,15 @@ class ArtistDetailSerializer(serializers.ModelSerializer):
     # the detail response using the same names as the list response.
     fee_range_min = serializers.DecimalField(source="booking_fee_min", max_digits=10, decimal_places=2, allow_null=True, read_only=True)
     fee_range_max = serializers.DecimalField(source="booking_fee_max", max_digits=10, decimal_places=2, allow_null=True, read_only=True)
+    # The account number itself is never returned — only how it can be
+    # recognised by whoever entered it ("ending in 4321").
+    bank_account_last4 = serializers.ReadOnlyField()
+    has_bank_details = serializers.ReadOnlyField()
+    can_receive_payouts = serializers.ReadOnlyField()
 
     class Meta:
         model = Artist
-        exclude = ["is_deleted", "deleted_at"]
+        exclude = ["is_deleted", "deleted_at", "bank_account_number"]
 
     def get_user(self, obj):
         return _artist_user(obj)
@@ -171,7 +177,7 @@ class ArtistDetailSerializer(serializers.ModelSerializer):
         return False
 
 
-class ArtistCreateUpdateSerializer(serializers.ModelSerializer):
+class ArtistCreateUpdateSerializer(PayoutFieldsMixin, serializers.ModelSerializer):
     availability = ArtistAvailabilityField(required=False)
     # Nobody types "https://". These accept what a person actually writes and
     # normalise it, rather than refusing a perfectly good address.
@@ -191,11 +197,16 @@ class ArtistCreateUpdateSerializer(serializers.ModelSerializer):
         source="booking_fee_max", max_digits=10, decimal_places=2,
         required=False, allow_null=True,
     )
+    # Settable, but never echoed back — see ArtistDetailSerializer for why.
+    bank_account_number = serializers.CharField(
+        required=False, allow_blank=True, max_length=34, write_only=True,
+    )
 
     class Meta:
         model = Artist
         exclude = ["user", "is_deleted", "deleted_at", "is_verified", "is_featured",
                    "follower_count"]
+        read_only_fields = PAYOUT_READ_ONLY_FIELDS
 
     def validate(self, attrs):
         low = attrs.get("booking_fee_min", getattr(self.instance, "booking_fee_min", None))
@@ -205,3 +216,10 @@ class ArtistCreateUpdateSerializer(serializers.ModelSerializer):
                 {"fee_range_max": "The top of your fee range must be at least the bottom."}
             )
         return attrs
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        touched = self.apply_payout_side_effects(instance, validated_data)
+        if touched:
+            instance.save(update_fields=touched)
+        return instance

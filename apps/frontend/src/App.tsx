@@ -51,6 +51,7 @@ const HostEventEditorScreen = lazyScreen(() => import("@/screens/host/host-event
 const HostArtistSearchScreen = lazyScreen(() => import("@/screens/host/host-artist-search"), "HostArtistSearchScreen");
 const HostBookingsScreen = lazyScreen(() => import("@/screens/host/host-bookings"), "HostBookingsScreen");
 const HostSettlementsScreen = lazyScreen(() => import("@/screens/host/host-settlements"), "HostSettlementsScreen");
+const HostVenueBusinessScreen = lazyScreen(() => import("@/screens/host/host-venue-business"), "HostVenueBusinessScreen");
 const HostDoorScannerScreen = lazyScreen(() => import("@/screens/host/host-door-scanner"), "HostDoorScannerScreen");
 
 const ArtistHomeScreen = lazyScreen(() => import("@/screens/artist/artist-home"), "ArtistHomeScreen");
@@ -216,6 +217,7 @@ export default function App() {
                     <Route path="/host/artists" element={host(<HostArtistSearchScreen />)} />
                     <Route path="/host/bookings" element={host(<HostBookingsScreen />)} />
                     <Route path="/host/settlements" element={host(<HostSettlementsScreen />)} />
+                    <Route path="/host/business" element={host(<HostVenueBusinessScreen />)} />
 
                     {/* Artist console */}
                     <Route path="/artist" element={artist(<ArtistHomeScreen />)} />

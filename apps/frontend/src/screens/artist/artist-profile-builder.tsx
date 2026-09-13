@@ -4,6 +4,7 @@ import { ConsoleShell, ARTIST_NAV } from "@/components/naada/console-shell";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Pill, type PillTone } from "@/components/ui/pill";
 import { useStore } from "@/store/app-store";
 import { getCities, getGenres, getMyArtistProfile } from "@/lib/api";
 import type { ApiCity, ApiGenre } from "@/lib/api";
@@ -39,6 +40,15 @@ interface Draft {
   youtube: string;
   website: string;
   availability: Availability;
+  gst_number: string;
+  pan_number: string;
+  bank_account_holder_name: string;
+  /** Always starts blank — the server never sends the real number back, so
+   * there is nothing to round-trip. Non-blank means "replace what's on
+   * file"; leaving it blank on save means "leave it alone". */
+  bank_account_number: string;
+  bank_ifsc_code: string;
+  bank_name: string;
 }
 
 function draftOf(artist: ArtistDetail): Draft {
@@ -53,6 +63,12 @@ function draftOf(artist: ArtistDetail): Draft {
     youtube: artist.youtube ?? "",
     website: artist.website ?? "",
     availability: readAvailability(artist.availability),
+    gst_number: artist.gst_number ?? "",
+    pan_number: artist.pan_number ?? "",
+    bank_account_holder_name: artist.bank_account_holder_name ?? "",
+    bank_account_number: "",
+    bank_ifsc_code: artist.bank_ifsc_code ?? "",
+    bank_name: artist.bank_name ?? "",
   };
 }
 
@@ -77,7 +93,15 @@ function sameDraft(a: Draft, b: Draft): boolean {
     a.genres.every((g) => b.genres.includes(g)) &&
     a.availability.notes === b.availability.notes &&
     a.availability.blackout_dates.length === b.availability.blackout_dates.length &&
-    a.availability.blackout_dates.every((d) => b.availability.blackout_dates.includes(d))
+    a.availability.blackout_dates.every((d) => b.availability.blackout_dates.includes(d)) &&
+    a.gst_number === b.gst_number &&
+    a.pan_number === b.pan_number &&
+    a.bank_account_holder_name === b.bank_account_holder_name &&
+    a.bank_ifsc_code === b.bank_ifsc_code &&
+    a.bank_name === b.bank_name &&
+    // A blank replacement field is never itself "dirty" — only typing a new
+    // number counts, since `saved.bank_account_number` is always blank too.
+    a.bank_account_number.trim() === ""
   );
 }
 
@@ -97,8 +121,24 @@ function toPayload(draft: Draft): ArtistProfileWrite {
     youtube: draft.youtube.trim(),
     website: draft.website.trim(),
     availability: draft.availability,
+    gst_number: draft.gst_number.trim(),
+    pan_number: draft.pan_number.trim(),
+    bank_account_holder_name: draft.bank_account_holder_name.trim(),
+    // Omitted entirely when blank — sending "" would wipe an account number
+    // that's already on file. Only present when the artist actually typed
+    // a replacement.
+    ...(draft.bank_account_number.trim() ? { bank_account_number: draft.bank_account_number.trim() } : {}),
+    bank_ifsc_code: draft.bank_ifsc_code.trim(),
+    bank_name: draft.bank_name.trim(),
   };
 }
+
+const KYC_TONE: Record<string, PillTone> = {
+  pending: "muted",
+  submitted: "brass",
+  verified: "live",
+  rejected: "fault",
+};
 
 function clockStamp(): string {
   return new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -728,6 +768,90 @@ export function ArtistProfileBuilderScreen() {
                 placeholder="https://…"
               />
             </Field>
+          </div>
+
+          <div className="border-t border-line pt-6">
+            <div className="flex items-center justify-between gap-3">
+              <Label>Business &amp; payouts</Label>
+              <Pill tone={KYC_TONE[artist.kyc_status ?? "pending"]}>
+                {artist.kyc_status ?? "pending"}
+              </Pill>
+            </div>
+            <p className="t-small mb-4 text-muted">
+              GST, PAN and your bank account — this is what a payout actually needs. Saving any of
+              it sends it to review; nothing is paid out until it's verified.
+            </p>
+            {artist.kyc_status === "rejected" && artist.kyc_rejection_reason && (
+              <p className="t-small mb-4 border border-fault bg-surface px-3 py-2 text-fault">
+                Rejected: {artist.kyc_rejection_reason}
+              </p>
+            )}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="GSTIN" htmlFor="ap-gst" hint="Optional — only if you're GST-registered">
+                <Input
+                  id="ap-gst"
+                  value={draft.gst_number}
+                  onChange={(e) => patch({ gst_number: e.target.value.toUpperCase() })}
+                  placeholder="22AAAAA0000A1Z5"
+                  className="t-mono"
+                  maxLength={15}
+                />
+              </Field>
+              <Field label="PAN" htmlFor="ap-pan" hint="Needed for TDS on payouts">
+                <Input
+                  id="ap-pan"
+                  value={draft.pan_number}
+                  onChange={(e) => patch({ pan_number: e.target.value.toUpperCase() })}
+                  placeholder="ABCDE1234F"
+                  className="t-mono"
+                  maxLength={10}
+                />
+              </Field>
+            </div>
+            <div className="mt-4 grid gap-4 sm:grid-cols-2">
+              <Field label="Account holder name" htmlFor="ap-bank-holder">
+                <Input
+                  id="ap-bank-holder"
+                  value={draft.bank_account_holder_name}
+                  onChange={(e) => patch({ bank_account_holder_name: e.target.value })}
+                />
+              </Field>
+              <Field label="Bank name" htmlFor="ap-bank-name">
+                <Input
+                  id="ap-bank-name"
+                  value={draft.bank_name}
+                  onChange={(e) => patch({ bank_name: e.target.value })}
+                />
+              </Field>
+              <Field
+                label="Account number"
+                htmlFor="ap-bank-account"
+                hint={
+                  artist.has_bank_details
+                    ? `On file, ending in ${artist.bank_account_last4}. Leave blank to keep it.`
+                    : "Not on file yet."
+                }
+              >
+                <Input
+                  id="ap-bank-account"
+                  inputMode="numeric"
+                  value={draft.bank_account_number}
+                  onChange={(e) => patch({ bank_account_number: e.target.value.replace(/\D/g, "") })}
+                  placeholder={artist.has_bank_details ? "Enter a new number to replace it" : ""}
+                  className="t-mono"
+                />
+              </Field>
+              <Field label="IFSC code" htmlFor="ap-bank-ifsc">
+                <Input
+                  id="ap-bank-ifsc"
+                  value={draft.bank_ifsc_code}
+                  onChange={(e) => patch({ bank_ifsc_code: e.target.value.toUpperCase() })}
+                  placeholder="HDFC0001234"
+                  className="t-mono"
+                  maxLength={11}
+                />
+              </Field>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 border-t border-line pt-5">

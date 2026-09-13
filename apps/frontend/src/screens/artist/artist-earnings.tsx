@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { AlertTriangle, Info } from "lucide-react";
 import { ConsoleShell, ARTIST_NAV } from "@/components/naada/console-shell";
-import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
-import { useStore } from "@/store/app-store";
-import { getMyOrders } from "@/lib/api";
+import { getMyOrders, getMyArtistProfile } from "@/lib/api";
 import type { ApiOrder } from "@/lib/api";
 import { money, dateCompact } from "@/lib/format";
 
@@ -18,9 +17,9 @@ function statusLabel(s: string): string {
 }
 
 export function ArtistEarningsScreen() {
-  const { bankAdded, setBankAdded, toast } = useStore();
   const [orders, setOrders] = useState<ApiOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasBankDetails, setHasBankDetails] = useState<boolean | null>(null);
 
   useEffect(() => {
     getMyOrders()
@@ -29,11 +28,17 @@ export function ArtistEarningsScreen() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    getMyArtistProfile()
+      .then((p) => setHasBankDetails(Boolean(p.has_bank_details)))
+      .catch(() => setHasBankDetails(false));
+  }, []);
+
   const waiting = orders
     .filter((o) => !["released", "completed", "cancelled", "refunded"].includes(o.status))
     .reduce((sum, o) => sum + parseFloat(o.gross_amount), 0);
 
-  const showBanner = !bankAdded && waiting > 0;
+  const showBanner = hasBankDetails === false && waiting > 0;
 
   return (
     <ConsoleShell nav={ARTIST_NAV} breadcrumb={["Earnings"]}>
@@ -50,13 +55,9 @@ export function ArtistEarningsScreen() {
               <span className="t-mono text-brass">{money(waiting)}</span> is waiting.
             </p>
           </div>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => { setBankAdded(true); toast("Bank details added", "success"); }}
-          >
-            Add bank
-          </Button>
+          <Link to="/artist/profile" className="btn btn-primary btn-sm shrink-0">
+            Add bank details
+          </Link>
         </div>
       )}
 

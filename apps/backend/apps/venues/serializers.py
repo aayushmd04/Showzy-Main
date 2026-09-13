@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import Venue, VenuePhoto, VenueHours, VenueOperatorAccess
 from apps.core.serializers import CitySerializer, AreaSerializer
 from apps.core.urlfields import ForgivingURLField, IndianPhoneField, SocialHandleField
+from apps.core.payout_fields import PayoutFieldsMixin, PAYOUT_READ_ONLY_FIELDS
 
 
 class VenuePhotoSerializer(serializers.ModelSerializer):
@@ -47,16 +48,21 @@ class VenueDetailSerializer(serializers.ModelSerializer):
     photos = VenuePhotoSerializer(many=True, read_only=True)
     hours = VenueHoursSerializer(many=True, read_only=True)
     owner_name = serializers.CharField(source="owner.name", read_only=True)
+    # The account number itself is never returned — only how it can be
+    # recognised by whoever entered it ("ending in 4321").
+    bank_account_last4 = serializers.ReadOnlyField()
+    has_bank_details = serializers.ReadOnlyField()
+    can_receive_payouts = serializers.ReadOnlyField()
 
     class Meta:
         model = Venue
         # Everything but the soft-delete bookkeeping, so `layout` (the floor
         # plan the host designs) is read back here and written through
         # VenueCreateUpdateSerializer below without a bespoke endpoint.
-        exclude = ["is_deleted", "deleted_at"]
+        exclude = ["is_deleted", "deleted_at", "bank_account_number"]
 
 
-class VenueCreateUpdateSerializer(serializers.ModelSerializer):
+class VenueCreateUpdateSerializer(PayoutFieldsMixin, serializers.ModelSerializer):
     # Same forgiveness as artist profiles: a venue owner typing "myvenue.in"
     # should not be told it is invalid.
     contact_phone = IndianPhoneField()
@@ -65,9 +71,15 @@ class VenueCreateUpdateSerializer(serializers.ModelSerializer):
     google_maps_url = ForgivingURLField()
     instagram = SocialHandleField(platform="Instagram", hosts=("instagram.com",))
     twitter = SocialHandleField(platform="X", hosts=("twitter.com", "x.com"))
+    # Settable, but never echoed back — see VenueDetailSerializer for why.
+    bank_account_number = serializers.CharField(
+        required=False, allow_blank=True, max_length=34, write_only=True,
+    )
+
     class Meta:
         model = Venue
         exclude = ["owner", "is_deleted", "deleted_at", "is_verified", "is_featured", "slug"]
+        read_only_fields = PAYOUT_READ_ONLY_FIELDS
 
     def create(self, validated_data):
         from django.utils.text import slugify
@@ -78,4 +90,15 @@ class VenueCreateUpdateSerializer(serializers.ModelSerializer):
             slug = f"{slug}-{str(_uuid.uuid4())[:8]}"
         validated_data["slug"] = slug
         validated_data["owner"] = self.context["request"].user
-        return super().create(validated_data)
+        instance = super().create(validated_data)
+        touched = self.apply_payout_side_effects(instance, validated_data)
+        if touched:
+            instance.save(update_fields=touched)
+        return instance
+
+    def update(self, instance, validated_data):
+        instance = super().update(instance, validated_data)
+        touched = self.apply_payout_side_effects(instance, validated_data)
+        if touched:
+            instance.save(update_fields=touched)
+        return instance

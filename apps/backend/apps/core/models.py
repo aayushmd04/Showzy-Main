@@ -24,6 +24,56 @@ class SoftDeleteModel(models.Model):
         self.save(update_fields=["deleted_at", "is_deleted"])
 
 
+class KYCStatus(models.TextChoices):
+    PENDING = "pending", "Pending"
+    SUBMITTED = "submitted", "Submitted"
+    VERIFIED = "verified", "Verified"
+    REJECTED = "rejected", "Rejected"
+
+
+class PayoutDetailsMixin(models.Model):
+    """GST/PAN, KYC status, and payout bank account — shared verbatim by
+    `Artist` and `Venue`, since whoever actually receives money on this
+    platform (an artist's booking fee, a venue's ticket-sale revenue) needs
+    the identical compliance shape.
+
+    The full account number is deliberately never put in any read serializer
+    — only `bank_account_last4` is. Nothing here computes a Razorpay payout
+    on its own; this is the data those tools will need once one exists.
+    """
+
+    gst_number = models.CharField(max_length=15, blank=True, help_text="GSTIN, if registered")
+    pan_number = models.CharField(max_length=10, blank=True, help_text="PAN — required for TDS")
+
+    kyc_status = models.CharField(max_length=20, choices=KYCStatus.choices, default=KYCStatus.PENDING)
+    kyc_submitted_at = models.DateTimeField(null=True, blank=True)
+    kyc_verified_at = models.DateTimeField(null=True, blank=True)
+    kyc_rejection_reason = models.TextField(blank=True)
+
+    bank_account_holder_name = models.CharField(max_length=120, blank=True)
+    bank_account_number = models.CharField(max_length=34, blank=True)
+    bank_ifsc_code = models.CharField(max_length=11, blank=True)
+    bank_name = models.CharField(max_length=120, blank=True)
+    bank_details_updated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        abstract = True
+
+    @property
+    def has_bank_details(self) -> bool:
+        return bool(self.bank_account_number and self.bank_ifsc_code)
+
+    @property
+    def bank_account_last4(self) -> str:
+        return self.bank_account_number[-4:] if self.bank_account_number else ""
+
+    @property
+    def can_receive_payouts(self) -> bool:
+        """The real gate on ever sending this entity money — verified KYC
+        and an actual account to send it to, not just one or the other."""
+        return self.kyc_status == KYCStatus.VERIFIED and self.has_bank_details
+
+
 class City(TimeStampedModel):
     name = models.CharField(max_length=80)
     name_kn = models.CharField(max_length=80, blank=True)

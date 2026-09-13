@@ -123,7 +123,6 @@ interface AppStore {
 
   checkout: CheckoutDraft;
   artistProfile: ArtistProfileDraft;
-  bankAdded: boolean;
   emptyLists: boolean;
 
   toasts: Toast[];
@@ -169,7 +168,6 @@ interface AppStore {
 
   setSettlementStatus: (eventId: string, status: SettlementStatus) => void;
   updateArtistProfile: (patch: Partial<ArtistProfileDraft>) => void;
-  setBankAdded: (value: boolean) => void;
   countersUsed: (booking: Booking) => number;
 
   sendMessage: (bookingId: string, sender: "host" | "artist", body: string) => ChatMessage;
@@ -303,7 +301,6 @@ export function AppStoreProvider({
   const [reviews, setReviews] = useState<Review[]>(seed.reviews);
   const [checkout, setCheckout] = useState<CheckoutDraft>(EMPTY_CHECKOUT);
   const [toasts, setToasts] = useState<Toast[]>([]);
-  const [bankAdded, setBankAdded] = useState(false);
   const [emptyLists, setEmptyLists] = useState(false);
   /*
    * Blank, not a fixture artist's details. This draft was pre-filled with a
@@ -787,7 +784,6 @@ export function AppStoreProvider({
       users,
       checkout,
       artistProfile,
-      bankAdded,
       emptyLists,
       toasts,
       toast,
@@ -820,7 +816,6 @@ export function AppStoreProvider({
       setBookingState,
       setSettlementStatus,
       updateArtistProfile,
-      setBankAdded,
       countersUsed,
       sendMessage,
       setArtistKycStatus,
@@ -836,7 +831,7 @@ export function AppStoreProvider({
     [
       role, currentUser, theme, lang, hydrateFromApi,
       events, artists, bookings, tickets, settlements, messages, applications, reviews, venues,
-      checkout, artistProfile, bankAdded, emptyLists, toasts, toast, dismissToast,
+      checkout, artistProfile, emptyLists, toasts, toast, dismissToast,
       eventById, artistById, venueById, bookingById, ticketByCode, messagesFor, reviewsFor,
       venueOf, soldOf, capacityOf, startCheckout, setGuestDetails, clearCheckout,
       checkIn, updateEvent, setEventStatus, addTier, removeTier,

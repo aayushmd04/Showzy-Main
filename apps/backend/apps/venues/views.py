@@ -1,6 +1,9 @@
+from django.db import models as dj_models
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from apps.core.models import KYCStatus
 from .models import Venue, VenuePhoto
 from .serializers import (
     VenueListSerializer, VenueDetailSerializer, VenueCreateUpdateSerializer, VenuePhotoSerializer
@@ -24,6 +27,25 @@ class VenueListCreateView(generics.ListCreateAPIView):
         if self.request.method == "POST":
             return [permissions.IsAuthenticated()]
         return [permissions.AllowAny()]
+
+    def create(self, request, *args, **kwargs):
+        """Answer a write with the same shape a read returns — see
+        `ArtistDetailView.update` for why. Without this, a freshly-created
+        venue's own response never carried its `slug` (excluded from the
+        write serializer on purpose, since a client can't set it) or the
+        payout fields (`bank_account_last4`, `kyc_status`, ...), so the host
+        console would need an extra round trip just to learn its own venue's
+        address.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        instance = serializer.instance
+        headers = self.get_success_headers(serializer.data)
+        return Response(
+            VenueDetailSerializer(instance, context=self.get_serializer_context()).data,
+            status=status.HTTP_201_CREATED, headers=headers,
+        )
 
     def get_queryset(self):
         qs = Venue.objects.filter(is_active=True, is_deleted=False).select_related("city", "area")
@@ -55,6 +77,18 @@ class VenueDetailView(generics.RetrieveUpdateDestroyAPIView):
             return VenueCreateUpdateSerializer
         return VenueDetailSerializer
 
+    def update(self, request, *args, **kwargs):
+        """Answer a write with the same shape a read returns — mirrors
+        `ArtistDetailView.update`."""
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(
+            VenueDetailSerializer(serializer.instance, context=self.get_serializer_context()).data
+        )
+
     def perform_destroy(self, instance):
         instance.soft_delete()
 
@@ -69,3 +103,46 @@ def upload_venue_photo(request, slug):
     serializer.is_valid(raise_exception=True)
     serializer.save(venue=venue, uploaded_by=request.user)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+# ─── Admin — venue KYC ─────────────────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAdminUser])
+def admin_venue_kyc_queue(request):
+    """Admin view of every venue, submitted-for-review first — mirrors
+    `organizer_kyc_queue` in apps.bookings.views exactly."""
+    order = dj_models.Case(
+        dj_models.When(kyc_status=KYCStatus.SUBMITTED, then=0),
+        dj_models.When(kyc_status=KYCStatus.PENDING, then=1),
+        dj_models.When(kyc_status=KYCStatus.REJECTED, then=2),
+        default=3,
+        output_field=dj_models.IntegerField(),
+    )
+    venues = Venue.objects.filter(is_deleted=False).annotate(_kyc_order=order).order_by(
+        "_kyc_order", "name"
+    )
+    return Response(VenueDetailSerializer(venues, many=True, context={"request": request}).data)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAdminUser])
+def set_venue_kyc(request, slug):
+    """Admin approves or rejects a venue's KYC — the real gate on
+    `can_receive_payouts`. Mirrors `set_organizer_kyc`."""
+    venue = Venue.objects.filter(slug=slug, is_deleted=False).first()
+    if not venue:
+        return Response({"detail": "Not found."}, status=404)
+
+    new_status = request.data.get("status")
+    if new_status not in [KYCStatus.VERIFIED, KYCStatus.REJECTED]:
+        return Response({"detail": "status must be verified or rejected."}, status=400)
+
+    venue.kyc_status = new_status
+    if new_status == KYCStatus.VERIFIED:
+        venue.kyc_verified_at = timezone.now()
+        venue.kyc_rejection_reason = ""
+    else:
+        venue.kyc_rejection_reason = request.data.get("rejection_reason", "")
+    venue.save(update_fields=["kyc_status", "kyc_verified_at", "kyc_rejection_reason"])
+    return Response(VenueDetailSerializer(venue, context={"request": request}).data)

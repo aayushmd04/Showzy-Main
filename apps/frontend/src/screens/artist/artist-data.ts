@@ -45,6 +45,8 @@ export interface ArtistDetail extends ApiArtist {
   booking_fee_max?: string | null;
 }
 
+export type { KycStatus } from "@/lib/api";
+
 /**
  * Load a public artist page.
  *
@@ -84,6 +86,14 @@ export interface ArtistProfileWrite {
   youtube: string;
   website: string;
   availability: Availability;
+  gst_number: string;
+  pan_number: string;
+  bank_account_holder_name: string;
+  /** Send only when the artist is actually setting/replacing it — omit to
+   * leave whatever's already on file untouched (see PayoutFieldsForm). */
+  bank_account_number?: string;
+  bank_ifsc_code: string;
+  bank_name: string;
 }
 
 export function saveArtistProfile(

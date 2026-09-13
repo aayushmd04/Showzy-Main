@@ -1,7 +1,7 @@
 import uuid
 from django.db import models
 from django.conf import settings
-from apps.core.models import TimeStampedModel, SoftDeleteModel
+from apps.core.models import TimeStampedModel, SoftDeleteModel, PayoutDetailsMixin
 
 
 class StageType(models.TextChoices):
@@ -10,7 +10,7 @@ class StageType(models.TextChoices):
     BOTH = "both", "Indoor & Outdoor"
 
 
-class Venue(TimeStampedModel, SoftDeleteModel):
+class Venue(TimeStampedModel, SoftDeleteModel, PayoutDetailsMixin):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     owner = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT,
                               related_name="owned_venues")

@@ -266,6 +266,9 @@ export async function logout(): Promise<void> {
 
 // ─── Events ───────────────────────────────────────────────────────────────────
 
+/** KYC lifecycle shared by Artist and Venue — see PayoutDetailsMixin on the backend. */
+export type KycStatus = "pending" | "submitted" | "verified" | "rejected";
+
 export interface ApiVenue {
   id: string;
   name: string;
@@ -277,6 +280,19 @@ export interface ApiVenue {
   primary_photo?: string;
   slug?: string;
   layout?: { version?: number; elements?: unknown[] };
+  // Compliance / payout — present on the detail response only.
+  gst_number?: string;
+  pan_number?: string;
+  kyc_status?: KycStatus;
+  kyc_submitted_at?: string | null;
+  kyc_verified_at?: string | null;
+  kyc_rejection_reason?: string;
+  bank_account_holder_name?: string;
+  bank_ifsc_code?: string;
+  bank_name?: string;
+  bank_account_last4?: string;
+  has_bank_details?: boolean;
+  can_receive_payouts?: boolean;
 }
 
 export interface ApiTier {
@@ -353,6 +369,19 @@ export interface ApiArtist {
   avg_rating: number;
   profile_image?: string;
   primary_photo?: string;
+  // Compliance / payout — present on the detail response only.
+  gst_number?: string;
+  pan_number?: string;
+  kyc_status?: KycStatus;
+  kyc_submitted_at?: string | null;
+  kyc_verified_at?: string | null;
+  kyc_rejection_reason?: string;
+  bank_account_holder_name?: string;
+  bank_ifsc_code?: string;
+  bank_name?: string;
+  bank_account_last4?: string;
+  has_bank_details?: boolean;
+  can_receive_payouts?: boolean;
 }
 
 export interface ApiArtistList {
@@ -364,6 +393,22 @@ export interface ApiArtistList {
 
 export function getArtists(params = ""): Promise<ApiArtistList> {
   return get<ApiArtistList>(`/artists/${params}`, false);
+}
+
+/** Admin — artist KYC queue and review, mirrors the organizer/venue equivalents. */
+export function getArtistKycQueue(): Promise<ApiArtist[]> {
+  return get("/admin/artists/kyc/");
+}
+
+export function setArtistKyc(
+  id: string,
+  status: "verified" | "rejected",
+  rejectionReason?: string,
+): Promise<ApiArtist> {
+  return post<ApiArtist>(`/admin/artists/${id}/kyc/`, {
+    status,
+    ...(rejectionReason ? { rejection_reason: rejectionReason } : {}),
+  });
 }
 
 // ─── Venues ───────────────────────────────────────────────────────────────────
@@ -930,6 +975,13 @@ export interface ArtistWritePayload {
   youtube?: string;
   website?: string;
   availability?: unknown;
+  gst_number?: string;
+  pan_number?: string;
+  bank_account_holder_name?: string;
+  /** Write-only server-side — accepted here, never echoed back in any response. */
+  bank_account_number?: string;
+  bank_ifsc_code?: string;
+  bank_name?: string;
 }
 
 export function updateArtist(id: string, data: ArtistWritePayload): Promise<ApiArtist> {
@@ -978,10 +1030,33 @@ export interface VenueWritePayload {
   has_ac?: boolean;
   has_sound_system?: boolean;
   layout?: unknown;
+  gst_number?: string;
+  pan_number?: string;
+  bank_account_holder_name?: string;
+  /** Write-only server-side — accepted here, never echoed back in any response. */
+  bank_account_number?: string;
+  bank_ifsc_code?: string;
+  bank_name?: string;
 }
 
 export function createVenue(data: VenueWritePayload): Promise<ApiVenue> {
   return post<ApiVenue>("/venues/", data);
+}
+
+/** Admin — venue KYC queue and review, mirrors the organizer/artist equivalents. */
+export function getVenueKycQueue(): Promise<ApiVenue[]> {
+  return get("/admin/venues/kyc/");
+}
+
+export function setVenueKyc(
+  slug: string,
+  status: "verified" | "rejected",
+  rejectionReason?: string,
+): Promise<ApiVenue> {
+  return post<ApiVenue>(`/admin/venues/${slug}/kyc/`, {
+    status,
+    ...(rejectionReason ? { rejection_reason: rejectionReason } : {}),
+  });
 }
 
 export function updateVenue(slug: string, data: VenueWritePayload): Promise<ApiVenue> {

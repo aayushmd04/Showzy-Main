@@ -12,4 +12,6 @@ urlpatterns = [
          views.set_primary_artist_photo, name="artists-photo-primary"),
     path("artists/<uuid:pk>/photos/<int:photo_id>/delete/",
          views.delete_artist_photo, name="artists-photo-delete"),
+    path("admin/artists/kyc/", views.admin_artist_kyc_queue, name="admin-artist-kyc-queue"),
+    path("admin/artists/<uuid:pk>/kyc/", views.set_artist_kyc, name="admin-artist-kyc-set"),
 ]

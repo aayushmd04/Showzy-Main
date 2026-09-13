@@ -1,7 +1,10 @@
+from django.db import models as dj_models
+from django.utils import timezone
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, parser_classes, permission_classes
 from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
+from apps.core.models import KYCStatus
 from .models import Artist, ArtistFollower, ArtistPhoto
 from .serializers import (
     ArtistListSerializer, ArtistDetailSerializer, ArtistCreateUpdateSerializer,
@@ -177,3 +180,46 @@ def follow_artist(request, pk):
     else:
         ArtistFollower.objects.filter(artist=artist, user=request.user).delete()
         return Response({"following": False})
+
+
+# ─── Admin — artist KYC ────────────────────────────────────────────────────────
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAdminUser])
+def admin_artist_kyc_queue(request):
+    """Admin view of every artist, submitted-for-review first — mirrors
+    `organizer_kyc_queue` in apps.bookings.views exactly."""
+    order = dj_models.Case(
+        dj_models.When(kyc_status=KYCStatus.SUBMITTED, then=0),
+        dj_models.When(kyc_status=KYCStatus.PENDING, then=1),
+        dj_models.When(kyc_status=KYCStatus.REJECTED, then=2),
+        default=3,
+        output_field=dj_models.IntegerField(),
+    )
+    artists = Artist.objects.filter(is_deleted=False).annotate(_kyc_order=order).order_by(
+        "_kyc_order", "stage_name"
+    )
+    return Response(ArtistDetailSerializer(artists, many=True, context={"request": request}).data)
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAdminUser])
+def set_artist_kyc(request, pk):
+    """Admin approves or rejects an artist's KYC — the real gate on
+    `can_receive_payouts`. Mirrors `set_organizer_kyc`."""
+    artist = Artist.objects.filter(pk=pk, is_deleted=False).first()
+    if not artist:
+        return Response({"detail": "Not found."}, status=404)
+
+    new_status = request.data.get("status")
+    if new_status not in [KYCStatus.VERIFIED, KYCStatus.REJECTED]:
+        return Response({"detail": "status must be verified or rejected."}, status=400)
+
+    artist.kyc_status = new_status
+    if new_status == KYCStatus.VERIFIED:
+        artist.kyc_verified_at = timezone.now()
+        artist.kyc_rejection_reason = ""
+    else:
+        artist.kyc_rejection_reason = request.data.get("rejection_reason", "")
+    artist.save(update_fields=["kyc_status", "kyc_verified_at", "kyc_rejection_reason"])
+    return Response(ArtistDetailSerializer(artist, context={"request": request}).data)

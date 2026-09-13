@@ -10,6 +10,7 @@ import {
   Gavel,
   Handshake,
   Inbox,
+  Landmark,
   LayoutGrid,
   Menu,
   Mic2,
@@ -50,6 +51,7 @@ const ICONS = {
   flags: Flag,
   board: Compass,
   venue: Building2,
+  business: Landmark,
 };
 
 export const HOST_NAV: NavItem[] = [
@@ -59,6 +61,7 @@ export const HOST_NAV: NavItem[] = [
   { to: "/host/artists", label: "Artists", icon: "artists" },
   { to: "/host/bookings", label: "Bookings", icon: "bookings" },
   { to: "/host/settlements", label: "Settlements", icon: "settlements" },
+  { to: "/host/business", label: "Business", icon: "business" },
 ];
 
 export const ARTIST_NAV: NavItem[] = [

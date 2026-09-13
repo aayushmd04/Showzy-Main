@@ -680,10 +680,21 @@ def admin_overview(request):
     """Headline counts for the ops console home — every number here is a
     live query, not a cache, since this screen exists precisely so ops can
     trust what it says."""
-    return Response({
-        "pending_kyc": Organizer.objects.filter(
+    from apps.core.models import KYCStatus
+    from apps.artists.models import Artist
+    from apps.venues.models import Venue
+
+    unresolved_kyc = [KYCStatus.PENDING, KYCStatus.SUBMITTED]
+    pending_kyc = (
+        Organizer.objects.filter(
             kyc_status__in=[Organizer.KYCStatus.PENDING, Organizer.KYCStatus.SUBMITTED]
-        ).count(),
+        ).count()
+        + Artist.objects.filter(is_deleted=False, kyc_status__in=unresolved_kyc).count()
+        + Venue.objects.filter(is_deleted=False, kyc_status__in=unresolved_kyc).count()
+    )
+
+    return Response({
+        "pending_kyc": pending_kyc,
         "open_disputes": Dispute.objects.filter(resolution=Dispute.Resolution.PENDING).count(),
         "flagged_messages": BookingMessage.objects.filter(
             is_flagged=True, is_deleted=False, reviewed_at__isnull=True

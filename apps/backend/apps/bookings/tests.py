@@ -99,6 +99,11 @@ class AdminOverviewTests(AdminOpsTestCase):
         # reflect what exists on the platform, not the admin's own (empty) data.
         self.organizer.kyc_status = Organizer.KYCStatus.SUBMITTED
         self.organizer.save(update_fields=["kyc_status"])
+        # `self.artist` (from setUp) defaults to pending KYC too, and
+        # pending_kyc now spans all three payout-receiving entities — verify
+        # it out of the way here so this test stays about the organizer.
+        self.artist.kyc_status = "verified"
+        self.artist.save(update_fields=["kyc_status"])
 
         order = make_booking_order(self.organizer, self.artist)
         Dispute.objects.create(booking_order=order, raised_by=self.host_user, reason="No-show")
@@ -117,6 +122,27 @@ class AdminOverviewTests(AdminOpsTestCase):
         self.assertEqual(resp.data["open_disputes"], 1)
         self.assertEqual(resp.data["flagged_messages"], 1)
         self.assertEqual(resp.data["held_transfers"], 1)
+
+    def test_pending_kyc_spans_organizer_artist_and_venue(self):
+        from apps.venues.models import Venue
+        from apps.core.models import City
+
+        self.artist.kyc_status = "verified"
+        self.artist.save(update_fields=["kyc_status"])
+        self.organizer.kyc_status = Organizer.KYCStatus.VERIFIED
+        self.organizer.save(update_fields=["kyc_status"])
+        self.assertEqual(self.admin_client.get(reverse("admin-overview")).data["pending_kyc"], 0)
+
+        self.artist.kyc_status = "submitted"
+        self.artist.save(update_fields=["kyc_status"])
+        self.assertEqual(self.admin_client.get(reverse("admin-overview")).data["pending_kyc"], 1)
+
+        city = City.objects.create(name="Test City", slug="test-city-overview")
+        Venue.objects.create(
+            owner=self.host_user, name="Test Venue", slug="test-venue-overview",
+            address_line1="x", city=city, kyc_status="pending",
+        )
+        self.assertEqual(self.admin_client.get(reverse("admin-overview")).data["pending_kyc"], 2)
 
     def test_reviewing_a_flagged_message_drops_it_from_the_count(self):
         convo = BookingConversation.objects.create(organizer=self.organizer, artist=self.artist)

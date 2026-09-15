@@ -883,3 +883,116 @@ class TicketTransferTests(ZoneTestCase):
 
         resp = self.client.post(reverse("tickets-cancel", args=[ticket.id]))
         self.assertEqual(resp.status_code, 404)
+
+
+class DoorAccessTests(ZoneTestCase):
+    """Who is allowed to work the door, and what they can see there.
+
+    Check-in used to require nothing but a signed-in account. A ticket's
+    `qr_data` is printed on the QR and people screenshot their tickets and
+    forward them, so anyone who received one of those images could mark it
+    used before its holder reached the door — and the holder would arrive to
+    "Ticket is used" with no recourse.
+    """
+
+    def setUp(self):
+        super().setUp()
+        User = get_user_model()
+        self.stranger = User.objects.create_user(
+            email="stranger@naada.test", full_name="Passing Stranger")
+        self.other_host = User.objects.create_user(
+            email="other-host@naada.test", full_name="Other Host")
+        self.ops = User.objects.create_user(
+            email="door-ops@naada.test", full_name="Ops", is_staff=True)
+
+        resp = self.order(quantity=1, zone_id=None, event=self.bare_event, tier=self.bare_tier)
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.order_row = Order.objects.get(pk=resp.data["id"])
+        self.issue_tickets(self.order_row)
+        self.ticket = self.order_row.tickets.first()
+
+    def as_(self, user):
+        client = APIClient()
+        client.force_authenticate(user=user)
+        return client
+
+    def scan_url(self):
+        return reverse("tickets-scan", args=[self.ticket.qr_data])
+
+    def door_url(self, event=None):
+        return reverse("event-attendees", args=[(event or self.bare_event).id])
+
+    # ── check-in ─────────────────────────────────────────────────────────────
+
+    def test_the_organiser_can_check_a_ticket_in(self):
+        resp = self.as_(self.host).post(self.scan_url())
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertTrue(resp.data["valid"])
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, Ticket.Status.USED)
+
+    def test_a_stranger_with_the_qr_cannot_burn_someone_elses_ticket(self):
+        resp = self.as_(self.stranger).post(self.scan_url())
+        self.assertEqual(resp.status_code, 403, resp.data)
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, Ticket.Status.VALID)
+
+    def test_the_ticket_holder_cannot_check_themselves_in(self):
+        # Otherwise a buyer could mark their own ticket used from the sofa,
+        # then turn up and claim the door made a mistake.
+        resp = self.as_(self.buyer).post(self.scan_url())
+        self.assertEqual(resp.status_code, 403, resp.data)
+        self.ticket.refresh_from_db()
+        self.assertEqual(self.ticket.status, Ticket.Status.VALID)
+
+    def test_a_different_host_cannot_work_someone_elses_door(self):
+        resp = self.as_(self.other_host).post(self.scan_url())
+        self.assertEqual(resp.status_code, 403, resp.data)
+
+    def test_staff_can_step_in(self):
+        resp = self.as_(self.ops).post(self.scan_url())
+        self.assertEqual(resp.status_code, 200, resp.data)
+
+    def test_signed_out_is_still_refused(self):
+        self.assertIn(APIClient().post(self.scan_url()).status_code, (401, 403))
+
+    # ── the door list ────────────────────────────────────────────────────────
+
+    def test_the_organiser_gets_their_door_list(self):
+        resp = self.as_(self.host).get(self.door_url())
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["count"], 1)
+        row = resp.data["results"][0]
+        self.assertEqual(row["ticket_number"], self.ticket.ticket_number)
+        self.assertEqual(row["status"], Ticket.Status.VALID)
+
+    def test_the_door_list_carries_what_the_manual_lookup_needs(self):
+        row = self.as_(self.host).get(self.door_url()).data["results"][0]
+        for field in ("holder_name", "ticket_number", "qr_data", "tier_name", "status"):
+            self.assertIn(field, row)
+
+    def test_the_door_list_does_not_leak_contact_details(self):
+        # Door staff need to find a person and admit them, not read a buyer's
+        # email and phone number off a shared tablet.
+        row = self.as_(self.host).get(self.door_url()).data["results"][0]
+        self.assertNotIn("holder_email", row)
+        self.assertNotIn("holder_phone", row)
+
+    def test_a_stranger_cannot_read_the_door_list(self):
+        self.assertEqual(self.as_(self.stranger).get(self.door_url()).status_code, 403)
+
+    def test_another_host_cannot_read_it_either(self):
+        self.assertEqual(self.as_(self.other_host).get(self.door_url()).status_code, 403)
+
+    def test_cancelled_tickets_are_not_on_the_door_list(self):
+        # A refunded ticket must not be admittable from the manual list.
+        self.ticket.status = Ticket.Status.CANCELLED
+        self.ticket.save(update_fields=["status"])
+        self.assertEqual(self.as_(self.host).get(self.door_url()).data["count"], 0)
+
+    def test_a_checked_in_ticket_still_shows_as_already_in(self):
+        # So the door can tell "not on the list" apart from "already came in".
+        self.as_(self.host).post(self.scan_url())
+        row = self.as_(self.host).get(self.door_url()).data["results"][0]
+        self.assertEqual(row["status"], Ticket.Status.USED)
+        self.assertIsNotNone(row["checked_in_at"])

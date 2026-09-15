@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowLeft, Camera, CameraOff, Check, X } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/app-store";
-import { scanTicket } from "@/lib/api";
+import { scanTicket, getEventAttendees, type ApiAttendee } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { NotFoundScreen } from "../not-found";
 
@@ -92,7 +92,7 @@ function buzz(ok: boolean) {
 
 export function HostDoorScannerScreen() {
   const { id = "" } = useParams();
-  const { eventById, tickets, capacityOf, toast } = useStore();
+  const { eventById, capacityOf, toast } = useStore();
 
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [cameraOn, setCameraOn] = useState(false);
@@ -101,6 +101,12 @@ export function HostDoorScannerScreen() {
   const [queued, setQueued] = useState<string[]>(() => readQueue());
   const [admitted, setAdmitted] = useState(0);
   const [search, setSearch] = useState("");
+  /* The real door list, not the store's `tickets` — those are the signed-in
+     user's own, so searching for a guest never matched anything. Fetched once
+     and then kept current locally, because the whole point of this screen is
+     that it keeps working when the network doesn't. */
+  const [doorList, setDoorList] = useState<ApiAttendee[]>([]);
+  const [doorListError, setDoorListError] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -112,6 +118,15 @@ export function HostDoorScannerScreen() {
   const reduce = useReducedMotion();
 
   const event = eventById(id);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    getEventAttendees(id)
+      .then((r) => { if (!cancelled) { setDoorList(r.results); setDoorListError(false); } })
+      .catch(() => { if (!cancelled) setDoorListError(true); });
+    return () => { cancelled = true; };
+  }, [id]);
 
   const show = useCallback((next: Overlay) => {
     setOverlay(next);
@@ -126,6 +141,17 @@ export function HostDoorScannerScreen() {
         const res = await scanTicket(code);
         if (res.valid && res.ticket) {
           setAdmitted((n) => n + 1);
+          // Mark them in locally rather than refetching. The door is the one
+          // place where another round trip is the last thing you want, and it
+          // is also where the network is worst — so the second scan of the
+          // same badge has to read "already in" without asking the server.
+          setDoorList((list) =>
+            list.map((a) =>
+              a.qr_data === code
+                ? { ...a, status: "used", checked_in_at: new Date().toISOString() }
+                : a,
+            ),
+          );
           beep(true);
           buzz(true);
           show({
@@ -294,11 +320,11 @@ export function HostDoorScannerScreen() {
   if (!event) return <NotFoundScreen />;
 
   const capacity = capacityOf(event);
-  const eventTickets = tickets.filter((t) => t.eventId === event.id);
-  const matches = search.trim()
-    ? eventTickets
-        .filter((t) =>
-          `${t.holder} ${t.code}`.toLowerCase().includes(search.trim().toLowerCase()),
+  const query = search.trim().toLowerCase();
+  const matches = query
+    ? doorList
+        .filter((a) =>
+          `${a.holder_name} ${a.ticket_number} ${a.seat_label}`.toLowerCase().includes(query),
         )
         .slice(0, 8)
     : [];
@@ -415,34 +441,46 @@ export function HostDoorScannerScreen() {
             className="h-14 text-[16px]"
             autoComplete="off"
           />
-          {search.trim() && matches.length === 0 && (
+          {doorListError && (
+            <p className="t-small mt-2 text-brass">
+              The door list didn't load, so searching by name won't work — scanning still does.
+            </p>
+          )}
+          {query && !doorListError && matches.length === 0 && (
             <p className="t-small mt-2 text-muted">
               Nobody on the list matches that. Check the spelling, or try their ticket number.
             </p>
           )}
           {matches.length > 0 && (
             <ul className="mt-2 divide-y divide-line border border-line bg-surface">
-              {matches.map((t) => {
-                const qr = (t as { _qrData?: string })._qrData;
+              {matches.map((a) => {
+                const alreadyIn = a.status === "used";
                 return (
-                  <li key={t.id}>
+                  <li key={a.id}>
                     <button
                       type="button"
-                      disabled={!qr}
+                      disabled={alreadyIn}
                       onClick={() => {
-                        if (qr) void handleCode(qr);
+                        void handleCode(a.qr_data);
                         setSearch("");
                       }}
                       className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left hover:bg-surface-2 disabled:opacity-50"
                     >
                       <span className="min-w-0">
-                        <span className="block truncate text-[16px]">{t.holder}</span>
+                        <span className="block truncate text-[16px]">
+                          {a.holder_name || "No name on the ticket"}
+                        </span>
                         <span className="t-mono block truncate text-[12px] text-muted">
-                          {t.code}
+                          {[a.ticket_number, a.seat_label].filter(Boolean).join(" · ")}
                         </span>
                       </span>
-                      <span className="t-mono shrink-0 text-[12px] uppercase text-muted">
-                        {t.status === "checked_in" ? "in" : t.tier}
+                      <span
+                        className={cn(
+                          "t-mono shrink-0 text-[12px] uppercase",
+                          alreadyIn ? "text-brass" : "text-muted",
+                        )}
+                      >
+                        {alreadyIn ? "already in" : a.tier_name ?? "General"}
                       </span>
                     </button>
                   </li>

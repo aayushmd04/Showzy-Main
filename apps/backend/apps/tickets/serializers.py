@@ -127,3 +127,23 @@ class PromoCodeValidateSerializer(serializers.Serializer):
     code = serializers.CharField()
     event_id = serializers.UUIDField()
     order_amount = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
+class AttendeeSerializer(serializers.ModelSerializer):
+    """One row of an event's door list.
+
+    Deliberately narrower than `TicketSerializer`: door staff need to find a
+    person and admit them, not read the buyer's email address and phone
+    number off a shared tablet. `qr_data` is here because admitting from the
+    manual list goes through the same check-in endpoint the camera uses.
+    """
+
+    tier_name = serializers.CharField(source="tier.name", read_only=True)
+
+    class Meta:
+        model = Ticket
+        fields = [
+            "id", "ticket_number", "qr_data", "holder_name",
+            "tier_name", "seat_label", "status", "checked_in_at",
+        ]
+        read_only_fields = fields

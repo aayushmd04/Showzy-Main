@@ -16,6 +16,7 @@ from . import zones as zone_map
 from .serializers import (
     OrderSerializer, TicketSerializer, CreateOrderSerializer,
     PromoCodeValidateSerializer, ZoneSerializer, TransferTicketSerializer,
+    AttendeeSerializer,
 )
 from apps.events.models import Event
 
@@ -430,11 +431,58 @@ def transfer_ticket(request, pk):
     return Response(TicketSerializer(locked, context={"request": request}).data)
 
 
+def works_the_door(user, event) -> bool:
+    """Whether this user is allowed to admit people to this event.
+
+    The check-in endpoint used to require nothing but a signed-in account, and
+    a ticket's `qr_data` is effectively a bearer token — it is printed on the
+    QR, and people screenshot their tickets and forward them. Anyone who
+    received one of those images could burn the ticket before its holder
+    reached the door, and the holder would arrive to "Ticket is used."
+    """
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_staff or getattr(user, "role", "") == "admin":
+        return True
+    return event.organizer_id == user.id
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def event_attendees(request, event_id):
+    """The door list for one event.
+
+    The scanner's manual lookup — used when a phone is dead, which at a real
+    door is often — had nothing to search: it filtered the store's tickets,
+    and those are the *signed-in user's own* tickets, so a host searching for
+    a guest found nothing unless they had bought a ticket to their own gig.
+    """
+    event = generics.get_object_or_404(Event, pk=event_id)
+    if not works_the_door(request.user, event):
+        raise exceptions.PermissionDenied("Only this event's organiser can see its door list.")
+
+    tickets = (
+        Ticket.objects.filter(event=event)
+        .exclude(status=Ticket.Status.CANCELLED)
+        .select_related("tier")
+        .order_by("holder_name", "ticket_number")
+    )
+    return Response({
+        "event": str(event.id),
+        "count": tickets.count(),
+        "results": AttendeeSerializer(tickets, many=True).data,
+    })
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def scan_ticket(request, qr_data):
     from django.utils import timezone
-    ticket = generics.get_object_or_404(Ticket, qr_data=qr_data)
+    ticket = generics.get_object_or_404(
+        Ticket.objects.select_related("event"), qr_data=qr_data
+    )
+    if not works_the_door(request.user, ticket.event):
+        raise exceptions.PermissionDenied("Only this event's organiser can check tickets in.")
     if ticket.status != Ticket.Status.VALID:
         return Response(
             {"valid": False, "detail": f"Ticket is {ticket.get_status_display()}."},

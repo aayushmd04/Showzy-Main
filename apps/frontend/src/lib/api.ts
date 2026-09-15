@@ -952,6 +952,31 @@ export async function scanTicket(qrData: string): Promise<ScanResult> {
   }
 }
 
+/** One row of an event's door list. Narrower than a ticket on purpose. */
+export interface ApiAttendee {
+  id: string;
+  ticket_number: string;
+  qr_data: string;
+  holder_name: string;
+  tier_name: string | null;
+  seat_label: string;
+  status: "valid" | "used" | "cancelled";
+  checked_in_at: string | null;
+}
+
+/**
+ * Everyone holding a ticket to one event, for the door.
+ *
+ * Organiser-only. The scanner's manual lookup — the thing you reach for when
+ * somebody's phone is dead — used to filter the store's tickets, and those are
+ * the *signed-in user's own*, so it never matched a guest.
+ */
+export function getEventAttendees(
+  eventId: string,
+): Promise<{ event: string; count: number; results: ApiAttendee[] }> {
+  return get(`/events/${eventId}/attendees/`);
+}
+
 // ─── Artists (own profile) ────────────────────────────────────────────────────
 
 export function getMyArtistProfile(): Promise<ApiArtist> {

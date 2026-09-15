@@ -11,18 +11,21 @@ import { Toaster } from "@/components/ui/toaster";
 import { useStore } from "@/store/app-store";
 import { getMe, tokens, AUTH_EXPIRED_EVENT } from "@/lib/api";
 
-// Public screens load eagerly — they are the first thing every visitor sees.
+/*
+ * The landing path loads eagerly: the home page, a gig, and the two checkout
+ * steps. Those four are what a visitor who taps a poster link actually walks
+ * through, and the checkout ones stay eager deliberately — a buyer committing
+ * to a payment on a patchy connection should not also be waiting on a
+ * JavaScript chunk to arrive.
+ *
+ * The browse pages are one deliberate click away and can fetch on demand; see
+ * the lazy block below.
+ */
 import { DiscoverScreen } from "@/screens/discover";
 import { RoleHomeScreen } from "@/screens/home/role-home";
 import { EventScreen } from "@/screens/event";
-import { ArtistProfileScreen } from "@/screens/artist-profile";
-import { ArtistsScreen } from "@/screens/artists";
-import { VenuesScreen } from "@/screens/venues";
-import { HowItWorksScreen } from "@/screens/how-it-works";
 import { CheckoutDetailsScreen } from "@/screens/checkout-details";
 import { CheckoutPayScreen } from "@/screens/checkout-pay";
-import { TicketDetailScreen } from "@/screens/ticket-detail";
-import { MyTicketsScreen } from "@/screens/my-tickets";
 import { NotFoundScreen } from "@/screens/not-found";
 
 /*
@@ -42,6 +45,16 @@ function lazyScreen<K extends string, C extends React.ComponentType<any>>(
 ): React.LazyExoticComponent<C> {
   return lazy(async () => ({ default: (await loader())[key] }));
 }
+
+/* Public, but not on the landing path — a click away, and worth not making
+ * every first-time visitor download before they have seen a single gig. */
+const ArtistsScreen = lazyScreen(() => import("@/screens/artists"), "ArtistsScreen");
+const ArtistProfileScreen = lazyScreen(() => import("@/screens/artist-profile"), "ArtistProfileScreen");
+const VenuesScreen = lazyScreen(() => import("@/screens/venues"), "VenuesScreen");
+const HowItWorksScreen = lazyScreen(() => import("@/screens/how-it-works"), "HowItWorksScreen");
+/* Post-purchase: nobody reaches these before they have bought something. */
+const TicketDetailScreen = lazyScreen(() => import("@/screens/ticket-detail"), "TicketDetailScreen");
+const MyTicketsScreen = lazyScreen(() => import("@/screens/my-tickets"), "MyTicketsScreen");
 
 const HostHomeLetterpressScreen = lazyScreen(() => import("@/screens/host/host-home-letterpress"), "HostHomeLetterpressScreen");
 const HostVenueLayoutScreen = lazyScreen(() => import("@/screens/host/host-venue-layout"), "HostVenueLayoutScreen");

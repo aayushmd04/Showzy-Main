@@ -136,7 +136,10 @@ export function PublicShell({ children }: { children: ReactNode }) {
               onClick={() => setTheme(isDark ? "light" : "dark")}
               aria-label="Toggle theme"
               style={{
-                minHeight: 36, width: 36, border: `1.5px solid ${tok.btnBorder}`,
+                // 44px, like every other control in the product. A 36px
+                // circle is a miss-tap on a phone, and this sits next to the
+                // sign-in button.
+                minHeight: 44, width: 44, border: `1.5px solid ${tok.btnBorder}`,
                 background: "transparent", borderRadius: 999, fontSize: 15,
                 cursor: "pointer", color: tok.paper,
               }}
@@ -170,7 +173,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
                 })}
                 style={{
                   background: tok.signal, border: "none", borderRadius: 999,
-                  padding: "8px 20px", fontFamily: "inherit", fontSize: 14,
+                  minHeight: 44, padding: "0 20px", fontFamily: "inherit", fontSize: 14,
                   fontWeight: 700, color: "#F3E9D6", cursor: "pointer", whiteSpace: "nowrap",
                 }}
               >

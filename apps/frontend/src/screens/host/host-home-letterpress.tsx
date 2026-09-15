@@ -1,8 +1,12 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { CalendarPlus, ChevronRight, Music2, Users } from "lucide-react";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/store/app-store";
+import { getMyEvents } from "@/lib/api";
+import { adaptEvent } from "@/lib/adapters";
+import type { NaadaEvent } from "@/data/fixtures";
 import { today, dateListing, money } from "@/lib/format";
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
@@ -21,7 +25,27 @@ function statusColor(status: string): string {
 
 /** Host dashboard — overview on login. */
 export function HostHomeLetterpressScreen() {
-  const { events, users, currentUser, venueOf, soldOf, capacityOf, artists, emptyLists } = useStore();
+  const { users, currentUser, venueOf, soldOf, capacityOf, artists } = useStore();
+
+  /*
+   * `getMyEvents()`, not the store's `events`.
+   *
+   * The store holds the public catalogue — every published event on the
+   * platform — and this screen was reading straight from it. A host in Mysuru
+   * therefore saw a Bengaluru venue's nights listed among their own, and the
+   * "Revenue (est.)" figure on their dashboard was the sum of every ticket
+   * Naada had ever sold, presented as theirs. The Events screen has always
+   * called the scoped endpoint; this one was simply missed.
+   */
+  const [events, setEvents] = useState<NaadaEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getMyEvents()
+      .then((r) => setEvents(r.results.map(adaptEvent)))
+      .catch(() => setEvents([]))
+      .finally(() => setLoading(false));
+  }, []);
 
   const upcoming = [...events]
     .filter((e) => (e.status === "published" || e.status === "live") && e.date >= today())
@@ -30,12 +54,10 @@ export function HostHomeLetterpressScreen() {
   const nextUp = upcoming[0] ?? null;
   const nextVenue = nextUp ? venueOf(nextUp) : null;
 
-  const allRows = emptyLists
-    ? []
-    : [...events].sort((a, b) => {
-        const done = (s: string) => (s === "completed" || s === "cancelled" ? 1 : 0);
-        return done(a.status) - done(b.status) || a.date.localeCompare(b.date);
-      });
+  const allRows = [...events].sort((a, b) => {
+    const done = (s: string) => (s === "completed" || s === "cancelled" ? 1 : 0);
+    return done(a.status) - done(b.status) || a.date.localeCompare(b.date);
+  });
 
   const totalRevenue = events
     .filter((e) => e.status === "completed" || e.status === "published")
@@ -421,7 +443,14 @@ export function HostHomeLetterpressScreen() {
           </Link>
         </div>
 
-        {allRows.length === 0 ? (
+        {loading ? (
+          <div
+            className="border border-line"
+            style={{ borderRadius: 12, padding: "32px 16px", textAlign: "center" }}
+          >
+            <p className="t-small text-muted">Loading your events…</p>
+          </div>
+        ) : allRows.length === 0 ? (
           <div
             className="border border-line"
             style={{ borderRadius: 12, padding: "32px 16px", textAlign: "center" }}
@@ -432,8 +461,17 @@ export function HostHomeLetterpressScreen() {
             </Button>
           </div>
         ) : (
-          <div className="border border-line" style={{ borderRadius: 12, overflow: "hidden" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          /* `overflow: hidden` here was clipping, not scrolling: the table
+             wants 468px and a phone gives it 343, so Sold and Status — the
+             two columns a host actually opens this screen for — were cut off
+             the right edge with no way to reach them. Every other table in
+             the console is wrapped in `overflow-x-auto`; this one was missed.
+             `min-w` keeps the columns legible instead of crushing them. */
+          <div
+            className="overflow-x-auto border border-line"
+            style={{ borderRadius: 12 }}
+          >
+            <table style={{ width: "100%", minWidth: 480, borderCollapse: "collapse" }}>
               <thead>
                 <tr className="border-b border-line" style={{ background: "rgba(0,0,0,.02)" }}>
                   {["Date", "Event", "Venue", "Sold", "Status"].map((h) => (

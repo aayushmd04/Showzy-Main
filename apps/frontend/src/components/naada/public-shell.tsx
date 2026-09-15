@@ -97,8 +97,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <NaadaLogo tok={tok} />
           </Link>
 
-          {/* Nav links — hidden on mobile */}
-          <nav style={{ display: "flex", gap: 24, alignItems: "center" }} className="discover-nav-links">
+          {/* Nav links. `.discover-nav-links` is what hides these below 900px
+              — it carries the `display: flex` too, because an inline
+              `display: flex` here beat the media query's `display: none` and
+              the links were never actually hidden on a phone. The page then
+              measured 681px inside a 375px viewport and scrolled sideways. */}
+          <nav className="discover-nav-links" style={{ alignItems: "center" }}>
             {NAV_LINKS.map(({ label, path }) => {
               const active = path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
               return (
@@ -174,6 +178,38 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </button>
             )}
           </div>
+        </div>
+
+        {/* Phone-only section links, matching the home page's row. Without
+            this, hiding the links above would leave Artists, Venues and How
+            it works reachable only from the footer. */}
+        <div
+          className="discover-nav-mobile"
+          style={{ borderTop: `1px solid ${tok.navBorder}` }}
+        >
+          {NAV_LINKS.map(({ label, path }) => {
+            const active = path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+            return (
+              <Link
+                key={path}
+                to={path}
+                style={{
+                  textDecoration: "none",
+                  whiteSpace: "nowrap",
+                  fontSize: 14,
+                  fontWeight: 600,
+                  padding: "8px 14px",
+                  borderRadius: 999,
+                  flexShrink: 0,
+                  color: active ? "#F3E9D6" : tok.navLinkInactive,
+                  background: active ? tok.signal : "transparent",
+                  border: `1px solid ${active ? tok.signal : tok.navBorder}`,
+                }}
+              >
+                {label}
+              </Link>
+            );
+          })}
         </div>
       </header>
 

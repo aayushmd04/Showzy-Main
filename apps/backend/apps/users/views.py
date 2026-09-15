@@ -8,7 +8,7 @@ from django.conf import settings as django_settings
 from rest_framework import status, generics, permissions
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
+from rest_framework.throttling import AnonRateThrottle, SimpleRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.token_blacklist.models import (
     BlacklistedToken,
@@ -28,7 +28,33 @@ User = get_user_model()
 
 
 class OTPRateThrottle(AnonRateThrottle):
+    """Caps how many sign-in codes one *caller* can ask for. Keyed on IP."""
+
     scope = "otp"
+
+
+class OTPEmailThrottle(SimpleRateThrottle):
+    """Caps how many sign-in codes one *address* can be sent.
+
+    The IP throttle above protects us from one attacker; this protects a user
+    from many. Anyone willing to rotate IPs — a phone toggling airplane mode is
+    enough — could otherwise pour unlimited "your Naada code is…" mail into
+    somebody's inbox, and burn the sending quota on the free email tier while
+    they were at it.
+
+    Keyed on the submitted address, so the two throttles compose: a flood has
+    to get past both the per-IP and the per-recipient budget.
+    """
+
+    scope = "otp_email"
+
+    def get_cache_key(self, request, view):
+        email = (request.data or {}).get("email") if hasattr(request, "data") else None
+        if not isinstance(email, str) or not email.strip():
+            # Nothing to key on — let the serializer reject it as a bad request
+            # rather than spending this caller's budget on a malformed body.
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": email.strip().lower()}
 
 
 def get_client_ip(request):
@@ -38,7 +64,7 @@ def get_client_ip(request):
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
-@throttle_classes([OTPRateThrottle])
+@throttle_classes([OTPRateThrottle, OTPEmailThrottle])
 def request_otp(request):
     serializer = OTPRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)

@@ -167,7 +167,11 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "100/hour",
         "user": "1000/hour",
+        # "otp" is per caller IP, "otp_email" is per recipient address. Both
+        # apply to the sign-in endpoint; see apps/users/views.py for why one
+        # without the other leaves a hole.
         "otp": "5/hour",
+        "otp_email": "5/hour",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }

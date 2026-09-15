@@ -8,10 +8,17 @@ access to their own dashboard. `set_role` is the real fix; these tests pin
 both that it actually persists and that it can never be used to grant admin.
 """
 
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 from django.urls import reverse
-from django.test import TestCase
-from rest_framework.test import APIClient
+from django.test import TestCase, override_settings
+from rest_framework.test import APIClient, APIRequestFactory
+from rest_framework.views import APIView
+
+from apps.core.checks import email_must_actually_send, throttle_needs_a_shared_cache
+from .views import OTPEmailThrottle, OTPRateThrottle
 
 from apps.artists.models import Artist
 from .models import UserRole
@@ -72,3 +79,127 @@ class SetRoleTests(TestCase):
         self.assertEqual(resp.status_code, 200, resp.data)
         self.user.refresh_from_db()
         self.assertEqual(self.user.role, UserRole.ATTENDEE)
+
+
+class OTPThrottleTests(TestCase):
+    """The sign-in endpoint is throttled two ways, and both matter.
+
+    Per-IP alone stops one attacker but not many: rotating IPs is cheap enough
+    that a victim's inbox could be flooded with sign-in codes, taking the free
+    email tier's daily quota down with it. Per-address alone would let one
+    caller walk a list of addresses. These pin that both budgets exist.
+
+    The rates are patched on the throttle classes rather than through
+    `override_settings(REST_FRAMEWORK=...)`: DRF caches its own settings object,
+    so overriding the Django setting leaves the live rate untouched and the
+    test passes against a limit that was never actually applied.
+    """
+
+    def setUp(self):
+        self.client = APIClient()
+        self.url = reverse("auth-request-otp")
+        # Throttle counters live in the cache and outlive a single test.
+        cache.clear()
+
+    def tearDown(self):
+        cache.clear()
+
+    @staticmethod
+    def _rate(throttle_cls, rate):
+        return patch.object(throttle_cls, "get_rate", return_value=rate)
+
+    def test_one_address_cannot_be_flooded_from_many_ips(self):
+        with self._rate(OTPEmailThrottle, "3/hour"), self._rate(OTPRateThrottle, "100/hour"):
+            codes = [
+                self.client.post(
+                    self.url,
+                    {"email": "victim@naada.test"},
+                    format="json",
+                    REMOTE_ADDR=f"203.0.113.{i + 1}",  # a different caller every time
+                ).status_code
+                for i in range(6)
+            ]
+        self.assertIn(429, codes, f"a new IP each time was never throttled: {codes}")
+
+    def test_one_caller_cannot_walk_a_list_of_addresses(self):
+        with self._rate(OTPEmailThrottle, "100/hour"), self._rate(OTPRateThrottle, "3/hour"):
+            codes = [
+                self.client.post(
+                    self.url,
+                    {"email": f"target{i}@naada.test"},
+                    format="json",
+                    REMOTE_ADDR="198.51.100.7",  # one caller, many addresses
+                ).status_code
+                for i in range(6)
+            ]
+        self.assertIn(429, codes, f"one IP walking addresses was never throttled: {codes}")
+
+    def test_a_body_with_no_address_does_not_spend_the_budget(self):
+        # A malformed body comes back 400 from the serializer, and must not
+        # consume the real caller's one allowed send.
+        with self._rate(OTPEmailThrottle, "1/hour"), self._rate(OTPRateThrottle, "100/hour"):
+            bad = self.client.post(self.url, {}, format="json", REMOTE_ADDR="198.51.100.9")
+            self.assertEqual(bad.status_code, 400, bad.data)
+
+            good = self.client.post(
+                self.url, {"email": "ok@naada.test"}, format="json", REMOTE_ADDR="198.51.100.9"
+            )
+            self.assertEqual(good.status_code, 200, good.data)
+
+    def test_the_address_key_is_case_and_whitespace_insensitive(self):
+        # Otherwise " Victim@Naada.test " is a fresh budget for the same inbox.
+        throttle = OTPEmailThrottle()
+        factory = APIRequestFactory()
+
+        def key_for(raw):
+            request = APIView().initialize_request(
+                factory.post("/auth/request-otp/", {"email": raw}, format="json")
+            )
+            return throttle.get_cache_key(request, None)
+
+        self.assertEqual(key_for("Victim@Naada.test"), key_for("  victim@naada.test "))
+
+    def test_an_address_that_is_not_a_string_is_ignored_rather_than_crashing(self):
+        throttle = OTPEmailThrottle()
+        factory = APIRequestFactory()
+        request = APIView().initialize_request(
+            factory.post("/auth/request-otp/", {"email": ["a@b.test"]}, format="json")
+        )
+        self.assertIsNone(throttle.get_cache_key(request, None))
+
+
+class DeployCheckTests(TestCase):
+    """The two ways a deploy can look healthy and quietly not be."""
+
+    @override_settings(
+        DEBUG=False,
+        CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+    )
+    def test_warns_when_throttling_has_no_shared_cache(self):
+        ids = [w.id for w in throttle_needs_a_shared_cache(None)]
+        self.assertEqual(ids, ["naada.W001"])
+
+    @override_settings(
+        DEBUG=False,
+        CACHES={
+            "default": {
+                "BACKEND": "django.core.cache.backends.redis.RedisCache",
+                "LOCATION": "redis://localhost:6379/0",
+            }
+        },
+    )
+    def test_silent_when_a_real_cache_is_configured(self):
+        self.assertEqual(throttle_needs_a_shared_cache(None), [])
+
+    @override_settings(DEBUG=False, EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend")
+    def test_warns_when_sign_in_codes_would_only_reach_the_log(self):
+        ids = [w.id for w in email_must_actually_send(None)]
+        self.assertEqual(ids, ["naada.W002"])
+
+    @override_settings(DEBUG=False, EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend")
+    def test_silent_when_smtp_is_configured(self):
+        self.assertEqual(email_must_actually_send(None), [])
+
+    @override_settings(DEBUG=True, EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend")
+    def test_says_nothing_in_development(self):
+        self.assertEqual(email_must_actually_send(None), [])

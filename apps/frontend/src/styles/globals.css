@@ -377,6 +377,26 @@
   align-items: center;
   gap: 10px;
 }
+/* The phone-only row of section links. Off by default; the media query below
+   turns it on at exactly the width the in-bar links turn off, so the two are
+   never both present and never both absent. */
+.discover-nav-mobile {
+  display: none;
+  gap: 8px;
+  align-items: center;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 10px 20px;
+  -webkit-overflow-scrolling: touch;
+}
+.discover-nav-mobile::-webkit-scrollbar { display: none; }
+/* City + language, shown in the bar on desktop and in the row above on a
+   phone. Exactly one of the two copies is ever displayed. */
+.discover-nav-controls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
 .discover-footer {
   padding: 22px 56px 28px;
   display: flex;
@@ -389,6 +409,9 @@
 @media (max-width: 900px) {
   .discover-nav { padding: 0 20px; }
   .discover-nav-links { display: none; }
+  .discover-nav-mobile { display: flex; }
+  .discover-nav-controls { display: none; }
+  .discover-nav-cta { display: none; }
   .discover-hero {
     grid-template-columns: 1fr;
     gap: 32px;

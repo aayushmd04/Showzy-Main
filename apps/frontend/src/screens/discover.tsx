@@ -907,6 +907,17 @@ export function DiscoverScreen() {
 
   const langLabel = lang === "en" ? "ಕನ್ನಡ" : "English";
 
+  /* Rendered twice: inline in the bar on desktop, and as their own scrollable
+   * row under it on a phone. They used to be simply hidden below 900px, which
+   * left Artists, Venues and How it works reachable only from the footer —
+   * and the footer just got a great deal further away. */
+  const navLinks = [
+    { label: lang === "en" ? "What's on" : "ಏನಿದೆ", path: "/", active: true },
+    { label: lang === "en" ? "Artists" : "ಕಲಾವಿದರು", path: "/artists", active: false },
+    { label: lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು", path: "/venues", active: false },
+    { label: lang === "en" ? "How it works" : "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ", path: "/how-it-works", active: false },
+  ];
+
   return (
     <div
       style={{
@@ -942,12 +953,7 @@ export function DiscoverScreen() {
             <NaadaLogo tok={tok} size={27} />
           </Link>
           <div className="discover-nav-links">
-            {[
-              { label: lang === "en" ? "What's on" : "ಏನಿದೆ",                          path: "/",            active: true },
-              { label: lang === "en" ? "Artists" : "ಕಲಾವಿದರು",                          path: "/artists",     active: false },
-              { label: lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು",                             path: "/venues",      active: false },
-              { label: lang === "en" ? "How it works" : "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ",         path: "/how-it-works", active: false },
-            ].map(({ label, path, active }) => (
+            {navLinks.map(({ label, path, active }) => (
               <Link
                 key={path}
                 to={path}
@@ -968,6 +974,7 @@ export function DiscoverScreen() {
 
         {/* Right: city, lang toggle, log in, CTA */}
         <div className="discover-nav-right" style={{ alignItems: "center" }}>
+          <div className="discover-nav-controls">
           {/* City selector — cycles All → Mysuru → Bengaluru → All */}
           <button
             onClick={cycleCity}
@@ -1035,6 +1042,7 @@ export function DiscoverScreen() {
           >
             {isDark ? "☀" : "🌙"}
           </button>
+          </div>
 
           {/* Log in */}
           {role === "out" && (
@@ -1046,8 +1054,11 @@ export function DiscoverScreen() {
             </span>
           )}
 
-          {/* Find tonight's show CTA */}
+          {/* Find tonight's show CTA. Hidden on a phone — the hero repeats it
+              immediately below, and in a 375px bar it was what pushed the
+              controls off the edge. */}
           <button
+            className="discover-nav-cta"
             onClick={() => soonest && navigate(`/e/${soonest.id}`)}
             style={{
               minHeight: 46,
@@ -1072,6 +1083,102 @@ export function DiscoverScreen() {
           {role !== "out" && currentUser && <AccountMenu />}
         </div>
       </nav>
+
+      {/* Phone-only section nav. A scrolling row rather than a hamburger:
+          four links don't earn a menu, and nothing beats a control you can
+          see. Hidden at 900px and up, where they sit inside the bar.
+
+          The city and language controls move down here too — a 375px bar
+          cannot hold the logo, both of those, the theme toggle, sign-in and a
+          call to action, and what it did instead was clip them off the right
+          edge where nobody could reach them. */}
+      <div
+        className="discover-nav-mobile"
+        style={{ background: tok.navBg, borderBottom: `1px solid ${tok.navBorder}` }}
+      >
+        <button
+          onClick={cycleCity}
+          disabled={cityOptions.length <= 1}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            flexShrink: 0,
+            minHeight: 38,
+            padding: "0 14px",
+            borderRadius: 999,
+            fontSize: 14,
+            fontWeight: 600,
+            fontFamily: "'Archivo',sans-serif",
+            whiteSpace: "nowrap",
+            color: tok.paper,
+            cursor: "pointer",
+            border: `1px solid ${cityFilter !== "all" ? tok.signal : tok.cardBorder}`,
+            background: cityFilter !== "all" ? `${tok.signal}18` : "transparent",
+          }}
+        >
+          <span style={{ fontSize: 12, color: tok.signal }}>◎</span>
+          <span>{cityLabel(cityFilter)}</span>
+        </button>
+        <button
+          onClick={() => setLang(lang === "en" ? "kn" : "en")}
+          aria-label="Toggle language"
+          style={{
+            flexShrink: 0,
+            minHeight: 38,
+            padding: "0 14px",
+            borderRadius: 999,
+            fontFamily: "'Anek Kannada',sans-serif",
+            fontSize: 15,
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+            color: tok.paper,
+            cursor: "pointer",
+            border: `1px solid ${tok.cardBorder}`,
+            background: "transparent",
+          }}
+        >
+          {langLabel}
+        </button>
+        <button
+          onClick={() => setTheme(isDark ? "light" : "dark")}
+          aria-label="Toggle theme"
+          style={{
+            flexShrink: 0,
+            width: 38,
+            minHeight: 38,
+            borderRadius: 999,
+            fontSize: 16,
+            color: tok.paper,
+            cursor: "pointer",
+            border: `1px solid ${tok.cardBorder}`,
+            background: "transparent",
+          }}
+        >
+          {isDark ? "☀" : "🌙"}
+        </button>
+        <span aria-hidden="true" style={{ flexShrink: 0, width: 1, alignSelf: "stretch", background: tok.cardBorder }} />
+        {navLinks.map(({ label, path, active }) => (
+          <Link
+            key={path}
+            to={path}
+            style={{
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              fontSize: 14,
+              fontWeight: 600,
+              padding: "9px 14px",
+              borderRadius: 999,
+              flexShrink: 0,
+              color: active ? "#F3E9D6" : tok.navLinkInactive,
+              background: active ? tok.signal : "transparent",
+              border: `1px solid ${active ? tok.signal : tok.cardBorder}`,
+            }}
+          >
+            {label}
+          </Link>
+        ))}
+      </div>
 
       {/* ── HERO ────────────────────────────────────────────────────────── */}
       <section
@@ -1868,7 +1975,11 @@ export function DiscoverScreen() {
         style={{ background: tok.bg }}
       >
         <NaadaLogo tok={tok} size={19} />
-        <div style={{ display: "flex", gap: 24, fontSize: 14, color: tok.muted }}>
+        {/* Wrapping is not cosmetic here: seven links in a non-wrapping row
+            measured 454px, so on a 375px phone Terms, Privacy, Refunds and
+            Contact were clipped off the edge with no way to scroll to them —
+            and those are the pages a payment gateway checks for. */}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "10px 24px", fontSize: 14, color: tok.muted }}>
           <Link to="/artists"      style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Artists" : "ಕಲಾವಿದರು"}</Link>
           <Link to="/venues"       style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "Venues" : "ಸ್ಥಳಗಳು"}</Link>
           <Link to="/how-it-works" style={{ color: tok.muted, textDecoration: "none" }}>{lang === "en" ? "How it works" : "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ"}</Link>

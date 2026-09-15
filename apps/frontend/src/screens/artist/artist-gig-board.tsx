@@ -8,7 +8,7 @@ import { Pill } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
 import { useStore } from "@/store/app-store";
 import { applyToGig as apiApplyToGig } from "@/lib/api";
-import { TODAY, dateListing, money } from "@/lib/format";
+import { today, dateListing, money } from "@/lib/format";
 
 const OPEN_STATUS_LABEL = {
   pending: "Applied",
@@ -37,7 +37,7 @@ export function ArtistGigBoardScreen() {
   const board = emptyLists
     ? []
     : events
-        .filter((e) => e.status === "published" && e.isSeekingArtist && e.date >= TODAY)
+        .filter((e) => e.status === "published" && e.isSeekingArtist && e.date >= today())
         .sort((a, b) => a.date.localeCompare(b.date));
 
   const myApplication = (eventId: string) =>

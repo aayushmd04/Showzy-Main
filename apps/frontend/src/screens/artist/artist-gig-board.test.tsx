@@ -18,11 +18,40 @@ vi.mock("@/lib/api", async (importOriginal) => {
 });
 
 /*
+ * The fixtures were written against a frozen "today" of 2026-08-20, and the
+ * gig board only lists gigs that haven't happened yet. Once the real calendar
+ * moved past those dates the board was correctly empty and every assertion
+ * here failed — so rebase the fixture dates onto the current week, keeping the
+ * gaps between them intact. Without this the suite passes only during the one
+ * week the fixtures were authored in.
+ */
+const FIXTURE_TODAY = "2026-08-20";
+
+function shiftToNow(iso: string): string {
+  const from = new Date(FIXTURE_TODAY + "T00:00:00");
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const offsetDays = Math.round((now.getTime() - from.getTime()) / 86_400_000);
+
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + offsetDays);
+  return (
+    `${d.getFullYear()}-` +
+    `${String(d.getMonth() + 1).padStart(2, "0")}-` +
+    `${String(d.getDate()).padStart(2, "0")}`
+  );
+}
+
+/*
  * The store starts empty in the app, so a screen test that asserts on fixture
  * content has to put it there deliberately.
  */
 const fixtureSeed = () => ({
-  events: fixtures.events.map((e) => ({ ...e, tiers: e.tiers.map((t) => ({ ...t })) })),
+  events: fixtures.events.map((e) => ({
+    ...e,
+    date: shiftToNow(e.date),
+    tiers: e.tiers.map((t) => ({ ...t })),
+  })),
   artists: fixtures.artists.map((a) => ({ ...a })),
   venues: fixtures.venues.map((v) => ({ ...v })),
   bookings: fixtures.bookings.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),

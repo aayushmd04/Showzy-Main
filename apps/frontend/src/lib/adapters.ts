@@ -62,7 +62,14 @@ export function adaptEvent(e: ApiEvent): NaadaEvent {
     name: e.title,
     venueId,
     hostId: "api",
-    date: dt.toISOString().slice(0, 10),
+    // Local date, to match `time` just below, which is local too.
+    // `toISOString()` is UTC: a 00:30 IST show would have come back dated to
+    // the previous day while its time still read 00:30, so the card said one
+    // date and the clock said another.
+    date:
+      `${dt.getFullYear()}-` +
+      `${String(dt.getMonth() + 1).padStart(2, "0")}-` +
+      `${String(dt.getDate()).padStart(2, "0")}`,
     time: dt.toTimeString().slice(0, 5),
     status: e.status as NaadaEvent["status"],
     genres: (e.genres ?? []).map((g) => g.name),

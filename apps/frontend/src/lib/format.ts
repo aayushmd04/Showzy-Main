@@ -58,11 +58,41 @@ export function pluralise(n: number, one: string, many = one + "s"): string {
   return `${n} ${n === 1 ? one : many}`;
 }
 
-/** Days between today (the fixture "today") and an ISO date. */
-export const TODAY = "2026-08-20";
+/**
+ * Today, as `YYYY-MM-DD`, in the viewer's own timezone.
+ *
+ * This used to be a frozen string from the fixture era, which meant every
+ * "is this event still upcoming?" test on the home page, the host home and the
+ * gig board compared against a date in the past — a real deployment would have
+ * gone on advertising gigs that had already happened.
+ *
+ * Built from the local getters rather than `toISOString().slice(0, 10)`: that
+ * one is UTC, so between midnight and 05:30 IST it reports yesterday and the
+ * night's own listings vanish from the site.
+ */
+export function today(): string {
+  const d = new Date();
+  return (
+    `${d.getFullYear()}-` +
+    `${String(d.getMonth() + 1).padStart(2, "0")}-` +
+    `${String(d.getDate()).padStart(2, "0")}`
+  );
+}
 
+/** Today shifted by `days` — `daysFromNow(7)` is the end of "this week". */
+export function daysFromNow(days: number): string {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return (
+    `${d.getFullYear()}-` +
+    `${String(d.getMonth() + 1).padStart(2, "0")}-` +
+    `${String(d.getDate()).padStart(2, "0")}`
+  );
+}
+
+/** Whole days between today and an ISO date. Negative means it has passed. */
 export function daysFromToday(iso: string): number {
-  const ms = parseDate(iso).getTime() - parseDate(TODAY).getTime();
+  const ms = parseDate(iso).getTime() - parseDate(today()).getTime();
   return Math.round(ms / 86_400_000);
 }
 

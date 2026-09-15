@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  TODAY,
+  today,
+  daysFromNow,
   dateBody,
   dateCompact,
   dateListing,
@@ -56,14 +57,47 @@ describe("date formatting", () => {
   });
 });
 
+describe("today", () => {
+  it("is a YYYY-MM-DD string", () => {
+    expect(today()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it("uses the local date, not the UTC one", () => {
+    // The distinction matters between 00:00 and 05:30 IST, when UTC is still
+    // on the previous day and a UTC-derived "today" hides the night's gigs.
+    const d = new Date();
+    expect(today()).toBe(
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`,
+    );
+  });
+});
+
+describe("daysFromNow", () => {
+  it("returns today for zero", () => {
+    expect(daysFromNow(0)).toBe(today());
+  });
+
+  it("moves forward and backward by whole days", () => {
+    expect(daysFromToday(daysFromNow(7))).toBe(7);
+    expect(daysFromToday(daysFromNow(-3))).toBe(-3);
+  });
+
+  it("rolls over month and year boundaries", () => {
+    // 400 days is more than a year, so a naive setDate would have to carry
+    // through both a month and a year change to land on a real date.
+    expect(daysFromNow(400)).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(daysFromToday(daysFromNow(400))).toBe(400);
+  });
+});
+
 describe("daysFromToday", () => {
-  it("is zero for the fixture TODAY", () => {
-    expect(daysFromToday(TODAY)).toBe(0);
+  it("is zero for today", () => {
+    expect(daysFromToday(today())).toBe(0);
   });
 
   it("is positive for future dates and negative for past dates", () => {
-    expect(daysFromToday("2026-08-28")).toBeGreaterThan(0);
-    expect(daysFromToday("2026-08-01")).toBeLessThan(0);
+    expect(daysFromToday(daysFromNow(8))).toBeGreaterThan(0);
+    expect(daysFromToday(daysFromNow(-19))).toBeLessThan(0);
   });
 });
 

@@ -3,7 +3,7 @@ import { CalendarPlus, ChevronRight, Music2, Users } from "lucide-react";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/store/app-store";
-import { TODAY, dateListing, money } from "@/lib/format";
+import { today, dateListing, money } from "@/lib/format";
 
 const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
 
@@ -24,7 +24,7 @@ export function HostHomeLetterpressScreen() {
   const { events, users, currentUser, venueOf, soldOf, capacityOf, artists, emptyLists } = useStore();
 
   const upcoming = [...events]
-    .filter((e) => (e.status === "published" || e.status === "live") && e.date >= TODAY)
+    .filter((e) => (e.status === "published" || e.status === "live") && e.date >= today())
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const nextUp = upcoming[0] ?? null;

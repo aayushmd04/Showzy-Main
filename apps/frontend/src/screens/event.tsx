@@ -119,7 +119,11 @@ export function EventScreen() {
   const isFree = event.tiers.every((t) => t.price === 0);
   const fee = tier && tier.price > 0 ? CONVENIENCE_FEE : 0;
   const total = (tier?.price ?? 0) + fee;
-  const soldOut = event.tiers.every((t) => t.sold >= t.capacity);
+  // `every` is vacuously true on an empty list, so an event listed before its
+  // ticket tiers exist was showing "Sold out" and hiding its own buy button.
+  // Require a real capacity before calling anything sold out.
+  const capacity = event.tiers.reduce((s, t) => s + t.capacity, 0);
+  const soldOut = capacity > 0 && event.tiers.every((t) => t.sold >= t.capacity);
 
   const share = async () => {
     const url = `${window.location.origin}/e/${event.id}`;

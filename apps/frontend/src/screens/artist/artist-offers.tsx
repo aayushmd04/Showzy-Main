@@ -3,7 +3,7 @@ import { ConsoleShell, ARTIST_NAV } from "@/components/naada/console-shell";
 import { Pill } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
 import { useStore } from "@/store/app-store";
-import { TODAY, dateListing, daysFromToday, money, pluralise } from "@/lib/format";
+import { today, dateListing, daysFromToday, money, pluralise } from "@/lib/format";
 
 /** Section 7.17 — Offer inbox. */
 export function ArtistOffersScreen() {
@@ -28,7 +28,7 @@ export function ArtistOffersScreen() {
             // Offers lapse four days after the last quote lands.
             const expiresIn = Math.max(
               1,
-              daysFromToday(last?.at.slice(0, 10) ?? TODAY) + 4,
+              daysFromToday(last?.at.slice(0, 10) ?? today()) + 4,
             );
             return (
               <li key={b.id} className="px-4 py-4 transition-colors hover:bg-surface-2">

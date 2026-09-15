@@ -5,9 +5,10 @@ import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { NotificationBell } from "@/components/naada/notification-bell";
 import { AccountMenu } from "@/components/naada/account-menu";
-import { TODAY } from "@/lib/format";
+import { today, daysFromNow } from "@/lib/format";
+import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { getCities, type ApiCity } from "@/lib/api";
-import type { NaadaEvent } from "@/data/fixtures";
+import type { NaadaEvent, Artist, Venue } from "@/data/fixtures";
 
 // ─── Design tokens per theme ─────────────────────────────────────────────────
 // These mirror the exact hex values from the design handoff DC file.
@@ -100,10 +101,26 @@ function fmt(date: string, part: "dow" | "d" | "mon") {
   return d.toLocaleString("en", { month: "short" }).toUpperCase();
 }
 
+function totalCapacity(event: NaadaEvent): number {
+  return event.tiers.reduce((s, t) => s + t.capacity, 0);
+}
+
 function seatsLeft(event: NaadaEvent): number {
-  const total  = event.tiers.reduce((s, t) => s + t.capacity, 0);
-  const sold   = event.tiers.reduce((s, t) => s + t.sold, 0);
-  return Math.max(0, total - sold);
+  const sold = event.tiers.reduce((s, t) => s + t.sold, 0);
+  return Math.max(0, totalCapacity(event) - sold);
+}
+
+/**
+ * True only when we know the capacity and it has all gone.
+ *
+ * A host who lists a night before adding ticket tiers has an event whose
+ * capacity is zero, and `every(sold >= capacity)` is vacuously true on an
+ * empty list — so the listing announced "Sold out" for a room nobody had been
+ * able to buy into yet, next to a price of "Free". Unknown capacity is not the
+ * same as no seats.
+ */
+function capacityKnown(event: NaadaEvent): boolean {
+  return totalCapacity(event) > 0;
 }
 
 function lowestPrice(event: NaadaEvent): number {
@@ -115,7 +132,7 @@ function isFree(event: NaadaEvent): boolean {
 }
 
 function isSoldOut(event: NaadaEvent): boolean {
-  return event.tiers.every((t) => t.sold >= t.capacity);
+  return capacityKnown(event) && event.tiers.every((t) => t.sold >= t.capacity);
 }
 
 function priceLabel(event: NaadaEvent, lang: "en" | "kn"): string {
@@ -193,7 +210,11 @@ function EventCard({
     ? (lang === "en" ? "Sold out" : "ಟಿಕೆಟ್ ಮುಗಿದಿದೆ")
     : free
       ? (lang === "en" ? "Free entry" : "ಉಚಿತ ಪ್ರವೇಶ")
-      : (lang === "en" ? `${left} seats left` : `${left} ಆಸನಗಳು ಉಳಿದಿವೆ`);
+      : capacityKnown(event)
+        ? (lang === "en" ? `${left} seats left` : `${left} ಆಸನಗಳು ಉಳಿದಿವೆ`)
+        // No tiers yet, so no seat count to quote — say what is true instead
+        // of "0 seats left", which reads as sold out.
+        : (lang === "en" ? "Tickets on the event page" : "ಟಿಕೆಟ್ ವಿವರ ಕಾರ್ಯಕ್ರಮದ ಪುಟದಲ್ಲಿ");
 
   return (
     <div
@@ -387,10 +408,18 @@ function HeroPhotoPanel({ event, index, venue, tok, lang }: {
           color: "#F3E9D6",
         }}
       >
+        {/* "Tonight" only when it genuinely is tonight — the hero rotates
+            through the next five events, and calling a gig three weeks out
+            "Tonight" is the sort of thing a buyer notices immediately. */}
         <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".1em", textTransform: "uppercase", color: tok.gold }}>
-          {lang === "en"
-            ? (venue ? `Tonight · ${venue.name}` : "Tonight")
-            : (venue ? `ಇಂದು · ${venue.name}` : "ಇಂದು")}
+          {[
+            event.date === today()
+              ? lang === "en" ? "Tonight" : "ಇಂದು"
+              : `${fmt(event.date, "dow")} ${fmt(event.date, "d")} ${fmt(event.date, "mon")}`,
+            venue?.name,
+          ]
+            .filter(Boolean)
+            .join(" · ")}
         </div>
         <div style={{ fontFamily: "'Baloo Tamma 2',system-ui", fontWeight: 800, fontSize: 24, lineHeight: 1.2, marginTop: 8 }}>
           {event.name}
@@ -403,7 +432,7 @@ function HeroPhotoPanel({ event, index, venue, tok, lang }: {
             {isFree(event) ? (lang === "en" ? "Free entry" : "ಉಚಿತ ಪ್ರವೇಶ") : price}
           </span>
         </div>
-        {left > 0 && !isSoldOut(event) && (
+        {left > 0 && capacityKnown(event) && !isSoldOut(event) && (
           <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: "rgba(243,233,214,.6)" }}>
             <PulsingDot color={tok.signal} />
             <span>{lang === "en" ? `${left} seats left` : `${left} ಆಸನಗಳು ಉಳಿದಿವೆ`}</span>
@@ -414,9 +443,249 @@ function HeroPhotoPanel({ event, index, venue, tok, lang }: {
   );
 }
 
+// ─── Section header, shared by every rail below the fold ──────────────────────
+function SectionHead({
+  title,
+  blurb,
+  action,
+  tok,
+}: {
+  title: string;
+  blurb?: string;
+  action?: { label: string; to?: string; onClick?: () => void };
+  tok: typeof T.dark;
+}) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: 20, marginBottom: 24, flexWrap: "wrap" }}>
+      <div>
+        <h2
+          style={{
+            fontFamily: "'Baloo Tamma 2',system-ui",
+            fontWeight: 800,
+            fontSize: "clamp(28px,3.4vw,42px)",
+            lineHeight: 1.1,
+            color: tok.paper,
+            margin: 0,
+            textWrap: "balance",
+          }}
+        >
+          {title}
+        </h2>
+        {blurb && (
+          <p style={{ fontSize: 15, color: tok.muted, margin: "8px 0 0", maxWidth: "58ch" }}>{blurb}</p>
+        )}
+      </div>
+      {action &&
+        (action.to ? (
+          <Link
+            to={action.to}
+            style={{ fontSize: 16, fontWeight: 600, color: tok.signal, textDecoration: "none", whiteSpace: "nowrap" }}
+          >
+            {action.label}
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={action.onClick}
+            style={{
+              fontSize: 16,
+              fontWeight: 600,
+              color: tok.signal,
+              background: "transparent",
+              border: "none",
+              padding: 0,
+              cursor: "pointer",
+              fontFamily: "'Archivo',sans-serif",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {action.label}
+          </button>
+        ))}
+    </div>
+  );
+}
+
+// ─── Browse-by tile (genres, free entry, this weekend) ────────────────────────
+function BrowseTile({
+  label,
+  count,
+  countLabel,
+  active,
+  tok,
+  onClick,
+}: {
+  label: string;
+  count: number;
+  countLabel: string;
+  active: boolean;
+  tok: typeof T.dark;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "flex-start",
+        gap: 6,
+        minHeight: 96,
+        padding: "16px 18px",
+        textAlign: "left",
+        borderRadius: 14,
+        border: `1.5px solid ${active ? tok.signal : tok.cardBorder}`,
+        background: active ? `${tok.signal}14` : tok.cardBg,
+        cursor: "pointer",
+        fontFamily: "'Archivo',sans-serif",
+        transition: "border-color .15s, background .15s",
+      }}
+    >
+      <span
+        style={{
+          fontFamily: "'Baloo Tamma 2',system-ui",
+          fontWeight: 700,
+          fontSize: 19,
+          lineHeight: 1.2,
+          color: tok.paper,
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ fontSize: 13, fontWeight: 600, color: active ? tok.signal : tok.muted2 }}>
+        {count} {countLabel}
+      </span>
+    </button>
+  );
+}
+
+// ─── Artist card (the "Artists on Naada" rail) ────────────────────────────────
+function ArtistRailCard({ artist, tok, lang }: { artist: Artist; tok: typeof T.dark; lang: "en" | "kn" }) {
+  const initials = artist.name.trim().charAt(0).toUpperCase() || "?";
+  return (
+    <Link
+      to={`/a/${artist.id}`}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        textDecoration: "none",
+        borderRadius: 16,
+        overflow: "hidden",
+        border: `1px solid ${tok.cardBorder}`,
+        background: tok.cardBg,
+      }}
+    >
+      <div style={{ position: "relative", height: 190, background: tok.surface, flexShrink: 0 }}>
+        {artist.photo ? (
+          <img
+            src={artist.photo}
+            alt={artist.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+          />
+        ) : (
+          <div
+            aria-hidden="true"
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "grid",
+              placeItems: "center",
+              fontFamily: "'Baloo Tamma 2',system-ui",
+              fontWeight: 800,
+              fontSize: 54,
+              color: tok.muted2,
+              background: `linear-gradient(150deg,${tok.surface} 0%,${tok.cardBg} 100%)`,
+            }}
+          >
+            {initials}
+          </div>
+        )}
+      </div>
+      <div style={{ padding: "14px 16px 16px", display: "flex", flexDirection: "column", gap: 6, flex: 1 }}>
+        <div
+          style={{
+            fontFamily: "'Baloo Tamma 2',system-ui",
+            fontWeight: 700,
+            fontSize: 19,
+            lineHeight: 1.2,
+            color: tok.paper,
+          }}
+        >
+          {artist.name}
+        </div>
+        <div style={{ fontSize: 13, color: tok.muted, minHeight: 18 }}>
+          {[artist.genres.slice(0, 2).join(" · "), artist.city].filter(Boolean).join(" — ")}
+        </div>
+        <div style={{ fontSize: 13, color: tok.muted2, marginTop: "auto", paddingTop: 6 }}>
+          {artist.gigsPlayed > 0
+            ? lang === "en"
+              ? `${artist.gigsPlayed} ${artist.gigsPlayed === 1 ? "gig" : "gigs"} on Naada`
+              : `Naada ನಲ್ಲಿ ${artist.gigsPlayed} ಕಾರ್ಯಕ್ರಮ`
+            : lang === "en"
+              ? "New to Naada"
+              : "Naada ಗೆ ಹೊಸಬರು"}
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+// ─── Venue card (the "Rooms" rail) ────────────────────────────────────────────
+function VenueRailCard({
+  venue,
+  photoIndex,
+  liveCount,
+  tok,
+  lang,
+}: {
+  venue: Venue;
+  photoIndex: number;
+  liveCount: number;
+  tok: typeof T.dark;
+  lang: "en" | "kn";
+}) {
+  const photo = venue.photo ?? gigPhoto(photoIndex);
+  return (
+    <div
+      style={{
+        position: "relative",
+        height: 230,
+        borderRadius: 16,
+        overflow: "hidden",
+        border: `1px solid ${tok.cardBorder}`,
+      }}
+    >
+      <img src={photo} alt={venue.name} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+      <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg,rgba(18,14,11,0) 42%,rgba(18,14,11,.82) 100%)" }} />
+      <div style={{ position: "absolute", left: 0, right: 0, bottom: 0, padding: "16px 18px", color: "#F3E9D6" }}>
+        <div style={{ fontFamily: "'Baloo Tamma 2',system-ui", fontWeight: 700, fontSize: 20, lineHeight: 1.2 }}>
+          {venue.name}
+        </div>
+        <div style={{ fontSize: 13, color: "rgba(243,233,214,.72)", marginTop: 4 }}>
+          {[venue.area, venue.capacity > 0 ? (lang === "en" ? `${venue.capacity} seats` : `${venue.capacity} ಆಸನ`) : ""]
+            .filter(Boolean)
+            .join(" · ")}
+        </div>
+        {liveCount > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 8, fontSize: 13, color: tok.gold, fontWeight: 600 }}>
+            <PulsingDot color={tok.gold} />
+            <span>
+              {lang === "en"
+                ? `${liveCount} ${liveCount === 1 ? "night" : "nights"} on sale`
+                : `${liveCount} ಕಾರ್ಯಕ್ರಮ ಮಾರಾಟದಲ್ಲಿ`}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main DiscoverScreen ──────────────────────────────────────────────────────
 export function DiscoverScreen() {
-  const { role, currentUser, events, artists, venueOf, theme, setTheme, lang, setLang } = useStore();
+  const { role, currentUser, events, artists, venues, venueOf, theme, setTheme, lang, setLang } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -425,8 +694,6 @@ export function DiscoverScreen() {
   const [cityFilter, setCityFilter]     = useState("all");
   const [cities, setCities]             = useState<ApiCity[]>([]);
   const tickerRef = useRef<HTMLDivElement>(null);
-  const cardsStripRef = useRef<HTMLDivElement>(null);
-  const [cardsStripPaused, setCardsStripPaused] = useState(false);
 
   // Cities come from the API. They used to be hardcoded, matched by substrings
   // like "gokulam" and "koramangala", so launching in a third city meant
@@ -460,7 +727,7 @@ export function DiscoverScreen() {
   // Published upcoming events sorted by date (city-filtered)
   const published = useMemo(() => {
     return events
-      .filter((e) => e.status === "published" && e.date >= TODAY)
+      .filter((e) => e.status === "published" && e.date >= today())
       .filter((e) => {
         if (cityFilter === "all") return true;
         const ev = e as NaadaEvent & { _cityName?: string };
@@ -497,12 +764,20 @@ export function DiscoverScreen() {
     [published, activeTabName, urlQuery, venueOf, artists],
   );
 
-  // A primitive fingerprint of `filtered`, not the array itself — `filtered`
-  // is a fresh array reference on plenty of renders that don't actually
-  // change which events are in it (e.g. an unrelated store update), and an
-  // effect keyed on the array itself would tear down and rebuild every one
-  // of those times, never surviving long enough for its own interval to fire.
-  const filteredKey = useMemo(() => filtered.map((e) => e.id).join(","), [filtered]);
+  // "This week" used to mean "every upcoming event we have", which reads as a
+  // lie the moment the calendar stretches past Sunday. Split it: the next
+  // seven days here, everything after that in its own rail below.
+  const weekEnd = useMemo(() => daysFromNow(7), []);
+  const thisWeek = useMemo(() => filtered.filter((e) => e.date <= weekEnd), [filtered, weekEnd]);
+  const later = useMemo(() => filtered.filter((e) => e.date > weekEnd), [filtered, weekEnd]);
+
+  // Primitive fingerprints, not the arrays themselves — a fresh array
+  // reference arrives on plenty of renders that don't change which events are
+  // in it (an unrelated store update, say), and a rail keyed on the array
+  // tears itself down and rebuilds every one of those times, never surviving
+  // long enough for its own interval to fire.
+  const thisWeekKey = useMemo(() => thisWeek.map((e) => e.id).join(","), [thisWeek]);
+  const laterKey = useMemo(() => later.map((e) => e.id).join(","), [later]);
 
   // The hero rotates through the next 5 published events rather than
   // freezing on whichever one happened to sort first.
@@ -531,25 +806,72 @@ export function DiscoverScreen() {
   const heroEvent = heroEvents[heroIndex] ?? published[0];
   const heroVenue = heroEvent ? venueOf(heroEvent) : undefined;
 
-  // "This week" is a horizontally auto-scrolling strip (see the
-  // `.discover-cards` flex-row CSS), not a grid that just wraps once it runs
-  // out of room. Reset to the start whenever the filtered list changes, so
-  // switching tabs never leaves the strip scrolled into what used to be there.
-  useEffect(() => {
-    cardsStripRef.current?.scrollTo({ left: 0 });
-  }, [filteredKey]);
+  // Three buttons say "tonight's gigs", and they used to follow whichever
+  // event the hero had rotated to — so pressing one could land you on a gig a
+  // month out. `published` is date-sorted, so its head is the real next night.
+  const soonest = published[0];
 
-  useEffect(() => {
-    if (reduceMotion || cardsStripPaused) return;
-    const el = cardsStripRef.current;
-    if (!el || el.scrollWidth <= el.clientWidth + 4) return;
+  // Each rail is a horizontally auto-scrolling strip (see the `.discover-cards`
+  // flex-row CSS), not a grid that just wraps once it runs out of room.
+  const weekRail = useAutoScroll(thisWeekKey);
+  const laterRail = useAutoScroll(laterKey, 300, 4500);
 
-    const id = window.setInterval(() => {
-      const nearEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4;
-      el.scrollTo({ left: nearEnd ? 0 : el.scrollLeft + 320, behavior: "smooth" });
-    }, 3500);
-    return () => window.clearInterval(id);
-  }, [filteredKey, reduceMotion, cardsStripPaused]);
+  // ── Artists and rooms: real rows, or the rail simply isn't rendered ───────
+  // A brand-new deployment has none of either, and an empty carousel reads
+  // worse than no carousel.
+  const railArtists = useMemo(() => {
+    // Whoever is actually on a bill this month leads; the rest fill in behind.
+    const onBill = new Set(published.flatMap((e) => e.lineup));
+    return [...artists]
+      .sort((a, b) => {
+        const billed = Number(onBill.has(b.id)) - Number(onBill.has(a.id));
+        return billed !== 0 ? billed : b.gigsPlayed - a.gigsPlayed;
+      })
+      .slice(0, 10);
+  }, [artists, published]);
+
+  const railVenues = useMemo(() => {
+    const nightsAt = new Map<string, number>();
+    published.forEach((e) => nightsAt.set(e.venueId, (nightsAt.get(e.venueId) ?? 0) + 1));
+    const inScope =
+      cityFilter === "all"
+        ? venues
+        : venues.filter((v) => published.some((e) => e.venueId === v.id));
+    return [...inScope]
+      .sort((a, b) => (nightsAt.get(b.id) ?? 0) - (nightsAt.get(a.id) ?? 0))
+      .slice(0, 10)
+      .map((v) => ({ venue: v, liveCount: nightsAt.get(v.id) ?? 0 }));
+  }, [venues, published, cityFilter]);
+
+  const artistsKey = useMemo(() => railArtists.map((a) => a.id).join(","), [railArtists]);
+  const venuesKey = useMemo(() => railVenues.map((v) => v.venue.id).join(","), [railVenues]);
+  const artistRail = useAutoScroll(artistsKey, 280, 5000);
+  const venueRail = useAutoScroll(venuesKey, 320, 5500);
+
+  // ── "Browse by" tiles ─────────────────────────────────────────────────────
+  // Built from the same `filterTabs` the chips use, so a tile can never offer
+  // a genre the chips have no room for and quietly fall back to "All". Counts
+  // come off the real published list — a genre nobody is playing gets no tile.
+  const browseTiles = useMemo(
+    () =>
+      filterTabs
+        .filter((name) => name !== "All")
+        .map((name) => ({
+          name,
+          count:
+            name === "Free"
+              ? published.filter(isFree).length
+              : published.filter((e) => e.genres.includes(name)).length,
+        }))
+        .filter((t) => t.count > 0),
+    [filterTabs, published],
+  );
+
+  const goToTab = (name: string) => {
+    const i = filterTabs.indexOf(name);
+    setActiveFilter(i >= 0 ? i : 0);
+    document.getElementById("this-week")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   // Ticker items: areas + genres
   const tickerItems = useMemo(() => {
@@ -716,7 +1038,7 @@ export function DiscoverScreen() {
 
           {/* Find tonight's show CTA */}
           <button
-            onClick={() => heroEvent && navigate(`/e/${heroEvent.id}`)}
+            onClick={() => soonest && navigate(`/e/${soonest.id}`)}
             style={{
               minHeight: 46,
               border: "none",
@@ -769,11 +1091,19 @@ export function DiscoverScreen() {
             }}
           >
             <PulsingDot color={tok.signal} />
-            {heroEvent
+            {/* Quote a seat count only when there is a real one to quote.
+                The hero rotates, and an event whose tiers aren't up yet was
+                producing "0 seats left tonight" — the most discouraging thing
+                the page could possibly say. */}
+            {heroEvent && capacityKnown(heroEvent) && seatsLeft(heroEvent) > 0
               ? (lang === "en"
-                  ? `${seatsLeft(heroEvent)} seats left tonight`
-                  : `ಇಂದು ${seatsLeft(heroEvent)} ಆಸನಗಳು ಉಳಿದಿವೆ`)
-              : (lang === "en" ? "Live events near you" : "ನಿಮ್ಮ ಹತ್ತಿರ ಲೈವ್ ಕಾರ್ಯಕ್ರಮಗಳು")}
+                  ? `${seatsLeft(heroEvent)} seats left ${heroEvent.date === today() ? "tonight" : "on this one"}`
+                  : `${seatsLeft(heroEvent)} ಆಸನಗಳು ಉಳಿದಿವೆ`)
+              : published.length > 0
+                ? (lang === "en"
+                    ? `${published.length} ${published.length === 1 ? "night" : "nights"} on sale now`
+                    : `${published.length} ಕಾರ್ಯಕ್ರಮ ಮಾರಾಟದಲ್ಲಿ`)
+                : (lang === "en" ? "Live events near you" : "ನಿಮ್ಮ ಹತ್ತಿರ ಲೈವ್ ಕಾರ್ಯಕ್ರಮಗಳು")}
           </div>
 
           {/* Headline */}
@@ -822,7 +1152,7 @@ export function DiscoverScreen() {
           {/* CTAs */}
           <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
             <button
-              onClick={() => heroEvent && navigate(`/e/${heroEvent.id}`)}
+              onClick={() => soonest && navigate(`/e/${soonest.id}`)}
               style={{
                 minHeight: 62,
                 border: "none",
@@ -1009,30 +1339,55 @@ export function DiscoverScreen() {
         ))}
       </div>
 
+      {/* ── BROWSE BY ────────────────────────────────────────────────────── */}
+      {browseTiles.length > 0 && (
+        <section className="discover-section" style={{ background: tok.bg, paddingBottom: 0 }}>
+          <SectionHead
+            tok={tok}
+            title={lang === "en" ? "What do you feel like?" : "ನಿಮಗೆ ಏನು ಬೇಕು?"}
+            blurb={
+              lang === "en"
+                ? "Pick a sound and the listing below follows you."
+                : "ಒಂದು ಶೈಲಿ ಆರಿಸಿ — ಕೆಳಗಿನ ಪಟ್ಟಿ ಬದಲಾಗುತ್ತದೆ."
+            }
+          />
+          <div className="discover-browse">
+            {browseTiles.map(({ name, count }) => (
+              <BrowseTile
+                key={name}
+                label={name === "Free" && lang === "kn" ? "ಉಚಿತ" : name}
+                count={count}
+                countLabel={
+                  lang === "en" ? (count === 1 ? "night" : "nights") : "ಕಾರ್ಯಕ್ರಮ"
+                }
+                active={activeTabName === name}
+                tok={tok}
+                onClick={() => goToTab(name)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ── THIS WEEK ────────────────────────────────────────────────────── */}
       <section id="this-week" className="discover-section" style={{ background: tok.bg }}>
-        {/* Section header */}
-        <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", marginBottom: 28 }}>
-          <div>
-            <div
-              style={{
-                fontFamily: "'Baloo Tamma 2',system-ui",
-                fontWeight: 800,
-                fontSize: 42,
-                lineHeight: 1.1,
-                color: tok.paper,
-              }}
-            >
-              {lang === "en" ? "This week" : "ಈ ವಾರ"}
-            </div>
-          </div>
-          <span
-            style={{ fontSize: 16, fontWeight: 600, color: tok.signal, cursor: "pointer" }}
-            onClick={() => { setActiveFilter(0); setSearchInput(""); setSearchParams({}); }}
-          >
-            {lang === "en" ? `See all ${filtered.length} →` : `ಎಲ್ಲಾ ${filtered.length} ನೋಡಿ →`}
-          </span>
-        </div>
+        <SectionHead
+          tok={tok}
+          title={lang === "en" ? "This week" : "ಈ ವಾರ"}
+          blurb={
+            lang === "en"
+              ? "The next seven nights, in the rooms closest to you."
+              : "ಮುಂದಿನ ಏಳು ರಾತ್ರಿಗಳು, ನಿಮ್ಮ ಹತ್ತಿರದ ಸಭಾಂಗಣಗಳಲ್ಲಿ."
+          }
+          action={
+            activeTabName !== "All" || urlQuery
+              ? {
+                  label: lang === "en" ? `See all ${published.length} →` : `ಎಲ್ಲಾ ${published.length} ನೋಡಿ →`,
+                  onClick: () => { setActiveFilter(0); setSearchInput(""); setSearchParams({}); },
+                }
+              : undefined
+          }
+        />
 
         {/* Filter chips */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 28 }}>
@@ -1111,17 +1466,9 @@ export function DiscoverScreen() {
 
         {/* Cards strip — auto-scrolls horizontally; hovering or touching it
             pauses the advance so browsing doesn't fight the timer. */}
-        {filtered.length > 0 ? (
-          <div
-            className="discover-cards"
-            ref={cardsStripRef}
-            onMouseEnter={() => setCardsStripPaused(true)}
-            onMouseLeave={() => setCardsStripPaused(false)}
-            onTouchStart={() => setCardsStripPaused(true)}
-            onTouchEnd={() => setCardsStripPaused(false)}
-            onTouchCancel={() => setCardsStripPaused(false)}
-          >
-            {filtered.map((ev, i) => (
+        {thisWeek.length > 0 ? (
+          <div className="discover-cards" ref={weekRail.ref} {...weekRail.handlers}>
+            {thisWeek.map((ev, i) => (
               <EventCard
                 key={ev.id}
                 event={ev}
@@ -1134,7 +1481,14 @@ export function DiscoverScreen() {
             ))}
           </div>
         ) : (
-          <div style={{ padding: "48px 0", textAlign: "center" }}>
+          <div
+            style={{
+              padding: "40px 24px",
+              textAlign: "center",
+              border: `1px dashed ${tok.cardBorder}`,
+              borderRadius: 16,
+            }}
+          >
             <div
               style={{
                 fontFamily: "'Baloo Tamma 2',system-ui",
@@ -1144,10 +1498,26 @@ export function DiscoverScreen() {
                 marginBottom: 8,
               }}
             >
-              {urlQuery ? `Nothing matches "${searchParams.get("q")}"` : "Nothing here yet"}
+              {urlQuery
+                ? lang === "en"
+                  ? `Nothing matches "${searchParams.get("q")}"`
+                  : `"${searchParams.get("q")}" ಗೆ ಏನೂ ಸಿಗಲಿಲ್ಲ`
+                : later.length > 0
+                  ? lang === "en"
+                    ? "Nothing in the next seven days"
+                    : "ಮುಂದಿನ ಏಳು ದಿನಗಳಲ್ಲಿ ಏನೂ ಇಲ್ಲ"
+                  : lang === "en"
+                    ? "Nothing on sale right now"
+                    : "ಸದ್ಯಕ್ಕೆ ಯಾವುದೇ ಕಾರ್ಯಕ್ರಮ ಇಲ್ಲ"}
             </div>
             <div style={{ fontSize: 14, color: tok.muted, marginBottom: 20 }}>
-              Try a different filter or clear your search
+              {later.length > 0
+                ? lang === "en"
+                  ? "Scroll on — there's more further out."
+                  : "ಕೆಳಗೆ ನೋಡಿ — ಮುಂದೆ ಇನ್ನಷ್ಟು ಇದೆ."
+                : lang === "en"
+                  ? "Try another city, or check back soon."
+                  : "ಬೇರೆ ನಗರ ನೋಡಿ, ಅಥವಾ ಸ್ವಲ್ಪ ಸಮಯದ ನಂತರ ಬನ್ನಿ."}
             </div>
             {(urlQuery || activeFilter !== 0) && (
               <button
@@ -1164,30 +1534,244 @@ export function DiscoverScreen() {
                   cursor: "pointer",
                 }}
               >
-                Clear filters
+                {lang === "en" ? "Clear filters" : "ಫಿಲ್ಟರ್ ತೆಗೆಯಿರಿ"}
               </button>
             )}
           </div>
         )}
       </section>
 
-      {/* ── ROOTED IN KARNATAKA (dark theme only) ──────────────────────── */}
-      {isDark && (
-        <section className="discover-section" style={{ paddingTop: 0 }}>
-          <div style={{ marginBottom: 26 }}>
-            <div
+      {/* ── COMING UP (everything past the seven-day window) ─────────────── */}
+      {later.length > 0 && (
+        <section className="discover-section" style={{ background: tok.surface }}>
+          <SectionHead
+            tok={tok}
+            title={lang === "en" ? "Coming up" : "ಮುಂದೆ ಬರಲಿದೆ"}
+            blurb={
+              lang === "en"
+                ? `${later.length} more ${later.length === 1 ? "night" : "nights"} already on sale. Seats go first at the small rooms.`
+                : `ಇನ್ನೂ ${later.length} ಕಾರ್ಯಕ್ರಮ ಮಾರಾಟದಲ್ಲಿದೆ. ಸಣ್ಣ ಸಭಾಂಗಣಗಳಲ್ಲಿ ಆಸನ ಬೇಗ ಮುಗಿಯುತ್ತದೆ.`
+            }
+          />
+          <div className="discover-cards" ref={laterRail.ref} {...laterRail.handlers}>
+            {later.map((ev, i) => (
+              <EventCard
+                key={ev.id}
+                event={ev}
+                index={i}
+                tok={tok}
+                isDark={isDark}
+                lang={lang}
+                onGetTicket={handleGetTicket}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── ARTISTS ─────────────────────────────────────────────────────── */}
+      {railArtists.length > 0 && (
+        <section className="discover-section" style={{ background: tok.bg }}>
+          <SectionHead
+            tok={tok}
+            title={lang === "en" ? "Artists on Naada" : "Naada ನಲ್ಲಿ ಕಲಾವಿದರು"}
+            blurb={
+              lang === "en"
+                ? "Whoever is playing this month, first. Every one of them is booked through here."
+                : "ಈ ತಿಂಗಳು ನುಡಿಸುತ್ತಿರುವವರು ಮೊದಲು. ಎಲ್ಲರನ್ನೂ ಇಲ್ಲಿಂದಲೇ ಬುಕ್ ಮಾಡಲಾಗುತ್ತದೆ."
+            }
+            action={{ label: lang === "en" ? "All artists →" : "ಎಲ್ಲಾ ಕಲಾವಿದರು →", to: "/artists" }}
+          />
+          <div className="discover-cards discover-cards-sm" ref={artistRail.ref} {...artistRail.handlers}>
+            {railArtists.map((a) => (
+              <ArtistRailCard key={a.id} artist={a} tok={tok} lang={lang} />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── ROOMS ───────────────────────────────────────────────────────── */}
+      {railVenues.length > 0 && (
+        <section className="discover-section" style={{ background: tok.surface }}>
+          <SectionHead
+            tok={tok}
+            title={lang === "en" ? "Rooms worth sitting in" : "ಕುಳಿತು ಕೇಳಬೇಕಾದ ಸಭಾಂಗಣಗಳು"}
+            blurb={
+              lang === "en"
+                ? "Courtyards, cafés and studios — most of them hold under a hundred people."
+                : "ಅಂಗಳ, ಕೆಫೆ ಮತ್ತು ಸ್ಟುಡಿಯೋ — ಹೆಚ್ಚಿನವು ನೂರಕ್ಕಿಂತ ಕಡಿಮೆ ಜನರಿಗೆ."
+            }
+            action={{ label: lang === "en" ? "All venues →" : "ಎಲ್ಲಾ ಸ್ಥಳಗಳು →", to: "/venues" }}
+          />
+          <div className="discover-cards" ref={venueRail.ref} {...venueRail.handlers}>
+            {railVenues.map(({ venue, liveCount }, i) => (
+              <VenueRailCard
+                key={venue.id}
+                venue={venue}
+                photoIndex={i}
+                liveCount={liveCount}
+                tok={tok}
+                lang={lang}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── HOW IT WORKS ────────────────────────────────────────────────── */}
+      <section className="discover-section" style={{ background: tok.bg }}>
+        <SectionHead
+          tok={tok}
+          title={lang === "en" ? "Three steps, no queue" : "ಮೂರು ಹೆಜ್ಜೆ, ಸರತಿ ಇಲ್ಲ"}
+          action={{ label: lang === "en" ? "How it works →" : "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ →", to: "/how-it-works" }}
+        />
+        <ol className="discover-steps">
+          {(lang === "en"
+            ? [
+                ["Find the night", "Filter by sound, room or city. Every listing shows what's actually left."],
+                ["Pay by UPI", "GPay, PhonePe, Paytm or card. The price on the card is the price you pay."],
+                ["Show the code", "Your QR arrives straight away. The door scans it — no printout, no queue."],
+              ]
+            : [
+                ["ಕಾರ್ಯಕ್ರಮ ಹುಡುಕಿ", "ಶೈಲಿ, ಸಭಾಂಗಣ ಅಥವಾ ನಗರದ ಪ್ರಕಾರ ಹುಡುಕಿ. ಉಳಿದಿರುವ ಆಸನ ಎಷ್ಟು ಎಂದು ಕಾಣಿಸುತ್ತದೆ."],
+                ["UPI ಮೂಲಕ ಪಾವತಿಸಿ", "GPay, PhonePe, Paytm ಅಥವಾ ಕಾರ್ಡ್. ತೋರಿಸಿದ ಬೆಲೆಯೇ ನೀವು ಕೊಡುವ ಬೆಲೆ."],
+                ["ಕೋಡ್ ತೋರಿಸಿ", "ನಿಮ್ಮ QR ತಕ್ಷಣ ಬರುತ್ತದೆ. ಬಾಗಿಲಲ್ಲಿ ಸ್ಕ್ಯಾನ್ ಮಾಡುತ್ತಾರೆ — ಪ್ರಿಂಟ್ ಬೇಡ, ಸರತಿ ಬೇಡ."],
+              ]
+          ).map(([title, body], i) => (
+            <li
+              key={title}
               style={{
-                fontFamily: "'Baloo Tamma 2',system-ui",
-                fontWeight: 800,
-                fontSize: 34,
-                lineHeight: 1.3,
-                color: tok.paper,
+                border: `1px solid ${tok.cardBorder}`,
+                background: tok.cardBg,
+                borderRadius: 16,
+                padding: "22px 22px 24px",
+                listStyle: "none",
               }}
             >
-              {lang === "en" ? "Rooted in Karnataka" : "ಕರ್ನಾಟಕದ ಬೇರುಗಳಲ್ಲಿ"}
-            </div>
+              <div
+                aria-hidden="true"
+                style={{
+                  fontFamily: "'Baloo Tamma 2',system-ui",
+                  fontWeight: 800,
+                  fontSize: 15,
+                  letterSpacing: ".12em",
+                  color: tok.signal,
+                  marginBottom: 10,
+                }}
+              >
+                {String(i + 1).padStart(2, "0")}
+              </div>
+              <div
+                style={{
+                  fontFamily: "'Baloo Tamma 2',system-ui",
+                  fontWeight: 700,
+                  fontSize: 21,
+                  lineHeight: 1.25,
+                  color: tok.paper,
+                  marginBottom: 8,
+                }}
+              >
+                {title}
+              </div>
+              <p style={{ fontSize: 15, lineHeight: 1.6, color: tok.muted, margin: 0 }}>{body}</p>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {/* ── FOR ARTISTS & HOSTS ─────────────────────────────────────────── */}
+      {role === "out" && (
+        <section className="discover-section" style={{ background: tok.surface }}>
+          <SectionHead
+            tok={tok}
+            title={lang === "en" ? "On the other side of the mic" : "ಮೈಕ್‌ನ ಇನ್ನೊಂದು ಬದಿಯಲ್ಲಿ"}
+            blurb={
+              lang === "en"
+                ? "Naada is free to list on. You keep the door money; we take nothing off the top."
+                : "Naada ನಲ್ಲಿ ಪಟ್ಟಿ ಮಾಡುವುದು ಉಚಿತ. ಬಾಗಿಲ ಹಣ ನಿಮ್ಮದೇ."
+            }
+          />
+          <div className="discover-audience">
+            {[
+              {
+                who: lang === "en" ? "You play music" : "ನೀವು ಸಂಗೀತ ನುಡಿಸುತ್ತೀರಿ",
+                body:
+                  lang === "en"
+                    ? "Put up a profile, answer open gigs, agree a fee in writing and get paid after the show."
+                    : "ಪ್ರೊಫೈಲ್ ಮಾಡಿ, ಗಿಗ್‌ಗಳಿಗೆ ಅರ್ಜಿ ಹಾಕಿ, ಶುಲ್ಕ ಒಪ್ಪಿ, ಕಾರ್ಯಕ್ರಮದ ನಂತರ ಹಣ ಪಡೆಯಿರಿ.",
+                cta: lang === "en" ? "Join as an artist" : "ಕಲಾವಿದರಾಗಿ ಸೇರಿ",
+              },
+              {
+                who: lang === "en" ? "You have a room" : "ನಿಮ್ಮ ಬಳಿ ಸಭಾಂಗಣ ಇದೆ",
+                body:
+                  lang === "en"
+                    ? "Draw your floor plan once, list a night, sell seats and scan people in at the door."
+                    : "ಒಮ್ಮೆ ನಕ್ಷೆ ಬಿಡಿಸಿ, ಕಾರ್ಯಕ್ರಮ ಸೇರಿಸಿ, ಆಸನ ಮಾರಿ, ಬಾಗಿಲಲ್ಲಿ ಸ್ಕ್ಯಾನ್ ಮಾಡಿ.",
+                cta: lang === "en" ? "List your venue" : "ನಿಮ್ಮ ಸ್ಥಳ ಸೇರಿಸಿ",
+              },
+            ].map(({ who, body, cta }) => (
+              <div
+                key={who}
+                style={{
+                  border: `1px solid ${tok.cardBorder}`,
+                  background: tok.cardBg,
+                  borderRadius: 16,
+                  padding: "24px 24px 26px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 10,
+                }}
+              >
+                <div
+                  style={{
+                    fontFamily: "'Baloo Tamma 2',system-ui",
+                    fontWeight: 700,
+                    fontSize: 24,
+                    lineHeight: 1.2,
+                    color: tok.paper,
+                  }}
+                >
+                  {who}
+                </div>
+                <p style={{ fontSize: 15, lineHeight: 1.6, color: tok.muted, margin: 0 }}>{body}</p>
+                <button
+                  type="button"
+                  onClick={() => openAuth(cta)}
+                  style={{
+                    alignSelf: "flex-start",
+                    marginTop: 8,
+                    minHeight: 46,
+                    border: `1.5px solid ${tok.signal}`,
+                    background: "transparent",
+                    borderRadius: 12,
+                    padding: "0 22px",
+                    fontFamily: "'Archivo',sans-serif",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: tok.signal,
+                    cursor: "pointer",
+                  }}
+                >
+                  {cta}
+                </button>
+              </div>
+            ))}
           </div>
-          <div className="discover-karnataka">
+        </section>
+      )}
+
+      {/* ── ROOTED IN KARNATAKA ─────────────────────────────────────────── */}
+      <section className="discover-section" style={{ background: tok.bg }}>
+        <SectionHead
+          tok={tok}
+          title={lang === "en" ? "Rooted in Karnataka" : "ಕರ್ನಾಟಕದ ಬೇರುಗಳಲ್ಲಿ"}
+          blurb={
+            lang === "en"
+              ? "Two cities to begin with, and the music that already lives in them."
+              : "ಮೊದಲಿಗೆ ಎರಡು ನಗರಗಳು, ಮತ್ತು ಅಲ್ಲಿ ಈಗಾಗಲೇ ಇರುವ ಸಂಗೀತ."
+          }
+        />
+        <div className="discover-karnataka">
             {[
               {
                 src: "/mysore-palace.jpg",
@@ -1222,10 +1806,9 @@ export function DiscoverScreen() {
                   <div style={{ fontSize: 11, color: "rgba(243,233,214,.5)", marginTop: 2 }}>{credit}</div>
                 </div>
               </div>
-            ))}
-          </div>
-        </section>
-      )}
+          ))}
+        </div>
+      </section>
 
       {/* ── FOOTER CTA BAND ─────────────────────────────────────────────── */}
       <div
@@ -1250,7 +1833,7 @@ export function DiscoverScreen() {
           </div>
         </div>
         <button
-          onClick={() => heroEvent && navigate(`/e/${heroEvent.id}`)}
+          onClick={() => soonest && navigate(`/e/${soonest.id}`)}
           style={{
             flexShrink: 0,
             minHeight: 64,

@@ -111,3 +111,76 @@ Constraints that apply to every task:
   full steps land in `DEPLOY.md`.
 - Frontend goes to a static/CDN host; backend needs a container host that
   supports WebSockets + a worker + a scheduler.
+
+---
+
+# Run 2 — overnight readiness sprint, 2026-09-15
+
+Brief: expand the home page, verify the backend, find and fix whatever else is
+gapped, and leave three deployment documents. Worked unattended.
+
+## The three documents
+
+Published as artifacts, not committed here, because they are for reading on a
+phone rather than in an editor:
+
+- **SQLite to Supabase** — https://claude.ai/code/artifact/61f346e5-ad75-4eba-bff6-7cc5b1e59241
+- **Naada on Cloudflare** — https://claude.ai/code/artifact/7d09737b-63af-4840-8282-e60b5c98adb0
+- **The Free Stack** — https://claude.ai/code/artifact/6cfc6233-eb9a-4ade-844d-1a22956aab5a
+
+Short version of the Cloudflare answer: the React site yes, brilliantly and for
+nothing; the Django API no, and not for a reason you can configure around —
+Workers runs V8 isolates, not Linux processes, so there is no CPython, no
+psycopg2, no long-lived WebSocket, no Celery. Put the API on Render. Take
+Cloudflare's DNS, CDN and R2 anyway; R2 in particular has no egress charge,
+which matters for a site made of posters.
+
+## What shipped
+
+Every item below was verified against a running server or a real browser, not
+just unit-tested. Commits carry the detail.
+
+- Home page: one rail became seven sections — genre tiles, this week (now
+  genuinely seven days), coming up, artists, rooms, three steps, and a panel
+  for artists and hosts. Every rail is real data or it is not rendered.
+- `TODAY` was a fixture constant pinned to 2026-08-20. Four screens used it to
+  decide what counts as upcoming, so a deployment would have advertised gigs
+  that had already happened, forever. Now the viewer's local date.
+- OTP was rate limited per IP only. Rotating IPs is cheap, so a chosen inbox
+  could be flooded — and the free email tier's quota with it. Second budget
+  added, keyed on the recipient.
+- `manage.py check --deploy` now warns on the two silent deploys: no shared
+  cache for throttle counters (naada.W001), and a console email backend, which
+  means nobody can sign in at all (naada.W002).
+- Admin Disputes crashed to the error boundary on its first real dispute: the
+  date formatters threw on an ISO timestamp. Fixed at the source; formatters
+  now return a dash rather than removing the page.
+- The host dashboard read the public event catalogue, so a host saw other
+  venues' nights and the whole platform's revenue as their own.
+- Check-in required only a signed-in account. A forwarded ticket screenshot
+  was enough to burn someone's ticket before they arrived. Organiser-only now.
+- `GET /events/<id>/attendees/` is new: the door list the scanner's manual
+  lookup always needed. It had been searching the host's own tickets.
+- Every public page scrolled sideways on a phone — an inline `display: flex`
+  beat the media query meant to hide the nav links. 681px in a 375px viewport.
+- The service worker served the cached HTML first, so a returning visitor kept
+  running the previous build after every deploy.
+- Bundle split: 92KB gzipped of vendor now survives a deploy instead of being
+  re-downloaded.
+- `tools/smoke_test.py` — 24 checks against a running server, end to end.
+
+## Counts at the end of the run
+
+232 backend tests, 91 frontend tests, typecheck and build clean,
+`check --deploy` clean apart from the two warnings above, which are true.
+
+## Still open
+
+- Everything in Run 1's "Still open" that isn't ticked above: GST is still
+  zero (needs a CA, not a commit), Kannada is still partial, social previews
+  still need the prerender step for scrapers that don't run JavaScript.
+- The local database holds 31 users and 24 orders, all of it QA. Document 1
+  recommends starting production empty rather than carrying it across.
+- `/lab/keyboard` is a component lab on a public route. Harmless and lazily
+  loaded, but it is a dev tool on the live site.
+- Nothing has been pushed. `origin/main` is untouched.

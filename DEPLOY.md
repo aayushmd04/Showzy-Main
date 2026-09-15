@@ -33,11 +33,24 @@ Everything in this guide works today. Both halves are green:
 cd /Users/apple/Desktop/NADDA/dev/Naada
 
 npm run build --workspace @naada/frontend   # produces the website files
-npm test     --workspace @naada/frontend    # 82 tests, all passing
+npm test     --workspace @naada/frontend    # 91 tests, all passing
 
 cd apps/backend
-DJANGO_ENV=naada.settings.local .venv/bin/python manage.py test   # 40 tests, all passing
+DJANGO_ENV=naada.settings.local .venv/bin/python manage.py test   # 232 tests, all passing
 ```
+
+There is also an end-to-end check that exercises a running server rather than
+the pieces in isolation — sign in, browse, order, pay, verify the payment
+signature, collect the ticket, pull the invoice, cancel for a refund:
+
+```bash
+python3 apps/backend/tools/smoke_test.py            # against local dev
+python3 apps/backend/tools/smoke_test.py https://…  # against a deploy
+```
+
+Run it after any deploy. It is the fastest way to tell "the site is up" from
+"the site works". Read the file's own header first — against a live site it
+buys a real ticket and refunds it.
 
 Two things to know before you begin, because they surprise people:
 

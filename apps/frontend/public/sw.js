@@ -14,7 +14,12 @@
  *     check-ins must never be served from a cache.
  */
 
-const VERSION = "naada-v1";
+// Bump this whenever the caching strategy changes. The activate handler
+// deletes every cache whose name isn't in KEEP, so a new VERSION is what
+// evicts the previous worker's entries — without it, browsers that already
+// installed v1 would keep serving the stale `/` it had precached, which is
+// the exact problem the navigation handler below was changed to fix.
+const VERSION = "naada-v2";
 const SHELL = `${VERSION}-shell`;
 const TICKETS = `${VERSION}-tickets`;
 const KEEP = [SHELL, TICKETS];
@@ -94,33 +99,50 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Same-origin navigations and build assets: paint offline.
-  if (url.origin === self.location.origin) {
+  if (url.origin !== self.location.origin) return;
+
+  // ── The HTML document: always ask the network first ──────────────────────
+  //
+  // This used to be cache-first with a background refresh, and that is the
+  // classic way to ship a fix nobody receives. index.html names the build's
+  // content-hashed assets, so serving yesterday's copy from cache runs
+  // yesterday's entire application — and since VERSION is a constant that
+  // never changes between builds, the activate handler never cleared it
+  // either. A returning visitor stayed on the old version for at least one
+  // more visit, with nothing to explain why the deploy "didn't work".
+  //
+  // The document is small and the only file that has to be fresh. Fall back
+  // to the cached shell only when the network genuinely fails, which is the
+  // case this whole worker exists for: a ticket at a venue door on bad signal.
+  if (request.mode === "navigate") {
     event.respondWith(
       (async () => {
         const cache = await caches.open(SHELL);
-        const hit = await cache.match(request);
-        if (hit) {
-          // Refresh in the background; the user still gets the instant paint.
-          fetch(request)
-            .then((res) => res.ok && cache.put(request, res.clone()))
-            .catch(() => {});
-          return hit;
-        }
         try {
           const res = await fetch(request);
-          if (res.ok && request.destination !== "document") {
-            cache.put(request, res.clone());
-          }
+          if (res.ok) cache.put("/", res.clone());
           return res;
         } catch {
-          if (request.mode === "navigate") {
-            const shell = await cache.match("/");
-            if (shell) return shell;
-          }
-          throw new Error("offline");
+          const shell = (await cache.match(request)) || (await cache.match("/"));
+          if (shell) return shell;
+          throw new Error("offline and no shell cached");
         }
       })(),
     );
+    return;
   }
+
+  // ── Build assets: cache-first, and no revalidation ───────────────────────
+  // Vite fingerprints these with a content hash, so a given URL's bytes can
+  // never change. Re-fetching one to check is spent bandwidth on a phone.
+  event.respondWith(
+    (async () => {
+      const cache = await caches.open(SHELL);
+      const hit = await cache.match(request);
+      if (hit) return hit;
+      const res = await fetch(request);
+      if (res.ok) cache.put(request, res.clone());
+      return res;
+    })(),
+  );
 });

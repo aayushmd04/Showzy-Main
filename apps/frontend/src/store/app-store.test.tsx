@@ -9,7 +9,6 @@ import {
   gigApplications,
   messages,
   reviews,
-  settlements,
   tickets,
   venues,
 } from "@/data/fixtures";
@@ -25,7 +24,6 @@ const seed = () => ({
   venues: venues.map((v) => ({ ...v })),
   bookings: bookings.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),
   tickets: tickets.map((t) => ({ ...t })),
-  settlements: settlements.map((s) => ({ ...s })),
   messages: messages.map((m) => ({ ...m })),
   applications: gigApplications.map((a) => ({ ...a })),
   reviews: reviews.map((r) => ({ ...r })),

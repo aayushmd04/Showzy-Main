@@ -23,8 +23,6 @@ import {
   type Quote,
   type Review,
   type Role,
-  type Settlement,
-  type SettlementStatus,
   type Ticket,
   type Tier,
   type Venue,
@@ -114,7 +112,6 @@ interface AppStore {
   artists: Artist[];
   bookings: Booking[];
   tickets: Ticket[];
-  settlements: Settlement[];
   messages: ChatMessage[];
   applications: GigApplication[];
   reviews: Review[];
@@ -165,8 +162,6 @@ interface AppStore {
   declineBooking: (id: string) => void;
   fundBooking: (id: string) => void;
   setBookingState: (id: string, state: BookingState) => void;
-
-  setSettlementStatus: (eventId: string, status: SettlementStatus) => void;
   updateArtistProfile: (patch: Partial<ArtistProfileDraft>) => void;
   countersUsed: (booking: Booking) => number;
 
@@ -210,7 +205,6 @@ export interface StoreSeed {
   venues?: Venue[];
   bookings?: Booking[];
   tickets?: Ticket[];
-  settlements?: Settlement[];
   messages?: ChatMessage[];
   applications?: GigApplication[];
   reviews?: Review[];
@@ -218,7 +212,7 @@ export interface StoreSeed {
 
 const EMPTY_SEED: Required<StoreSeed> = {
   events: [], artists: [], venues: [], bookings: [], tickets: [],
-  settlements: [], messages: [], applications: [], reviews: [],
+  messages: [], applications: [], reviews: [],
 };
 
 export function AppStoreProvider({
@@ -295,7 +289,6 @@ export function AppStoreProvider({
   const [venues, setVenues] = useState<Venue[]>(seed.venues);
   const [bookings, setBookings] = useState<Booking[]>(seed.bookings);
   const [tickets, setTickets] = useState<Ticket[]>(seed.tickets);
-  const [settlements, setSettlements] = useState<Settlement[]>(seed.settlements);
   const [messages, setMessages] = useState<ChatMessage[]>(seed.messages);
   const [applications, setApplications] = useState<GigApplication[]>(seed.applications);
   const [reviews, setReviews] = useState<Review[]>(seed.reviews);
@@ -619,10 +612,6 @@ export function AppStoreProvider({
     );
   }, []);
 
-  const setSettlementStatus = useCallback((eventId: string, status: SettlementStatus) => {
-    setSettlements((prev) => prev.map((s) => (s.eventId === eventId ? { ...s, status } : s)));
-  }, []);
-
   const updateArtistProfile = useCallback(
     (patch: Partial<ArtistProfileDraft>) => setArtistProfile((prev) => ({ ...prev, ...patch })),
     [],
@@ -776,7 +765,6 @@ export function AppStoreProvider({
       artists,
       bookings,
       tickets,
-      settlements,
       messages,
       applications,
       reviews,
@@ -814,7 +802,6 @@ export function AppStoreProvider({
       declineBooking,
       fundBooking,
       setBookingState,
-      setSettlementStatus,
       updateArtistProfile,
       countersUsed,
       sendMessage,
@@ -830,13 +817,13 @@ export function AppStoreProvider({
     }),
     [
       role, currentUser, theme, lang, hydrateFromApi,
-      events, artists, bookings, tickets, settlements, messages, applications, reviews, venues,
+      events, artists, bookings, tickets, messages, applications, reviews, venues,
       checkout, artistProfile, emptyLists, toasts, toast, dismissToast,
       eventById, artistById, venueById, bookingById, ticketByCode, messagesFor, reviewsFor,
       venueOf, soldOf, capacityOf, startCheckout, setGuestDetails, clearCheckout,
       checkIn, updateEvent, setEventStatus, addTier, removeTier,
       sendBrief, counterBooking, acceptBooking, declineBooking, fundBooking, setBookingState,
-      setSettlementStatus, updateArtistProfile, countersUsed, sendMessage, setArtistKycStatus,
+      updateArtistProfile, countersUsed, sendMessage, setArtistKycStatus,
       resolveDispute, reviewFlaggedMessage, applyToGig, setApplicationStatus, submitReview,
       apiSendMessage, apiFundOrder, apiCompleteOrder,
     ],

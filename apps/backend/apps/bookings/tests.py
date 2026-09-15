@@ -279,3 +279,52 @@ class OrganizerKycTests(AdminOpsTestCase):
         resp = self.admin_client.post(
             reverse("admin-organizer-kyc-set", args=[uuid.uuid4()]), {"status": "verified"})
         self.assertEqual(resp.status_code, 404)
+
+
+class DisputeQueueShapeTests(AdminOpsTestCase):
+    """The ops console has to be able to say who raised a dispute.
+
+    `raised_by` is the raw user id, and the console was reading `.full_name`
+    off it — which on a string is `undefined`, so every row rendered "Raised
+    by" followed by nothing. The name now travels flat, alongside the email
+    that was already there.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.order = make_booking_order(self.organizer, self.artist)
+
+    def _queue(self):
+        resp = self.admin_client.get(reverse("admin-dispute-queue"))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        return resp.data
+
+    def test_queue_carries_the_raisers_name_and_email(self):
+        Dispute.objects.create(
+            booking_order=self.order, raised_by=self.host_user, reason="Turned up late.")
+
+        row = self._queue()[0]
+        self.assertEqual(str(row["raised_by"]), str(self.host_user.id))
+        self.assertEqual(row["raised_by_name"], "Priya Host")
+        self.assertEqual(row["raised_by_email"], "host@naada.test")
+
+    def test_an_erased_account_leaves_the_dispute_readable(self):
+        # `raised_by` is SET_NULL, so a user exercising their right to erasure
+        # keeps the dispute row and loses the link. It must not 500.
+        dispute = Dispute.objects.create(
+            booking_order=self.order, raised_by=self.host_user, reason="Turned up late.")
+        dispute.raised_by = None
+        dispute.save(update_fields=["raised_by"])
+
+        row = self._queue()[0]
+        self.assertIsNone(row["raised_by"])
+        self.assertIsNone(row["raised_by_name"])
+        self.assertIsNone(row["raised_by_email"])
+
+    def test_created_at_is_a_full_timestamp(self):
+        # Pins the shape the frontend's date formatters must cope with — they
+        # used to throw on it, taking the whole screen down.
+        Dispute.objects.create(
+            booking_order=self.order, raised_by=self.host_user, reason="Turned up late.")
+
+        self.assertRegex(self._queue()[0]["created_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")

@@ -7,6 +7,8 @@ import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { useBriefComposer } from "@/components/naada/brief-composer";
 import { followArtist } from "@/lib/api";
+import { mediaUrl } from "@/lib/adapters";
+import { usePageMeta } from "@/lib/use-meta";
 import { dateCompact, dateListing } from "@/lib/format";
 import {
   apiMessage,
@@ -63,6 +65,24 @@ export function ArtistProfileScreen() {
   useEffect(() => {
     void load();
   }, [load]);
+
+  /* An artist's own page is the link they put in an Instagram bio and paste
+   * into group chats, so it needs a title and a photo of its own rather than
+   * the site default. Above the early returns — hooks can't sit behind a
+   * conditional. */
+  usePageMeta({
+    title: artist?.stage_name,
+    description: artist
+      ? [
+          [artist.genres.map((g) => g.name).join(", "), artist.city_name].filter(Boolean).join(" · "),
+          artist.bio,
+        ]
+          .filter(Boolean)
+          .join(" — ")
+          .slice(0, 300)
+      : undefined,
+    image: mediaUrl(artist?.primary_photo ?? artist?.profile_image),
+  });
 
   /**
    * Optimistic: the button and the follower count move on the tap, and both go

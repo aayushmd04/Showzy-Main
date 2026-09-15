@@ -60,9 +60,9 @@ def email_must_actually_send(app_configs, **kwargs):
         CheckWarning(
             "Sign-in codes are being printed to the log, not emailed.",
             hint=(
-                "Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (see DEPLOY.md, "
-                "'Email that actually arrives'). Until then every visitor who "
-                "tries to sign in waits for a code that will never arrive."
+                "Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (DEPLOY.md, step B4). "
+                "Until then every visitor who tries to sign in waits for a code "
+                "that will never arrive — and there is no password to fall back on."
             ),
             id="naada.W002",
         )

@@ -18,15 +18,19 @@ vi.mock("@/lib/api", async (importOriginal) => {
 });
 
 /**
- * Shaped to `ApiDispute` in admin-disputes.tsx.
+ * Shaped to what `DisputeSerializer` actually sends
+ * (apps/backend/apps/bookings/serializers.py), which is not what this screen
+ * used to expect. The fixture previously followed the frontend's own declared
+ * interface instead, so the test passed against a contract the server never
+ * honoured and both real bugs went unseen:
  *
- * FIXME(backend contract): the live endpoint does not match this on two
- * fields — `DisputeSerializer` (apps/backend/apps/bookings/serializers.py)
- * returns `raised_by` as a bare UUID plus a separate `raised_by_email`, and
- * `created_at` as a full ISO-8601 datetime. `dateCompact` throws on a datetime,
- * which takes the whole Open list down. Both are reported; neither is
- * something a test can decide, so the fixture follows the frontend's own
- * declared interface.
+ *   * `raised_by` is a bare UUID, not `{ id, full_name, email }`. Reading
+ *     `.full_name` off a string is `undefined`, so every dispute rendered
+ *     "Raised by" followed by nothing. The serializer now also sends
+ *     `raised_by_name` alongside the existing `raised_by_email`.
+ *   * `created_at` is a full ISO-8601 datetime, and the date formatters threw
+ *     on one — taking the entire screen down to the error boundary as soon as
+ *     a single real dispute existed.
  */
 /*
  * The store starts empty in the app, so a screen test that asserts on fixture
@@ -47,18 +51,22 @@ const fixtureSeed = () => ({
 const dispute = (over: Partial<ApiDispute> = {}): ApiDispute => ({
   id: "d1",
   booking_order: "bo-1",
-  raised_by: { id: "u1", full_name: "Tarana Collective", email: "book@tarana.in" },
+  raised_by: "11111111-2222-3333-4444-555555555555",
+  raised_by_name: "Tarana Collective",
+  raised_by_email: "book@tarana.in",
   reason: "The artist arrived 40 minutes late and cut the second set short.",
   resolution: "pending",
   admin_notes: "",
-  created_at: "2026-03-04",
+  created_at: "2026-03-04T10:30:00Z",
   ...over,
 });
 
 type ApiDispute = {
   id: string;
   booking_order: string;
-  raised_by: { id: string; full_name: string; email: string };
+  raised_by: string | null;
+  raised_by_name: string | null;
+  raised_by_email: string | null;
   reason: string;
   resolution: "pending" | "release" | "refund" | "split";
   admin_notes: string;
@@ -164,5 +172,35 @@ describe("AdminDisputesScreen", () => {
 
     expect(await screen.findByText(/No open disputes\./i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Resolve" })).not.toBeInTheDocument();
+  });
+});
+
+describe("AdminDisputesScreen — the server's real shape", () => {
+  const get = vi.mocked(api.get);
+
+  beforeEach(() => {
+    get.mockReset();
+  });
+
+  it("names the raiser from the flat field, not a nested object", async () => {
+    get.mockResolvedValue({ results: [dispute()] } as never);
+    renderScreen();
+    expect(await screen.findByText(/Tarana Collective/)).toBeInTheDocument();
+  });
+
+  it("renders a full ISO timestamp without taking the screen down", async () => {
+    get.mockResolvedValue({ results: [dispute({ created_at: "2026-03-04T10:30:00Z" })] } as never);
+    renderScreen();
+    // The date formatters used to throw on a datetime; if they still did, the
+    // error boundary would swallow the list and this would never appear.
+    expect(await screen.findByText(/04 Mar/)).toBeInTheDocument();
+  });
+
+  it("falls back to the email when the account has been erased", async () => {
+    // A user exercising their right to erasure keeps the dispute row but loses
+    // the name. "Raised by" followed by a blank helps nobody.
+    get.mockResolvedValue({ results: [dispute({ raised_by_name: "" })] } as never);
+    renderScreen();
+    expect(await screen.findByText(/book@tarana\.in/)).toBeInTheDocument();
   });
 });

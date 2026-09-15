@@ -10,12 +10,30 @@ import { dateCompact } from "@/lib/format";
 interface ApiDispute {
   id: string;
   booking_order: string;
-  raised_by: { id: string; full_name: string; email: string };
+  /** The raiser's user id — a bare UUID, not a nested object. This screen
+   * used to declare it as `{ id, full_name, email }` and read
+   * `raised_by.full_name` off it, which is `undefined` on a string: every
+   * dispute in the console rendered "Raised by" followed by nothing. The name
+   * and address come flat, alongside.
+   *
+   * All three are nullable: the foreign key is SET_NULL, so a dispute raised
+   * by an account that has since been erased keeps the row and loses the
+   * person. */
+  raised_by: string | null;
+  raised_by_name: string | null;
+  raised_by_email: string | null;
   reason: string;
   resolution: "pending" | "release" | "refund" | "split";
   admin_notes: string;
   created_at: string;
   resolved_at?: string;
+}
+
+/** Whoever raised it, however much of them the server could tell us. A user
+ * who has since exercised their right to erasure keeps the row but loses the
+ * name, and "Raised by" followed by a blank is worse than saying so. */
+function raisedBy(d: ApiDispute): string {
+  return d.raised_by_name?.trim() || d.raised_by_email?.trim() || "a deleted account";
 }
 
 export function AdminDisputesScreen() {
@@ -72,7 +90,7 @@ export function AdminDisputesScreen() {
             <li key={d.id} className="flex flex-wrap items-start gap-4 px-4 py-4">
               <div className="min-w-0 flex-1 basis-[240px]">
                 <p className="text-[15px]">
-                  Raised by <strong>{d.raised_by.full_name}</strong> — {dateCompact(d.created_at)}
+                  Raised by <strong>{raisedBy(d)}</strong> — {dateCompact(d.created_at)}
                 </p>
                 <p className="t-small mt-2 max-w-[56ch] border-l-2 border-line pl-3 text-muted">
                   {d.reason}
@@ -100,7 +118,7 @@ export function AdminDisputesScreen() {
             {resolved.map((d) => (
               <li key={d.id} className="flex flex-wrap items-center gap-4 px-4 py-3">
                 <div className="min-w-0 flex-1 basis-[220px]">
-                  <p className="text-[14px]">{d.raised_by.full_name}</p>
+                  <p className="text-[14px]">{raisedBy(d)}</p>
                   <p className="t-small mt-0.5 truncate text-muted">{d.admin_notes}</p>
                 </div>
                 <Pill tone={d.resolution === "release" ? "live" : "fault"}>
@@ -120,7 +138,7 @@ export function AdminDisputesScreen() {
         {openDispute && (
           <>
             <p className="t-body text-paper/90">
-              Raised by <strong>{openDispute.raised_by.full_name}</strong>
+              Raised by <strong>{raisedBy(openDispute)}</strong>
             </p>
             <p className="t-small mt-3 border-l-2 border-line pl-3 text-muted">
               {openDispute.reason}

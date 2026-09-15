@@ -57,6 +57,34 @@ describe("date formatting", () => {
   });
 });
 
+describe("dates that aren't plain YYYY-MM-DD", () => {
+  // DRF hands back full timestamps for `created_at` and friends. Splitting one
+  // on "-" put "04T10:30:00Z" into the day slot, which is NaN, and the month
+  // lookup then threw *during render* — one dispute was enough to take the
+  // whole admin screen down to the error boundary.
+  it("reads the date half of an ISO timestamp", () => {
+    expect(dateCompact("2026-03-04T10:30:00Z")).toBe("04 Mar");
+    expect(dateListing("2026-03-04T10:30:00Z")).toBe("WED 04 MAR");
+    expect(dateListingFull("2026-03-04T10:30:00.123456+05:30")).toBe("WED 04 MAR 2026");
+    expect(dateBody("2026-03-04T10:30:00Z")).toBe("Wednesday 4 March");
+    expect(dayOfWeekShort("2026-03-04T10:30:00Z")).toBe("WED");
+    expect(dayOfWeekLong("2026-03-04T10:30:00Z")).toBe("Wednesday");
+  });
+
+  it("returns a dash for junk rather than throwing", () => {
+    // A formatter that throws takes the page with it. One that prints a dash
+    // leaves the rest of the screen usable.
+    for (const junk of ["", "not a date", "2026", "null", "0000-00-00"]) {
+      expect(() => dateCompact(junk)).not.toThrow();
+      expect(() => dateListing(junk)).not.toThrow();
+      expect(() => dateBody(junk)).not.toThrow();
+      expect(() => dayOfWeekLong(junk)).not.toThrow();
+    }
+    expect(dateCompact("not a date")).toBe("\u2014");
+    expect(dateListingFull("")).toBe("\u2014");
+  });
+});
+
 describe("today", () => {
   it("is a YYYY-MM-DD string", () => {
     expect(today()).toMatch(/^\d{4}-\d{2}-\d{2}$/);

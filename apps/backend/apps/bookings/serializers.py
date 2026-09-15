@@ -159,12 +159,23 @@ class AdminLedgerEntrySerializer(serializers.ModelSerializer):
 
 
 class DisputeSerializer(serializers.ModelSerializer):
-    raised_by_email = serializers.EmailField(source="raised_by.email", read_only=True)
+    # `raised_by` is the raw user id. An ops console reviewing a dispute needs
+    # to say who raised it, and an email address alone reads badly in a
+    # sentence — so send the name too, in the same flat style as the email.
+    # `default=None` keeps the keys present when `raised_by` is NULL — it is
+    # SET_NULL, so a user who exercises their right to erasure leaves the
+    # dispute row behind with no account attached. Without the default, DRF
+    # drops both keys from the payload entirely rather than sending null, and a
+    # field that sometimes vanishes is a worse contract than one that is
+    # sometimes empty.
+    raised_by_email = serializers.EmailField(source="raised_by.email", read_only=True, default=None)
+    raised_by_name = serializers.CharField(source="raised_by.full_name", read_only=True, default=None)
 
     class Meta:
         model = Dispute
         fields = [
-            "id", "booking_order", "raised_by", "raised_by_email", "reason", "evidence_urls",
+            "id", "booking_order", "raised_by", "raised_by_email", "raised_by_name",
+            "reason", "evidence_urls",
             "resolution", "split_artist_pct", "resolved_at", "admin_notes", "created_at",
         ]
         read_only_fields = ["id", "raised_by", "resolution", "split_artist_pct", "resolved_at", "created_at"]

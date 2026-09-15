@@ -6,6 +6,7 @@ import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { NotificationBell } from "@/components/naada/notification-bell";
 import { AccountMenu } from "@/components/naada/account-menu";
 import { today, daysFromNow } from "@/lib/format";
+import { usePageMeta } from "@/lib/use-meta";
 import { useAutoScroll } from "@/hooks/use-auto-scroll";
 import { getCities, type ApiCity } from "@/lib/api";
 import type { NaadaEvent, Artist, Venue } from "@/data/fixtures";
@@ -723,6 +724,15 @@ export function DiscoverScreen() {
   const isDark = theme === "dark";
   const tok    = isDark ? T.dark : T.light;
   const urlQuery = searchParams.get("q")?.toLowerCase().trim() ?? "";
+
+  /* Deliberately not a live count of what's on sale: og tags get cached by
+   * WhatsApp and Google for days, so a number here would be wrong more often
+   * than right. The hook's own fallback supplies the title. */
+  usePageMeta({
+    description:
+      "Music, theatre, open mics and classical nights in Mysuru and Bengaluru. " +
+      "Book in your language, pay by UPI, no booking fee.",
+  });
 
   // Published upcoming events sorted by date (city-filtered)
   const published = useMemo(() => {

@@ -14,9 +14,15 @@
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Naada — live music in Mysuru &amp; Bengaluru" />
     <meta property="og:description" content="Grassroots live music. Open mics, jam nights, pub gigs and classical evenings." />
+    <!-- A poster is what makes a link worth tapping when it lands in a
+         WhatsApp group, which is how most gigs here actually travel. Event and
+         artist pages replace this with their own image at runtime; this is the
+         fallback for everything else, and for scrapers that arrive first. -->
+    <meta property="og:image" content="/gig-1.jpg" />
+    <meta name="twitter:image" content="/gig-1.jpg" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="description" content="Naada — grassroots live music in Bengaluru. Open mics, jam nights, pub gigs." />
-    <title>Naada — live music in Bengaluru</title>
+    <meta name="description" content="Naada — grassroots live music in Mysuru and Bengaluru. Open mics, jam nights, pub gigs and classical evenings." />
+    <title>Naada — live music in Mysuru &amp; Bengaluru</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -26,6 +32,6 @@
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

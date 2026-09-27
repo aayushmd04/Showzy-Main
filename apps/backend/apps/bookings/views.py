@@ -18,6 +18,7 @@ from .models import (
     BookingConversation, BookingMessage, Offer, BookingOrder,
     Transfer, LedgerEntry, Dispute, BookingAuditLog,
 )
+from apps.payments.gateways.selector import has_live_credentials
 from .serializers import (
     OrganizerSerializer, MembershipSerializer, GigApplicationSerializer,
     BookingConversationSerializer, BookingMessageSerializer, OfferSerializer,
@@ -66,6 +67,10 @@ def organizer_detail(request, pk):
     if not org:
         return Response({"detail": "Not found."}, status=404)
     if request.method == "GET":
+        # OrganizerSerializer carries GSTIN, PAN, KYC status and contact
+        # details — real compliance data, not a public profile. The write
+        # path below was already membership-gated; the read path was not.
+        _assert_member(request.user, org, required_role="staff")
         return Response(OrganizerSerializer(org).data)
     _assert_member(request.user, org, required_role="manager")
     ser = OrganizerSerializer(org, data=request.data, partial=True)
@@ -432,10 +437,12 @@ def fund_order(request, pk):
     ser.is_valid(raise_exception=True)
     d = ser.validated_data
 
-    # HMAC verification (skip in dev if key is placeholder)
-    key_secret = django_settings.RAZORPAY_KEY_SECRET
-    is_dev = not key_secret or django_settings.RAZORPAY_KEY_ID in ("rzp_test_", "")
+    # HMAC verification (skipped only in dev, and only via the same hardened,
+    # unforgiving credential check the ticket-payments gateway selector uses —
+    # not a bespoke placeholder list that a real deploy could still match).
+    is_dev = not has_live_credentials()
     if not is_dev:
+        key_secret = django_settings.RAZORPAY_KEY_SECRET
         body = f"{d['razorpay_order_id']}|{d['razorpay_payment_id']}"
         expected = hmac.new(key_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
         if not hmac.compare_digest(expected, d["razorpay_signature"]):

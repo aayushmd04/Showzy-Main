@@ -281,6 +281,37 @@ class OrganizerKycTests(AdminOpsTestCase):
         self.assertEqual(resp.status_code, 404)
 
 
+class OrganizerDetailPrivacyTests(AdminOpsTestCase):
+    """`GET /organizers/<pk>/` carries GSTIN, PAN, KYC status and contact
+    details — the write path (`PATCH`) already required membership, but the
+    read path did not, so any signed-in user who had (or guessed) an
+    organizer's id could read another company's compliance data.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.organizer.gst_number = "29ABCDE1234F1Z5"
+        self.organizer.contact_email = "ops@gokulamhall.test"
+        self.organizer.save()
+
+    def test_a_member_can_read_it(self):
+        client = APIClient()
+        client.force_authenticate(user=self.host_user)
+        resp = client.get(reverse("organizers-detail", args=[self.organizer.id]))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["gst_number"], "29ABCDE1234F1Z5")
+
+    def test_a_non_member_cannot_read_it(self):
+        resp = self.civilian_client.get(reverse("organizers-detail", args=[self.organizer.id]))
+        self.assertEqual(resp.status_code, 403)
+
+    def test_staff_with_no_membership_here_still_needs_the_admin_endpoint(self):
+        # is_staff alone doesn't bypass this member-only endpoint — that's
+        # what the dedicated admin-prefixed endpoints are for.
+        resp = self.admin_client.get(reverse("organizers-detail", args=[self.organizer.id]))
+        self.assertEqual(resp.status_code, 403)
+
+
 class DisputeQueueShapeTests(AdminOpsTestCase):
     """The ops console has to be able to say who raised a dispute.
 

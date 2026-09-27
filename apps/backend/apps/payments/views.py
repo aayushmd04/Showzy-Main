@@ -168,7 +168,21 @@ def initiate_payment(request):
     requested = serializer.validated_data["gateway"]
 
     # ── Free / complimentary: no gateway involved, legitimately ──────────────
-    if order.total_amount == Decimal("0") or requested == "comp":
+    # An order that is already ₹0 (a free event) is fine for any buyer to
+    # confirm this way. But "comp" on a PAID order zeroes it out with no money
+    # moving — that must stay a privilege of the event's organiser/staff, or
+    # any signed-in buyer could self-select it on their own paid order and get
+    # a free ticket.
+    is_already_free = order.total_amount == Decimal("0")
+    if requested == "comp" and not is_already_free:
+        is_privileged = request.user.is_staff or order.event.organizer_id == request.user.id
+        if not is_privileged:
+            return Response(
+                {"detail": "Only the event organiser can issue a complimentary ticket for a paid order."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+    if is_already_free or requested == "comp":
         payment = Payment.objects.create(
             order=order, gateway=Gateway.COMPLIMENTARY,
             amount=order.total_amount, currency=order.currency,

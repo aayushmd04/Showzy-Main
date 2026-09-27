@@ -572,7 +572,9 @@ class FreeAndOfflinePathTests(PaymentsTestCase):
         self.assertEqual(free_tier.sold_quantity, 1)
         self.assertEqual(free_tier.reserved_quantity, 0)
 
-    def test_complimentary_gateway_choice_skips_payment(self):
+    def test_complimentary_gateway_choice_by_organizer_skips_payment(self):
+        # self.user is both the buyer here and self.event's organizer — comping
+        # your own event's order is the legitimate use of this gateway choice.
         order = self.make_order()
         resp = self.client.post(reverse("payments-initiate"),
                                 {"order_id": str(order.id), "gateway": "comp"},
@@ -580,6 +582,25 @@ class FreeAndOfflinePathTests(PaymentsTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(Payment.objects.get(order=order).gateway,
                          Gateway.COMPLIMENTARY)
+
+    def test_complimentary_gateway_choice_blocked_for_ordinary_buyer(self):
+        # A buyer with no relationship to the event must not be able to
+        # self-select "comp" on their own paid order and get a free ticket.
+        order = Order.objects.create(
+            user=self.other, event=self.event, total_amount=Decimal("500.00"),
+            subtotal=Decimal("500.00"), status=Order.Status.INITIATED)
+        OrderItem.objects.create(
+            order=order, tier=self.tier, quantity=1,
+            unit_price=self.tier.price, total_price=self.tier.price)
+        other_client = APIClient()
+        other_client.force_authenticate(user=self.other)
+        resp = other_client.post(reverse("payments-initiate"),
+                                 {"order_id": str(order.id), "gateway": "comp"},
+                                 format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertFalse(Payment.objects.filter(order=order).exists())
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.Status.INITIATED)
 
     def test_cash_path_leaves_order_pending(self):
         order = self.make_order()

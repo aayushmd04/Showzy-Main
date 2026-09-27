@@ -82,7 +82,16 @@ export function CheckoutPayScreen() {
   const [seatIds, setSeatIds] = useState<string[]>([]);
   const cancelled = useRef(false);
 
-  useEffect(() => () => { cancelled.current = true; }, []);
+  // Reset on mount, not just set on unmount: StrictMode's dev-only
+  // mount→cleanup→remount simulation would otherwise run the cleanup once
+  // (setting this true) and never flip it back for the instance that's
+  // actually live, permanently short-circuiting every `cancelled.current`
+  // guard below — including the failure path in `pay()` — for the rest of
+  // that component's life in dev, while working "by accident" in production.
+  useEffect(() => {
+    cancelled.current = false;
+    return () => { cancelled.current = true; };
+  }, []);
 
   const event = checkout.eventId ? eventById(checkout.eventId) : undefined;
   const tier = event?.tiers.find((t) => t.name === checkout.tierName);

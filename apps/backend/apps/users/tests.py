@@ -168,6 +168,56 @@ class OTPThrottleTests(TestCase):
         self.assertIsNone(throttle.get_cache_key(request, None))
 
 
+class OTPAttemptLockoutTests(TestCase):
+    """`OTPToken.verify()` must actually stop at `OTP_MAX_ATTEMPTS` guesses.
+
+    The lockout used to be a plain read-then-write on `attempt_count`, so
+    several guesses fired at once could all read the same stale count before
+    any single write landed — each one still got a real guess against the
+    hash instead of being turned away. The check is now one atomic
+    conditional UPDATE per attempt; these pin the sequential behaviour that
+    update must preserve.
+    """
+
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import OTPToken
+
+        self.OTPToken = OTPToken
+        self.raw_otp = "482913"
+        self.token = OTPToken.objects.create(
+            email="lockout@naada.test",
+            otp_hash=OTPToken.hash_otp(self.raw_otp),
+            expires_at=timezone.now() + timedelta(minutes=5),
+        )
+
+    @override_settings(OTP_MAX_ATTEMPTS=3)
+    def test_wrong_guesses_are_refused_and_counted(self):
+        self.assertFalse(self.token.verify("000000"))
+        self.token.refresh_from_db()
+        self.assertEqual(self.token.attempt_count, 1)
+
+    @override_settings(OTP_MAX_ATTEMPTS=3)
+    def test_correct_code_still_works_within_the_limit(self):
+        self.assertFalse(self.token.verify("000000"))
+        self.assertTrue(self.token.verify(self.raw_otp))
+        self.token.refresh_from_db()
+        self.assertTrue(self.token.is_used)
+
+    @override_settings(OTP_MAX_ATTEMPTS=3)
+    def test_the_correct_code_is_refused_once_the_limit_is_spent(self):
+        self.assertFalse(self.token.verify("000000"))
+        self.assertFalse(self.token.verify("111111"))
+        self.assertFalse(self.token.verify("222222"))
+        # Three wrong guesses have now spent the whole budget — even the
+        # right code must not work after this point.
+        self.assertFalse(self.token.verify(self.raw_otp))
+        self.token.refresh_from_db()
+        self.assertFalse(self.token.is_used)
+        self.assertEqual(self.token.attempt_count, 3)
+
+
 class DeployCheckTests(TestCase):
     """The two ways a deploy can look healthy and quietly not be."""
 

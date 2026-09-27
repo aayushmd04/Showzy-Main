@@ -18,7 +18,7 @@ from .serializers import (
     PromoCodeValidateSerializer, ZoneSerializer, TransferTicketSerializer,
     AttendeeSerializer,
 )
-from apps.events.models import Event
+from apps.events.models import Event, EventStatus
 
 User = get_user_model()
 
@@ -75,6 +75,21 @@ def create_order(request):
     data = serializer.validated_data
 
     event = generics.get_object_or_404(Event, pk=data["event_id"], is_deleted=False)
+
+    # A cancelled or already-finished event has nothing left to sell — checked
+    # here, not just left to the UI, since this is the one place an order
+    # actually gets created.
+    if event.status == EventStatus.CANCELLED:
+        return Response(
+            {"detail": "This event has been cancelled."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    if event.end_datetime <= timezone.now():
+        return Response(
+            {"detail": "This event has already happened — tickets are no longer on sale."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     promo = None
     discount = Decimal("0")
 
@@ -483,15 +498,21 @@ def scan_ticket(request, qr_data):
     )
     if not works_the_door(request.user, ticket.event):
         raise exceptions.PermissionDenied("Only this event's organiser can check tickets in.")
-    if ticket.status != Ticket.Status.VALID:
-        return Response(
-            {"valid": False, "detail": f"Ticket is {ticket.get_status_display()}."},
-            status=status.HTTP_400_BAD_REQUEST
-        )
-    ticket.status = Ticket.Status.USED
-    ticket.checked_in_at = timezone.now()
-    ticket.checked_in_by = request.user
-    ticket.save(update_fields=["status", "checked_in_at", "checked_in_by"])
+
+    # Locked so two doors (or one door double-tapping a slow scan) can't both
+    # read VALID before either write commits and admit the same ticket twice.
+    with transaction.atomic():
+        locked = Ticket.objects.select_for_update().get(pk=ticket.pk)
+        if locked.status != Ticket.Status.VALID:
+            return Response(
+                {"valid": False, "detail": f"Ticket is {locked.get_status_display()}."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        locked.status = Ticket.Status.USED
+        locked.checked_in_at = timezone.now()
+        locked.checked_in_by = request.user
+        locked.save(update_fields=["status", "checked_in_at", "checked_in_by"])
+        ticket = locked
     serializer = TicketSerializer(ticket, context={"request": request})
     return Response({"valid": True, "ticket": serializer.data})
 

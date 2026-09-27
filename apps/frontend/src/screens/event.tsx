@@ -197,6 +197,7 @@ export function EventScreen() {
             </div>
           </div>
 
+          {event.lineup.length > 0 && (
           <section className="mt-10 border-t border-line pt-6">
             <h2 className="t-micro">Lineup</h2>
             <ul className="mt-3 divide-y divide-line border-y border-line">
@@ -230,6 +231,7 @@ export function EventScreen() {
               })}
             </ul>
           </section>
+          )}
 
           {event.description && (
             <section className="mt-8">

@@ -21,6 +21,41 @@ PAYOUT_READ_ONLY_FIELDS = [
     "bank_details_updated_at",
 ]
 
+#: Never *read* by anyone but the entity's own owner or staff — GSTIN, PAN,
+#: KYC status/history, and everything about the bank account except the
+#: recognisable last 4 digits (`bank_account_last4`, which stays public).
+#: These are real government tax IDs and bank details; a detail serializer
+#: built with `Meta.exclude` includes every one of them by default, so this
+#: list exists to be stripped back out for anyone who isn't privileged.
+PAYOUT_PRIVATE_FIELDS = [
+    "gst_number", "pan_number",
+    "kyc_status", "kyc_submitted_at", "kyc_verified_at", "kyc_rejection_reason",
+    "bank_account_holder_name", "bank_ifsc_code", "bank_name", "bank_details_updated_at",
+]
+
+
+class PayoutDetailReadMixin:
+    """Mixed into a read serializer for `Artist`/`Venue` (built with
+    `Meta.exclude`, so every new `PayoutDetailsMixin` field is included by
+    default) to strip the private ones back out for anyone but the entity's
+    own owner or staff. Subclasses implement `_is_payout_owner`.
+    """
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        is_privileged = bool(user and user.is_authenticated and (
+            user.is_staff or self._is_payout_owner(instance, user)
+        ))
+        if not is_privileged:
+            for field in PAYOUT_PRIVATE_FIELDS:
+                data.pop(field, None)
+        return data
+
+    def _is_payout_owner(self, instance, user) -> bool:
+        raise NotImplementedError
+
 
 class PayoutFieldsMixin:
     """Mixed into a `ModelSerializer` for the write (create/update) path.

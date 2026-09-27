@@ -214,3 +214,60 @@ class AdminVenueKycTests(VenuePayoutTestCase):
         resp = self.admin_client.post(
             reverse("admin-venue-kyc-set", args=["no-such-venue"]), {"status": "verified"})
         self.assertEqual(resp.status_code, 404)
+
+
+class PublicProfilePayoutPrivacyTests(VenuePayoutTestCase):
+    """GET /venues/<slug>/ is a fully public, unauthenticated endpoint — the
+    venue owner's PAN, GSTIN and bank metadata must never appear in it for
+    anyone but the owner themselves or staff.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.venue.gst_number = "29ABCDE1234F1Z5"
+        self.venue.pan_number = "ABCDE1234F"
+        self.venue.kyc_status = KYCStatus.SUBMITTED
+        self.venue.kyc_rejection_reason = "GSTIN doesn't match business name"
+        self.venue.bank_account_holder_name = "Payout Test Hall"
+        self.venue.bank_account_number = "555566667777"
+        self.venue.bank_ifsc_code = "HDFC0001234"
+        self.venue.bank_name = "HDFC Bank"
+        self.venue.save()
+
+        self.stranger = User.objects.create_user(email="venue-stranger@naada.test", full_name="Stranger")
+        self.stranger_client = APIClient()
+        self.stranger_client.force_authenticate(user=self.stranger)
+
+        self.private_fields = [
+            "gst_number", "pan_number", "kyc_status", "kyc_submitted_at",
+            "kyc_verified_at", "kyc_rejection_reason", "bank_account_holder_name",
+            "bank_ifsc_code", "bank_name", "bank_details_updated_at",
+        ]
+
+    def test_anonymous_read_hides_payout_details(self):
+        anon_client = APIClient()
+        resp = anon_client.get(reverse("venues-detail", args=[self.venue.slug]))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        for field in self.private_fields:
+            self.assertNotIn(field, resp.data, field)
+        self.assertIn("bank_account_last4", resp.data)
+        self.assertIn("has_bank_details", resp.data)
+        self.assertIn("can_receive_payouts", resp.data)
+
+    def test_other_signed_in_user_read_hides_payout_details(self):
+        resp = self.stranger_client.get(reverse("venues-detail", args=[self.venue.slug]))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        for field in self.private_fields:
+            self.assertNotIn(field, resp.data, field)
+
+    def test_owner_read_still_sees_payout_details(self):
+        resp = self.client.get(reverse("venues-detail", args=[self.venue.slug]))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["gst_number"], "29ABCDE1234F1Z5")
+        self.assertEqual(resp.data["pan_number"], "ABCDE1234F")
+        self.assertEqual(resp.data["bank_ifsc_code"], "HDFC0001234")
+
+    def test_admin_read_still_sees_payout_details(self):
+        resp = self.admin_client.get(reverse("venues-detail", args=[self.venue.slug]))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["gst_number"], "29ABCDE1234F1Z5")

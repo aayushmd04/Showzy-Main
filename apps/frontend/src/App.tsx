@@ -257,8 +257,10 @@ export default function App() {
                       }
                     />
 
-                    {/* Component lab */}
-                    <Route path="/lab/keyboard" element={<KeyboardLabScreen />} />
+                    {/* Component lab — dev-only, never registered in a production build */}
+                    {import.meta.env.DEV && (
+                      <Route path="/lab/keyboard" element={<KeyboardLabScreen />} />
+                    )}
 
                     <Route path="*" element={<NotFoundScreen />} />
                   </Routes>

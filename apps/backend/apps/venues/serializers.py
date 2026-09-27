@@ -2,7 +2,7 @@ from rest_framework import serializers
 from .models import Venue, VenuePhoto, VenueHours, VenueOperatorAccess
 from apps.core.serializers import CitySerializer, AreaSerializer
 from apps.core.urlfields import ForgivingURLField, IndianPhoneField, SocialHandleField
-from apps.core.payout_fields import PayoutFieldsMixin, PAYOUT_READ_ONLY_FIELDS
+from apps.core.payout_fields import PayoutFieldsMixin, PAYOUT_READ_ONLY_FIELDS, PayoutDetailReadMixin
 
 
 class VenuePhotoSerializer(serializers.ModelSerializer):
@@ -42,7 +42,7 @@ class VenueListSerializer(serializers.ModelSerializer):
         return None
 
 
-class VenueDetailSerializer(serializers.ModelSerializer):
+class VenueDetailSerializer(PayoutDetailReadMixin, serializers.ModelSerializer):
     city = CitySerializer(read_only=True)
     area = AreaSerializer(read_only=True)
     photos = VenuePhotoSerializer(many=True, read_only=True)
@@ -60,6 +60,9 @@ class VenueDetailSerializer(serializers.ModelSerializer):
         # plan the host designs) is read back here and written through
         # VenueCreateUpdateSerializer below without a bespoke endpoint.
         exclude = ["is_deleted", "deleted_at", "bank_account_number"]
+
+    def _is_payout_owner(self, instance, user):
+        return instance.owner_id == user.id
 
 
 class VenueCreateUpdateSerializer(PayoutFieldsMixin, serializers.ModelSerializer):

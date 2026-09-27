@@ -214,6 +214,35 @@ class ZoneTestCase(TestCase):
         order.save(update_fields=["status", "confirmed_at"])
 
 
+class EventTimingGuardTests(ZoneTestCase):
+    """An event that's already over, or cancelled, has nothing left to sell —
+    checked out here, not left to the frontend, since this is the one place
+    an order actually gets created.
+    """
+
+    def test_cannot_order_a_ticket_for_an_event_that_already_happened(self):
+        past_start = timezone.now() - timedelta(days=2)
+        self.event.start_datetime = past_start
+        self.event.end_datetime = past_start + timedelta(hours=3)
+        self.event.save(update_fields=["start_datetime", "end_datetime"])
+
+        resp = self.order()
+        self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertEqual(Order.objects.filter(event=self.event).count(), 0)
+
+    def test_cannot_order_a_ticket_for_a_cancelled_event(self):
+        self.event.status = EventStatus.CANCELLED
+        self.event.save(update_fields=["status"])
+
+        resp = self.order()
+        self.assertEqual(resp.status_code, 400, resp.data)
+        self.assertEqual(Order.objects.filter(event=self.event).count(), 0)
+
+    def test_can_still_order_a_ticket_for_an_upcoming_event(self):
+        resp = self.order()
+        self.assertEqual(resp.status_code, 201, resp.data)
+
+
 class ZoneLayoutReadingTests(ZoneTestCase):
     """The layout is host-authored JSON, so reading it must never throw."""
 
@@ -996,3 +1025,12 @@ class DoorAccessTests(ZoneTestCase):
         row = self.as_(self.host).get(self.door_url()).data["results"][0]
         self.assertEqual(row["status"], Ticket.Status.USED)
         self.assertIsNotNone(row["checked_in_at"])
+
+    def test_scanning_an_already_used_ticket_is_refused(self):
+        first = self.as_(self.host).post(self.scan_url())
+        self.assertEqual(first.status_code, 200, first.data)
+        self.assertTrue(first.data["valid"])
+
+        second = self.as_(self.host).post(self.scan_url())
+        self.assertEqual(second.status_code, 400, second.data)
+        self.assertFalse(second.data["valid"])

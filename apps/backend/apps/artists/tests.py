@@ -210,3 +210,61 @@ class AdminArtistKycTests(ArtistPayoutTestCase):
         resp = self.admin_client.post(
             reverse("admin-artist-kyc-set", args=[uuid.uuid4()]), {"status": "verified"})
         self.assertEqual(resp.status_code, 404)
+
+
+class PublicProfilePayoutPrivacyTests(ArtistPayoutTestCase):
+    """GET /artists/<id>/ is a fully public, unauthenticated endpoint — the
+    artist's own PAN, GSTIN and bank metadata must never appear in it for
+    anyone but the artist themselves or staff.
+    """
+
+    def setUp(self):
+        super().setUp()
+        self.artist.gst_number = "29ABCDE1234F1Z5"
+        self.artist.pan_number = "ABCDE1234F"
+        self.artist.kyc_status = KYCStatus.SUBMITTED
+        self.artist.kyc_rejection_reason = "Photo of PAN was blurry"
+        self.artist.bank_account_holder_name = "Payout Artist"
+        self.artist.bank_account_number = "123456789012"
+        self.artist.bank_ifsc_code = "HDFC0001234"
+        self.artist.bank_name = "HDFC Bank"
+        self.artist.save()
+
+        self.stranger = User.objects.create_user(email="stranger@naada.test", full_name="Stranger")
+        self.stranger_client = APIClient()
+        self.stranger_client.force_authenticate(user=self.stranger)
+
+        self.private_fields = [
+            "gst_number", "pan_number", "kyc_status", "kyc_submitted_at",
+            "kyc_verified_at", "kyc_rejection_reason", "bank_account_holder_name",
+            "bank_ifsc_code", "bank_name", "bank_details_updated_at",
+        ]
+
+    def test_anonymous_read_hides_payout_details(self):
+        anon_client = APIClient()
+        resp = anon_client.get(reverse("artists-detail", args=[self.artist.id]))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        for field in self.private_fields:
+            self.assertNotIn(field, resp.data, field)
+        # The genuinely public-safe payout summary still shows up.
+        self.assertIn("bank_account_last4", resp.data)
+        self.assertIn("has_bank_details", resp.data)
+        self.assertIn("can_receive_payouts", resp.data)
+
+    def test_other_signed_in_user_read_hides_payout_details(self):
+        resp = self.stranger_client.get(reverse("artists-detail", args=[self.artist.id]))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        for field in self.private_fields:
+            self.assertNotIn(field, resp.data, field)
+
+    def test_owner_read_still_sees_payout_details(self):
+        resp = self.client.get(reverse("artists-detail", args=[self.artist.id]))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["gst_number"], "29ABCDE1234F1Z5")
+        self.assertEqual(resp.data["pan_number"], "ABCDE1234F")
+        self.assertEqual(resp.data["bank_ifsc_code"], "HDFC0001234")
+
+    def test_admin_read_still_sees_payout_details(self):
+        resp = self.admin_client.get(reverse("artists-detail", args=[self.artist.id]))
+        self.assertEqual(resp.status_code, 200, resp.data)
+        self.assertEqual(resp.data["gst_number"], "29ABCDE1234F1Z5")

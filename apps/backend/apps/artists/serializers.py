@@ -5,7 +5,7 @@ from rest_framework import serializers
 from .models import Artist, ArtistPhoto, ArtistFollower
 from apps.core.serializers import GenreSerializer
 from apps.core.urlfields import ForgivingURLField, SocialHandleField
-from apps.core.payout_fields import PayoutFieldsMixin, PAYOUT_READ_ONLY_FIELDS
+from apps.core.payout_fields import PayoutFieldsMixin, PAYOUT_READ_ONLY_FIELDS, PayoutDetailReadMixin
 
 #: Ceiling on stored blackout dates. A year of blocked dates is already an
 #: artist who is not taking bookings; beyond that it is a client bug.
@@ -127,7 +127,7 @@ class ArtistListSerializer(serializers.ModelSerializer):
         return None
 
 
-class ArtistDetailSerializer(serializers.ModelSerializer):
+class ArtistDetailSerializer(PayoutDetailReadMixin, serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
     photos = ArtistPhotoSerializer(many=True, read_only=True)
     primary_photo = serializers.SerializerMethodField()
@@ -150,6 +150,9 @@ class ArtistDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Artist
         exclude = ["is_deleted", "deleted_at", "bank_account_number"]
+
+    def _is_payout_owner(self, instance, user):
+        return instance.user_id == user.id
 
     def get_user(self, obj):
         return _artist_user(obj)

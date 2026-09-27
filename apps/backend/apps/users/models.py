@@ -117,10 +117,24 @@ class OTPToken(models.Model):
         from django.conf import settings
         if self.is_used or self.expires_at < timezone.now():
             return False
-        if self.attempt_count >= getattr(settings, "OTP_MAX_ATTEMPTS", 5):
+
+        max_attempts = getattr(settings, "OTP_MAX_ATTEMPTS", 5)
+        # A single conditional UPDATE, not a read-then-write: several
+        # concurrent guesses against the same token each raced to read the
+        # same stale attempt_count before any of their writes committed, so
+        # the "N attempts then dead" lockout could be bypassed by firing
+        # requests in parallel. The WHERE clause is evaluated by the database
+        # atomically per row, so only requests that land while genuinely
+        # under the limit ever get counted as an attempt.
+        rows = (
+            OTPToken.objects
+            .filter(pk=self.pk, attempt_count__lt=max_attempts)
+            .update(attempt_count=models.F("attempt_count") + 1)
+        )
+        if rows == 0:
             return False
-        self.attempt_count += 1
-        self.save(update_fields=["attempt_count"])
+        self.refresh_from_db(fields=["attempt_count"])
+
         if self.otp_hash == self.hash_otp(raw_otp):
             self.is_used = True
             self.save(update_fields=["is_used"])

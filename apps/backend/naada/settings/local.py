@@ -22,8 +22,8 @@ REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = [
 
 # Relax throttling locally
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
-    "anon": "1000/hour",
-    "user": "10000/hour",
+    "anon": "100000/hour",
+    "user": "100000/hour",
     "otp": "50/hour",
     "otp_email": "50/hour",
 }

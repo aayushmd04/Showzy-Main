@@ -20,9 +20,12 @@
   --color-live:      #3ddc91;
   --color-fault:     #ff5b4a;
 
-  --font-display: "Baloo Tamma 2", system-ui, sans-serif;
+  --font-display: "Jost", system-ui, sans-serif;
+  --font-hero:    "Josefin Sans", "Anek Kannada", system-ui, sans-serif;
+  --font-megrim:  "Megrim", "Anek Kannada", system-ui, sans-serif;
+  --font-support: "Jost", "Anek Kannada", system-ui, sans-serif;
   --font-kannada: "Anek Kannada", sans-serif;
-  --font-sans:    "Archivo", "Archivo Narrow", ui-sans-serif, system-ui, sans-serif;
+  --font-sans:    "Jost", ui-sans-serif, system-ui, sans-serif;
   --font-mono:    "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
 
   --radius-DEFAULT: 4px;
@@ -60,6 +63,16 @@
     font-family: var(--font-display);
     font-weight: 700;
     margin: 0;
+  }
+
+  /* Page titles match the home carousel: Megrim, set in capitals. Megrim has a
+     single weight, so never let the browser fake a bold one. */
+  h1 {
+    font-family: var(--font-megrim);
+    font-weight: 400;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    font-synthesis: none;
   }
 
   :focus-visible {
@@ -104,20 +117,23 @@
      ────────────────────────────────────────────────────────────────────────── */
 
   .t-display {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: clamp(30px, 7vw, 52px);
-    line-height: 0.98;
-    letter-spacing: -0.03em;
+    font-family: var(--font-megrim);
+    font-weight: 400;
+    font-size: clamp(32px, 7vw, 56px);
+    line-height: 1.06;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
     text-wrap: balance;
   }
 
   .t-h1 {
-    font-family: var(--font-display);
-    font-weight: 800;
-    font-size: clamp(24px, 4.4vw, 34px);
+    font-family: var(--font-megrim);
+    font-weight: 400;
+    font-size: clamp(28px, 5vw, 42px);
     line-height: 1.08;
-    letter-spacing: -0.02em;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    font-synthesis: none;
     text-wrap: balance;
   }
 

@@ -160,13 +160,15 @@ REST_FRAMEWORK = {
     "DEFAULT_RENDERER_CLASSES": [
         "rest_framework.renderers.JSONRenderer",
     ],
+    # Reads are never throttled (see apps/core/throttles.py). These rates cap
+    # writes only; the sign-in endpoint has its own stricter scopes below.
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        "apps.core.throttles.WriteAnonThrottle",
+        "apps.core.throttles.WriteUserThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
-        "anon": "100/hour",
-        "user": "1000/hour",
+        "anon": "600/hour",
+        "user": "5000/hour",
         # "otp" is per caller IP, "otp_email" is per recipient address. Both
         # apply to the sign-in endpoint; see apps/users/views.py for why one
         # without the other leaves a hole.

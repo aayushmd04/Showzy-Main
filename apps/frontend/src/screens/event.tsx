@@ -157,7 +157,7 @@ export function EventScreen() {
         {/* Left column */}
         <div className="min-w-0">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <div className="w-full max-w-[260px] shrink-0 sm:w-[240px]">
+            <div className="w-full shrink-0 sm:w-[300px] lg:w-[340px]">
               <Poster event={event} />
             </div>
             <div className="min-w-0 flex-1">

@@ -112,3 +112,42 @@ class IndianPhoneTests(SimpleTestCase):
 
     def test_another_country_in_full_international_form_is_kept(self):
         self.assertEqual(self.field.to_internal_value("+442079460958"), "+442079460958")
+
+
+class ReadsAreNeverThrottledTests(SimpleTestCase):
+    """Browsing the site must not be able to lock a visitor out.
+
+    A page makes a dozen or so reads and mobile users share an IP, so counting
+    reads per IP blocks real people within a few page loads. Reads pass; writes
+    are still counted.
+    """
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def _request(self, method):
+        from rest_framework.request import Request
+        from rest_framework.test import APIRequestFactory
+
+        return Request(getattr(APIRequestFactory(), method)("/api/v1/events/"))
+
+    def test_a_visitor_can_read_far_past_the_write_limit(self):
+        from unittest.mock import patch
+
+        from apps.core.throttles import WriteAnonThrottle
+
+        with patch.object(WriteAnonThrottle, "get_rate", return_value="3/hour"):
+            for _ in range(50):
+                self.assertTrue(WriteAnonThrottle().allow_request(self._request("get"), None))
+
+    def test_writes_are_still_counted(self):
+        from unittest.mock import patch
+
+        from apps.core.throttles import WriteAnonThrottle
+
+        with patch.object(WriteAnonThrottle, "get_rate", return_value="3/hour"):
+            results = [WriteAnonThrottle().allow_request(self._request("post"), None) for _ in range(6)]
+        self.assertIn(False, results, "writes were never throttled")
+        self.assertEqual(results[:3], [True, True, True])

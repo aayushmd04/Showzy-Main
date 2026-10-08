@@ -1,11 +1,12 @@
 import { Suspense, lazy, useEffect } from "react";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
-import { MotionConfig } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 
 import { AppStoreProvider } from "@/store/app-store";
 import { AuthSheetProvider, useAuthSheet } from "@/components/naada/auth-sheet";
 import { BriefComposerProvider } from "@/components/naada/brief-composer";
 import { ErrorBoundary } from "@/components/naada/error-boundary";
+import { NearbyLoader } from "@/components/naada/nearby-loader";
 import { RequireRole } from "@/components/naada/require-role";
 import { Toaster } from "@/components/ui/toaster";
 import { useStore } from "@/store/app-store";
@@ -21,7 +22,7 @@ import { getMe, tokens, AUTH_EXPIRED_EVENT } from "@/lib/api";
  * The browse pages are one deliberate click away and can fetch on demand; see
  * the lazy block below.
  */
-import { DiscoverScreen } from "@/screens/discover";
+import { HomeFeed } from "@/screens/home-feed";
 import { RoleHomeScreen } from "@/screens/home/role-home";
 import { EventScreen } from "@/screens/event";
 import { CheckoutDetailsScreen } from "@/screens/checkout-details";
@@ -86,6 +87,16 @@ const SettingsScreen = lazyScreen(() => import("@/screens/settings"), "SettingsS
 const LegalScreen = lazyScreen(() => import("@/screens/legal"), "LegalScreen");
 const NotificationsScreen = lazyScreen(() => import("@/screens/notifications"), "NotificationsScreen");
 const SavedScreen = lazyScreen(() => import("@/screens/saved"), "SavedScreen");
+
+/** Each page eases in instead of appearing in a cut. */
+function PageFade({ children }: { children: React.ReactNode }) {
+  const { pathname } = useLocation();
+  return (
+    <motion.div key={pathname} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35, ease: "easeOut" }}>
+      {children}
+    </motion.div>
+  );
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -189,6 +200,7 @@ export default function App() {
               <BriefComposerProvider>
                 <ScrollToTop />
                 <Suspense fallback={<ScreenFallback />}>
+                  <PageFade>
                   <Routes>
                     {/* Public */}
                     {/*
@@ -198,7 +210,7 @@ export default function App() {
                      * so a signed-in artist or host never loses access to it.
                      */}
                     <Route path="/" element={<RoleHomeScreen />} />
-                    <Route path="/whats-on" element={<DiscoverScreen />} />
+                    <Route path="/whats-on" element={<HomeFeed />} />
                     <Route path="/e/:id" element={<EventScreen />} />
                     <Route path="/a/:id" element={<ArtistProfileScreen />} />
                     <Route path="/artists" element={<ArtistsScreen />} />
@@ -264,8 +276,10 @@ export default function App() {
 
                     <Route path="*" element={<NotFoundScreen />} />
                   </Routes>
+                  </PageFade>
                 </Suspense>
 
+                <NearbyLoader />
                 <Toaster />
               </BriefComposerProvider>
             </AuthSheetProvider>

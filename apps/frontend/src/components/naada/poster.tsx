@@ -38,6 +38,33 @@ export function Poster({
     };
   }, [event.id, event.name]);
 
+  // A real photo of the night beats a typeset flyer: show it, with the date and
+  // sound on top. The name is already the page or card heading, so it is not
+  // repeated here.
+  const photo = (event as NaadaEvent & { _posterImage?: string })._posterImage;
+  if (photo) {
+    return (
+      <div
+        className={cn(
+          "relative isolate aspect-[4/3] w-full overflow-hidden rounded-md border border-line bg-surface-2",
+          className,
+        )}
+        role="img"
+        aria-label={`Photo for ${event.name}, ${dateListing(event.date)}`}
+      >
+        <img src={photo} alt="" loading="lazy" className="absolute inset-0 size-full object-cover" />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-black/35"
+        />
+        <div className="absolute inset-x-0 top-0 flex items-center justify-between gap-2 px-3 pt-3 text-[13px] font-semibold text-white">
+          <span className="truncate rounded bg-black/55 px-2 py-1">{event.genres[0] ?? "Live"}</span>
+          <span className="shrink-0 rounded bg-black/55 px-2 py-1">{dateListing(event.date)}</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

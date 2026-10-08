@@ -25,6 +25,8 @@ type Outcome = "authed" | "guest";
 
 interface AuthOptions {
   allowGuest?: boolean;
+  /** For a brand-new account, skip "How are you using Naada?" and use this role. */
+  preferRole?: "listener" | "artist" | "host";
   onDone?: (outcome: Outcome, role: Role) => void;
 }
 
@@ -221,7 +223,11 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
       const { user } = await verifyOtp(email.trim(), otp);
       setCurrentUser({ id: user.id, email: user.email, full_name: user.full_name, role: user.role });
       const nextRole: Role = ROLE_MAP[user.role] ?? "listener";
-      if (user.is_new_user) {
+      const preferred = optionsRef.current.preferRole;
+      if (user.is_new_user && preferred) {
+        setPendingRole(nextRole);
+        await handleRoleSelect(preferred);
+      } else if (user.is_new_user) {
         setPendingRole(nextRole);
         setStep("role");
       } else {

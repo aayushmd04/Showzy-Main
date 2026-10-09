@@ -17,6 +17,8 @@ interface Props {
   colors: Colors;
   /** Smaller pill for the mobile strip. */
   compact?: boolean;
+  /** No border or fill: just text, for use in a header. */
+  plain?: boolean;
   ariaLabel: string;
 }
 
@@ -25,7 +27,7 @@ interface Props {
  * positioned from the button's rect, because the mobile strip it sits in
  * scrolls horizontally and would clip an in-flow menu.
  */
-export function CityDropdown({ value, options, label, onChange, colors, compact, ariaLabel }: Props) {
+export function CityDropdown({ value, options, label, onChange, colors, compact, plain, ariaLabel }: Props) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; minWidth: number }>({ top: 0, left: 0, minWidth: 0 });
   const [active, setActive] = useState(0);
@@ -109,17 +111,17 @@ export function CityDropdown({ value, options, label, onChange, colors, compact,
           alignItems: "center",
           gap: compact ? 6 : 7,
           flexShrink: 0,
-          minHeight: compact ? 38 : 44,
-          padding: compact ? "0 12px 0 14px" : "0 13px 0 15px",
-          borderRadius: 999,
-          fontSize: compact ? 14 : 15,
+          minHeight: plain ? 40 : compact ? 38 : 44,
+          padding: plain ? "0 2px" : compact ? "0 12px 0 14px" : "0 13px 0 15px",
+          borderRadius: plain ? 6 : 999,
+          fontSize: plain ? 13 : compact ? 14 : 15,
           fontWeight: 600,
           fontFamily: "'Manrope',sans-serif",
           whiteSpace: "nowrap",
           color: colors.paper,
           cursor: "pointer",
-          border: `${compact ? 1 : 1.5}px solid ${selected ? colors.signal : colors.border}`,
-          background: selected ? `color-mix(in srgb, ${colors.signal} 10%, transparent)` : "transparent",
+          border: plain ? "none" : `${compact ? 1 : 1.5}px solid ${selected ? colors.signal : colors.border}`,
+          background: plain || !selected ? "transparent" : `color-mix(in srgb, ${colors.signal} 10%, transparent)`,
         }}
       >
         <span style={{ fontSize: compact ? 12 : 13, color: colors.signal }}>◎</span>

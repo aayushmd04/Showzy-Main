@@ -24,7 +24,7 @@ const NAV_LINKS = [
   { label: "How it works", labelKn: "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ", path: "/how-it-works" },
 ];
 
-function SearchBox({ className = "" }: { className?: string }) {
+function SearchBox({ className = "", boxed = false }: { className?: string; boxed?: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
   const [params] = useSearchParams();
@@ -46,14 +46,21 @@ function SearchBox({ className = "" }: { className?: string }) {
 
   return (
     <form onSubmit={submit} role="search" className={`relative ${className}`}>
-      <Search aria-hidden className="pointer-events-none absolute left-3.5 top-1/2 size-[18px] -translate-y-1/2 text-muted" />
+      <Search
+        aria-hidden
+        className={`pointer-events-none absolute top-1/2 size-[17px] -translate-y-1/2 text-muted ${boxed ? "left-3.5" : "left-0"}`}
+      />
       <input
         type="search"
         value={q}
         onChange={(e) => setQ(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="h-11 w-full rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] pl-10 pr-3 text-[15px] text-paper backdrop-blur-md placeholder:text-muted focus:border-signal focus:outline-none"
+        className={
+          boxed
+            ? "h-11 w-full rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] pl-10 pr-3 text-[15px] text-paper placeholder:text-muted focus:border-signal focus:outline-none"
+            : "h-10 w-full rounded-none border-0 border-b border-[var(--field-border)] bg-transparent pl-7 pr-2 text-[14px] text-paper placeholder:text-muted transition-colors focus:border-signal focus:outline-none"
+        }
       />
     </form>
   );
@@ -74,9 +81,9 @@ function ThemeToggle({
       type="button"
       onClick={() => setTheme(light ? "dark" : "light")}
       aria-label={light ? "Switch to dark mode" : "Switch to light mode"}
-      className={`glass-soft size-11 shrink-0 place-items-center rounded-md text-paper hover:border-paper/40 ${className || "grid"}`}
+      className={`size-9 shrink-0 place-items-center rounded-full text-paper/80 transition-colors hover:bg-paper/10 hover:text-paper ${className || "grid"}`}
     >
-      {light ? <Moon className="size-[18px]" aria-hidden /> : <Sun className="size-[18px]" aria-hidden />}
+      {light ? <Moon className="size-[17px]" aria-hidden /> : <Sun className="size-[17px]" aria-hidden />}
     </button>
   );
 }
@@ -104,64 +111,70 @@ export function PublicShell({ children }: { children: ReactNode }) {
         <img src="/media/events/crowd-under-stage-lights.jpg" alt="" className="-left-[20vmax] -top-[24vmax]" />
         <img src="/media/events/classical-dancer-stage.jpg" alt="" className="-bottom-[28vmax] -right-[22vmax]" />
       </div>
-      <header className="glass-soft sticky top-0 z-40 rounded-none border-x-0 border-t-0 bg-[var(--glass-bar)]">
-        {/* Row 1: brand, search, city, account */}
-        <div className="flex h-16 w-full items-center gap-3 px-[var(--page-pad)] md:gap-5">
-          <Link to="/" className="shrink-0 no-underline" aria-label="Naada home">
-            <Wordmark className="text-[19px] md:text-[22px]" />
+      <header className="sticky top-0 z-40 border-b border-[var(--glass-border-soft)] bg-[var(--glass-bar)] backdrop-blur-xl">
+        {/* One bar on a laptop; on a phone the brand and sign-in stay on top, then
+            search, then the section links. One nav element, placed by `order`. */}
+        <div className="flex w-full flex-wrap items-center px-[var(--page-pad)] lg:flex-nowrap lg:gap-10">
+          <Link to="/" className="order-1 flex h-16 shrink-0 items-center no-underline" aria-label="Naada home">
+            <Wordmark className="text-[19px] md:text-[21px]" />
           </Link>
 
-          {/* The search takes the middle and centres in it, so the brand sits at the
-              left edge and the controls at the right edge, level with the strip below. */}
-          <div className="hidden flex-1 justify-center md:flex">
-            <SearchBox className="w-full max-w-3xl" />
+          <div className="order-2 ml-8 hidden h-16 min-w-0 flex-1 items-center md:flex lg:order-3 lg:ml-0">
+            <SearchBox className="w-full max-w-2xl" />
           </div>
-          <div className="flex-1 md:hidden" />
 
-          <CityPicker compact />
-
-          <button
-            type="button"
-            onClick={() => setLang(kn ? "en" : "kn")}
-            aria-label="Change language"
-            className="glass-soft hidden min-h-11 shrink-0 rounded-md px-3 text-[14px] font-semibold text-paper hover:border-paper/50 sm:block"
-          >
-            {kn ? "EN" : "ಕನ್ನಡ"}
-          </button>
-
-          <ThemeToggle theme={theme} setTheme={setTheme} className="hidden sm:grid" />
-
-          {isLoggedIn ? (
-            <div className="flex shrink-0 items-center gap-2">
-              {role === "listener" && (
-                <Link to="/tickets" className="hidden whitespace-nowrap text-[14px] font-semibold text-muted no-underline hover:text-paper md:block">
-                  {kn ? "ನನ್ನ ಟಿಕೆಟ್‌ಗಳು" : "My tickets"}
-                </Link>
-              )}
-              <NotificationBell />
-              <AccountMenu />
-            </div>
-          ) : (
+          <div className="order-3 ml-auto flex h-16 shrink-0 items-center gap-3 md:gap-4 lg:order-4">
+            <CityPicker plain />
+            <span aria-hidden className="hidden h-4 w-px bg-[var(--color-line)] sm:block" />
             <button
               type="button"
-              onClick={() => openAuth("Sign in to Naada", { onDone: afterSignIn })}
-              className="min-h-11 shrink-0 whitespace-nowrap rounded-md bg-signal px-4 text-[14px] font-bold text-white hover:bg-[#d4503a] md:px-5 md:text-[15px]"
+              onClick={() => setLang(kn ? "en" : "kn")}
+              aria-label="Change language"
+              className="hidden whitespace-nowrap text-[13px] font-semibold sm:block"
             >
-              {kn ? "ಸೈನ್ ಇನ್" : "Sign in"}
+              <span className={kn ? "text-muted" : "text-paper"}>EN</span>
+              <span className="mx-1 text-muted">/</span>
+              <span className={kn ? "text-paper" : "text-muted"}>ಕನ್ನಡ</span>
             </button>
-          )}
-        </div>
+            <ThemeToggle theme={theme} setTheme={setTheme} className="hidden sm:grid" />
 
-        {/* Phone: search on its own row */}
-        <div className="px-[var(--page-pad)] pb-3 md:hidden">
-          <SearchBox />
-        </div>
+            {isLoggedIn ? (
+              <div className="flex shrink-0 items-center gap-2">
+                {role === "listener" && (
+                  <Link to="/tickets" className="hidden whitespace-nowrap text-[13px] font-semibold text-muted no-underline hover:text-paper md:block">
+                    {kn ? "ನನ್ನ ಟಿಕೆಟ್‌ಗಳು" : "My tickets"}
+                  </Link>
+                )}
+                <NotificationBell />
+                <AccountMenu />
+              </div>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => openAuth("Host your event on Naada", { preferRole: "host", onDone: afterSignIn })}
+                  className="hidden whitespace-nowrap text-[13px] font-semibold text-muted hover:text-paper xl:block"
+                >
+                  {kn ? "ನಿಮ್ಮ ಕಾರ್ಯಕ್ರಮ ಆಯೋಜಿಸಿ" : "Host your event"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openAuth("Sign in to Naada", { onDone: afterSignIn })}
+                  className="min-h-10 shrink-0 whitespace-nowrap rounded-md bg-signal px-4 text-[14px] font-bold text-white hover:bg-[#d4503a]"
+                >
+                  {kn ? "ಸೈನ್ ಇನ್" : "Sign in"}
+                </button>
+              </>
+            )}
+          </div>
 
-        {/* Row 2: sections */}
-        <div className="border-t border-line">
+          <div className="order-4 basis-full pb-3 md:hidden">
+            <SearchBox boxed />
+          </div>
+
           <nav
             aria-label="Sections"
-            className="flex w-full items-center gap-1 overflow-x-auto px-[var(--page-pad)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="order-5 -mx-[var(--page-pad)] flex basis-full items-center gap-3 overflow-x-auto border-t sm:gap-7 border-[var(--color-line)] px-[var(--page-pad)] [scrollbar-width:none] lg:order-2 lg:mx-0 lg:basis-auto lg:border-t-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
           >
             {NAV_LINKS.map(({ label, labelKn, path, exact }) => {
               const active = isActive(path, exact);
@@ -170,24 +183,14 @@ export function PublicShell({ children }: { children: ReactNode }) {
                   key={path}
                   to={path}
                   aria-current={active ? "page" : undefined}
-                  className={`shrink-0 whitespace-nowrap border-b-2 px-3 py-3 text-[15px] font-semibold no-underline transition-colors ${
-                    active ? "border-signal text-paper" : "border-transparent text-muted hover:text-paper"
+                  className={`relative flex h-11 shrink-0 items-center whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.1em] no-underline sm:text-[12px] sm:tracking-[0.12em] transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-signal after:opacity-0 aria-[current=page]:after:opacity-100 lg:h-16 ${
+                    active ? "text-paper" : "text-muted hover:text-paper"
                   }`}
                 >
                   {kn ? labelKn : label}
                 </Link>
               );
             })}
-            <span className="flex-1" />
-            {!isLoggedIn && (
-              <button
-                type="button"
-                onClick={() => openAuth("Host your event on Naada", { preferRole: "host", onDone: afterSignIn })}
-                className="hidden shrink-0 whitespace-nowrap px-3 py-3 text-[14px] font-semibold text-muted hover:text-paper md:block"
-              >
-                {kn ? "ನಿಮ್ಮ ಕಾರ್ಯಕ್ರಮ ಆಯೋಜಿಸಿ" : "Host your event"}
-              </button>
-            )}
           </nav>
         </div>
       </header>

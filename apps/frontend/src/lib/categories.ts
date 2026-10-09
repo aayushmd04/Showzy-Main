@@ -6,7 +6,7 @@
  * Matching on words rather than exact names means a new genre such as
  * "Kathak" or "Stand-up" lands in the right place with no code change.
  */
-import { Drama, Laugh, Music, Palette, PersonStanding, type LucideIcon } from "lucide-react";
+import { AudioLines, Brush, Drama, Footprints, MicVocal, type LucideIcon } from "lucide-react";
 
 export type CategoryId = "music" | "drama" | "dance" | "comedy" | "art";
 
@@ -23,7 +23,7 @@ export const CATEGORIES: Category[] = [
     id: "music",
     label: "Music",
     labelKn: "ಸಂಗೀತ",
-    icon: Music,
+    icon: AudioLines,
     words: [
       "music", "open mic", "blues", "jazz", "folk", "carnatic", "hindustani", "classical", "fusion",
       "rock", "indie", "pop", "band", "acoustic", "ghazal", "qawwali", "hip hop", "rap", "electronic",
@@ -40,7 +40,7 @@ export const CATEGORIES: Category[] = [
     id: "dance",
     label: "Dance",
     labelKn: "ನೃತ್ಯ",
-    icon: PersonStanding,
+    icon: Footprints,
     words: [
       "dance", "bharatanatyam", "kathak", "kuchipudi", "odissi", "kathakali", "mohiniyattam",
       "manipuri", "sattriya", "contemporary", "folk dance",
@@ -50,14 +50,14 @@ export const CATEGORIES: Category[] = [
     id: "comedy",
     label: "Comedy",
     labelKn: "ಹಾಸ್ಯ",
-    icon: Laugh,
+    icon: MicVocal,
     words: ["comedy", "stand-up", "standup", "stand up", "improv", "sketch"],
   },
   {
     id: "art",
     label: "Art",
     labelKn: "ಕಲೆ",
-    icon: Palette,
+    icon: Brush,
     words: ["art", "poetry", "spoken word", "painting", "exhibition", "workshop", "craft", "photography", "storytelling"],
   },
 ];

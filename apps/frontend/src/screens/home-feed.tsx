@@ -7,7 +7,7 @@
  * (booking, hosting, joining), so this page never gates anything.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 
 import { PublicShell } from "@/components/naada/public-shell";
@@ -25,6 +25,10 @@ import { usePageMeta } from "@/lib/use-meta";
 
 /** Poster width: a phone shows two and a bit, a big screen shows a full row. */
 const POSTER_W = "w-[44vw] max-w-[190px] sm:w-[200px] lg:w-[220px] lg:max-w-none 2xl:w-[250px]";
+
+/** Card width in a row with only a few items: one fifth of the row, one sixth on very large screens. */
+const SPARSE_W =
+  "w-[44vw] max-w-[190px] sm:w-[200px] lg:max-w-none lg:w-[calc((100%-64px)/5)] 2xl:w-[calc((100%-80px)/6)]";
 
 const FALLBACK_PHOTOS = ["/gig-1.jpg", "/gig-2.jpg", "/gig-3.jpg", "/gig-4.jpg", "/gig-5.jpg"];
 
@@ -55,6 +59,7 @@ function Rail<T>({
   gridRender,
   cardWidth = POSTER_W,
   seeAllLabel,
+  fill,
 }: {
   title: string;
   subtitle?: string;
@@ -65,8 +70,15 @@ function Rail<T>({
   gridRender?: (item: T, index: number) => ReactNode;
   cardWidth?: string;
   seeAllLabel: string;
+  /**
+   * A card that takes up the rest of the row when there are only a few items,
+   * so a quiet row reads as intentional rather than as an empty half-screen.
+   */
+  fill?: ReactNode;
 }) {
   const [all, setAll] = useState(false);
+  // Fewer than a row's worth: share the width evenly (5 across, 6 on very large screens).
+  const sparse = items.length < 5;
   const row = useRef<HTMLDivElement>(null);
   const scroll = (dir: 1 | -1) =>
     row.current?.scrollBy({ left: dir * Math.max(240, row.current.clientWidth * 0.8), behavior: "smooth" });
@@ -104,10 +116,15 @@ function Rail<T>({
             className="-mx-[var(--page-pad)] flex snap-x scroll-px-[var(--page-pad)] gap-3 overflow-x-auto px-[var(--page-pad)] pb-2 [scrollbar-width:none] md:gap-4 [&::-webkit-scrollbar]:hidden"
           >
             {items.map((it, i) => (
-              <div key={itemKey(it)} className={`${cardWidth} shrink-0 snap-start`}>
+              <div key={itemKey(it)} className={`${sparse ? SPARSE_W : cardWidth} shrink-0 snap-start`}>
                 {render(it, i)}
               </div>
             ))}
+            {sparse && fill && (
+              <div className="w-[44vw] max-w-[190px] shrink-0 snap-start sm:w-[200px] lg:w-auto lg:max-w-none lg:min-w-[220px] lg:flex-1">
+                {fill}
+              </div>
+            )}
           </div>
           {items.length > 4 && (
             <>
@@ -174,6 +191,32 @@ function PosterCard({ event, index, venue }: { event: NaadaEvent; index: number;
   );
 }
 
+function FillerCard({
+  title,
+  body,
+  cta,
+  onClick,
+}: {
+  title: string;
+  body: string;
+  cta: string;
+  onClick: () => void;
+}) {
+  return (
+    <div className="glass-soft flex h-full min-h-[240px] flex-col items-start justify-center gap-3 rounded-xl border-dashed p-5 lg:p-8">
+      <p className="font-megrim text-[clamp(20px,2.2vw,30px)] font-normal uppercase leading-tight tracking-[0.02em]">{title}</p>
+      <p className="max-w-sm text-[14px] leading-relaxed text-muted lg:text-[15px]">{body}</p>
+      <button
+        type="button"
+        onClick={onClick}
+        className="min-h-11 rounded-md border border-[var(--glass-border)] px-5 text-[14px] font-semibold text-paper transition-colors hover:border-signal hover:text-signal"
+      >
+        {cta}
+      </button>
+    </div>
+  );
+}
+
 function PosterSkeleton() {
   return (
     <div className={`${POSTER_W} shrink-0 animate-pulse`} aria-hidden>
@@ -230,6 +273,7 @@ function VenueCard({ venue, index }: { venue: Venue; index: number }) {
 export function HomeFeed() {
   const { events, artists, venues, venueOf, lang } = useStore();
   const { open: openAuth } = useAuthSheet();
+  const navigate = useNavigate();
   const [params] = useSearchParams();
   const q = (params.get("q") ?? "").trim().toLowerCase();
   const [city, setCity] = useState(() => getNearbyCity() ?? "all");
@@ -296,6 +340,7 @@ export function HomeFeed() {
 
   const poster = (e: NaadaEvent, i: number) => <PosterCard event={e} index={i} venue={venueOf(e)} />;
 
+  const showAllEvents = () => rails.current?.scrollIntoView({ behavior: "smooth" });
   const startHosting = () => openAuth("Host your event on Naada", { preferRole: "host" });
   const joinArtists = () => openAuth("Join Naada as an artist", { preferRole: "artist" });
 
@@ -417,19 +462,10 @@ export function HomeFeed() {
             </p>
             <p className="mt-1 text-[15px] text-muted">
               {category
-                ? t("Be the first to put one on, or look at everything that's on.", "ಮೊದಲಿಗರಾಗಿ ಆಯೋಜಿಸಿ, ಅಥವಾ ಎಲ್ಲವನ್ನೂ ನೋಡಿ.")
+                ? t("New ones are added all the time. Check back soon, or look at everything that's on.", "ಹೊಸವು ಆಗಾಗ ಸೇರುತ್ತವೆ. ಶೀಘ್ರದಲ್ಲೇ ಮತ್ತೆ ನೋಡಿ, ಅಥವಾ ಎಲ್ಲವನ್ನೂ ನೋಡಿ.")
                 : t("Try another city or type, or check back soon.", "ಬೇರೆ ನಗರ ಅಥವಾ ಪ್ರಕಾರ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ಮತ್ತೆ ನೋಡಿ.")}
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-3">
-              {category && (
-                <button
-                  type="button"
-                  onClick={startHosting}
-                  className="min-h-11 rounded-md bg-signal px-5 text-[15px] font-semibold text-white hover:bg-[#d4503a]"
-                >
-                  {t("Host one", "ಆಯೋಜಿಸಿ")}
-                </button>
-              )}
               {(city !== "all" || genre || category) && (
                 <button
                   type="button"
@@ -453,6 +489,14 @@ export function HomeFeed() {
             itemKey={(e) => e.id}
             render={poster}
             seeAllLabel={seeAll}
+            fill={
+              <FillerCard
+                title={t("Looking for something else?", "ಬೇರೇನಾದರೂ ಹುಡುಕುತ್ತಿದ್ದೀರಾ?")}
+                body={t("Browse the artists and venues, or look at everything that is on.", "ಕಲಾವಿದರು ಮತ್ತು ಸ್ಥಳಗಳನ್ನು ನೋಡಿ, ಅಥವಾ ಎಲ್ಲವನ್ನೂ ನೋಡಿ.")}
+                cta={t("Browse artists", "ಕಲಾವಿದರನ್ನು ನೋಡಿ")}
+                onClick={() => navigate("/artists")}
+              />
+            }
           />
         )}
 
@@ -465,6 +509,14 @@ export function HomeFeed() {
             itemKey={(e) => e.id}
             render={poster}
             seeAllLabel={seeAll}
+            fill={
+              <FillerCard
+                title={t("More nights are on the way", "ಇನ್ನಷ್ಟು ಕಾರ್ಯಕ್ರಮಗಳು ಬರಲಿವೆ")}
+                body={t("See what is coming up later on.", "ಮುಂದೆ ಏನೇನಿದೆ ನೋಡಿ.")}
+                cta={t("See all events", "ಎಲ್ಲಾ ಕಾರ್ಯಕ್ರಮಗಳು")}
+                onClick={showAllEvents}
+              />
+            }
           />
         )}
 
@@ -521,6 +573,14 @@ export function HomeFeed() {
             itemKey={(e) => e.id}
             render={poster}
             seeAllLabel={seeAll}
+            fill={
+              <FillerCard
+                title={t("New free nights every week", "ಪ್ರತಿ ವಾರ ಹೊಸ ಉಚಿತ ಕಾರ್ಯಕ್ರಮಗಳು")}
+                body={t("Check back soon, or look at everything that is on.", "ಶೀಘ್ರದಲ್ಲೇ ಮತ್ತೆ ನೋಡಿ, ಅಥವಾ ಎಲ್ಲವನ್ನೂ ನೋಡಿ.")}
+                cta={t("See all events", "ಎಲ್ಲಾ ಕಾರ್ಯಕ್ರಮಗಳು")}
+                onClick={showAllEvents}
+              />
+            }
           />
         )}
 
@@ -533,6 +593,14 @@ export function HomeFeed() {
             render={(a) => <ArtistCard artist={a} />}
             cardWidth="w-[132px] sm:w-[148px] 2xl:w-[172px]"
             seeAllLabel={seeAll}
+            fill={
+              <FillerCard
+                title={t("Meet more artists", "ಇನ್ನಷ್ಟು ಕಲಾವಿದರನ್ನು ಭೇಟಿಯಾಗಿ")}
+                body={t("Everyone performing across Mysuru and Bengaluru, in one place.", "ಮೈಸೂರು ಮತ್ತು ಬೆಂಗಳೂರಿನ ಎಲ್ಲಾ ಕಲಾವಿದರು, ಒಂದೇ ಕಡೆ.")}
+                cta={t("All artists", "ಎಲ್ಲಾ ಕಲಾವಿದರು")}
+                onClick={() => navigate("/artists")}
+              />
+            }
           />
         )}
 
@@ -545,6 +613,14 @@ export function HomeFeed() {
             render={(v, i) => <VenueCard venue={v} index={i} />}
             cardWidth="w-[62vw] max-w-[240px] sm:w-[240px] lg:max-w-none lg:w-[270px] 2xl:w-[310px]"
             seeAllLabel={seeAll}
+            fill={
+              <FillerCard
+                title={t("Explore every room", "ಪ್ರತಿ ಸ್ಥಳವನ್ನೂ ನೋಡಿ")}
+                body={t("The cafes, studios and halls hosting live art.", "ಲೈವ್ ಕಲೆಯನ್ನು ಆಯೋಜಿಸುವ ಕೆಫೆ, ಸ್ಟುಡಿಯೋ ಮತ್ತು ಸಭಾಂಗಣಗಳು.")}
+                cta={t("All venues", "ಎಲ್ಲಾ ಸ್ಥಳಗಳು")}
+                onClick={() => navigate("/venues")}
+              />
+            }
           />
         )}
       </div>

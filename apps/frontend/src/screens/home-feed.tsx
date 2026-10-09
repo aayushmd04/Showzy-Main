@@ -11,6 +11,9 @@ import { Link, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 
 import { PublicShell } from "@/components/naada/public-shell";
+import { CategoryRow } from "@/components/naada/category-row";
+import { FeedCarousel, type FeedSlide } from "@/components/naada/feed-carousel";
+import { CATEGORIES, inCategory, type CategoryId } from "@/lib/categories";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { useStore } from "@/store/app-store";
 import type { Artist, NaadaEvent, Venue } from "@/data/fixtures";
@@ -19,6 +22,9 @@ import { NEARBY_EVENT, getNearbyCity, setNearbyCity } from "@/lib/nearby";
 import { usePageMeta } from "@/lib/use-meta";
 
 /* ── Helpers ────────────────────────────────────────────────────────────── */
+
+/** Poster width: a phone shows two and a bit, a big screen shows a full row. */
+const POSTER_W = "w-[44vw] max-w-[190px] sm:w-[200px] lg:w-[220px] lg:max-w-none 2xl:w-[250px]";
 
 const FALLBACK_PHOTOS = ["/gig-1.jpg", "/gig-2.jpg", "/gig-3.jpg", "/gig-4.jpg", "/gig-5.jpg"];
 
@@ -47,7 +53,7 @@ function Rail<T>({
   itemKey,
   render,
   gridRender,
-  cardWidth = "w-[44vw] max-w-[190px] sm:w-[200px]",
+  cardWidth = POSTER_W,
   seeAllLabel,
 }: {
   title: string;
@@ -66,7 +72,7 @@ function Rail<T>({
     row.current?.scrollBy({ left: dir * Math.max(240, row.current.clientWidth * 0.8), behavior: "smooth" });
 
   return (
-    <section aria-label={title}>
+    <section aria-label={title} className="relative z-10">
       <div className="mb-3 flex items-end justify-between gap-4">
         <div className="min-w-0">
           <h2 className="font-megrim text-[clamp(22px,3vw,32px)] font-normal uppercase leading-tight tracking-[0.02em]">
@@ -86,7 +92,7 @@ function Rail<T>({
       </div>
 
       {all ? (
-        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
           {items.map((it, i) => (
             <div key={itemKey(it)}>{(gridRender ?? render)(it, i)}</div>
           ))}
@@ -95,7 +101,7 @@ function Rail<T>({
         <div className="group/rail relative">
           <div
             ref={row}
-            className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:scroll-px-8 [scrollbar-width:none] md:-mx-8 md:gap-4 md:px-8 [&::-webkit-scrollbar]:hidden"
+            className="-mx-[var(--page-pad)] flex snap-x scroll-px-[var(--page-pad)] gap-3 overflow-x-auto px-[var(--page-pad)] pb-2 [scrollbar-width:none] md:gap-4 [&::-webkit-scrollbar]:hidden"
           >
             {items.map((it, i) => (
               <div key={itemKey(it)} className={`${cardWidth} shrink-0 snap-start`}>
@@ -133,17 +139,20 @@ function PosterCard({ event, index, venue }: { event: NaadaEvent; index: number;
   const low = lowest(event);
   const price = soldOut(event) ? "Sold out" : low === null ? "Details soon" : low === 0 ? "Free entry" : `From ${money(low)}`;
   return (
-    <Link to={`/e/${event.id}`} className="block text-paper no-underline">
-      <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-surface-2">
+    <Link
+      to={`/e/${event.id}`}
+      className="glass-soft block overflow-hidden rounded-xl text-paper no-underline transition-transform duration-300 hover:-translate-y-1"
+    >
+      <div className="relative aspect-[3/4] overflow-hidden bg-surface-2">
         <img
           src={photoOf(event, index)}
           alt=""
           loading="lazy"
           className="absolute inset-0 size-full object-cover transition-transform duration-500 hover:scale-105"
         />
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-transparent to-black/25" />
+        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
         {event.genres[0] && (
-          <span className="absolute left-2 top-2 rounded bg-black/60 px-2 py-0.5 text-[12px] font-semibold text-white">
+          <span className="absolute left-2 top-2 rounded-md bg-black/55 px-2 py-0.5 text-[12px] font-semibold text-white backdrop-blur-sm">
             {event.genres[0]}
           </span>
         )}
@@ -154,18 +163,20 @@ function PosterCard({ event, index, venue }: { event: NaadaEvent; index: number;
           )}
         </div>
       </div>
-      <h3 className="mt-2 line-clamp-2 text-[16px] font-semibold leading-snug">{event.name}</h3>
-      <p className="mt-0.5 truncate text-[14px] text-muted">
-        {dateListing(event.date)}
-        {venue ? ` · ${venue.name}` : ""}
-      </p>
+      <div className="px-3 pb-3 pt-2.5">
+        <h3 className="line-clamp-2 text-[16px] font-semibold leading-snug">{event.name}</h3>
+        <p className="mt-0.5 truncate text-[14px] text-muted">
+          {dateListing(event.date)}
+          {venue ? ` · ${venue.name}` : ""}
+        </p>
+      </div>
     </Link>
   );
 }
 
 function PosterSkeleton() {
   return (
-    <div className="w-[44vw] max-w-[190px] shrink-0 animate-pulse sm:w-[200px]" aria-hidden>
+    <div className={`${POSTER_W} shrink-0 animate-pulse`} aria-hidden>
       <div className="aspect-[3/4] rounded-lg bg-surface-2" />
       <div className="mt-2 h-4 w-4/5 rounded bg-surface-2" />
       <div className="mt-2 h-3 w-3/5 rounded bg-surface-2" />
@@ -173,44 +184,10 @@ function PosterSkeleton() {
   );
 }
 
-function Banner({
-  image,
-  title,
-  body,
-  cta,
-  onClick,
-}: {
-  image: string;
-  title: string;
-  body: string;
-  cta: string;
-  onClick: () => void;
-}) {
-  return (
-    <div className="relative isolate overflow-hidden rounded-xl bg-surface-2">
-      <img src={image} alt="" loading="lazy" className="absolute inset-0 -z-10 size-full object-cover" />
-      <div aria-hidden className="absolute inset-0 -z-10 bg-black/60" />
-      <div className="flex min-h-[170px] flex-col items-start justify-center gap-3 p-5 md:min-h-[190px] md:p-7">
-        <h3 className="font-megrim text-[clamp(22px,3vw,32px)] font-normal uppercase leading-tight tracking-[0.02em] text-white">
-          {title}
-        </h3>
-        <p className="max-w-sm text-[15px] leading-snug text-white/85">{body}</p>
-        <button
-          type="button"
-          onClick={onClick}
-          className="mt-1 min-h-11 rounded-md bg-signal px-5 text-[15px] font-semibold text-white hover:bg-[#d4503a]"
-        >
-          {cta}
-        </button>
-      </div>
-    </div>
-  );
-}
-
 function ArtistCard({ artist }: { artist: Artist }) {
   return (
-    <Link to={`/a/${artist.id}`} className="block text-center text-paper no-underline">
-      <div className="mx-auto grid size-28 place-items-center overflow-hidden rounded-full border border-line bg-surface-2 sm:size-32">
+    <Link to={`/a/${artist.id}`} className="glass-soft block rounded-xl p-3 text-center text-paper no-underline transition-transform duration-300 hover:-translate-y-1">
+      <div className="mx-auto grid size-24 place-items-center overflow-hidden rounded-full border border-white/20 bg-surface-2 sm:size-28">
         {artist.photo ? (
           <img src={artist.photo} alt="" loading="lazy" className="size-full object-cover" />
         ) : (
@@ -225,8 +202,11 @@ function ArtistCard({ artist }: { artist: Artist }) {
 
 function VenueCard({ venue, index }: { venue: Venue; index: number }) {
   return (
-    <Link to="/venues" className="block text-paper no-underline">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-surface-2">
+    <Link
+      to="/venues"
+      className="glass-soft block overflow-hidden rounded-xl text-paper no-underline transition-transform duration-300 hover:-translate-y-1"
+    >
+      <div className="relative aspect-[4/3] overflow-hidden bg-surface-2">
         <img
           src={venue.photo ?? FALLBACK_PHOTOS[(index + 2) % FALLBACK_PHOTOS.length]}
           alt=""
@@ -234,11 +214,13 @@ function VenueCard({ venue, index }: { venue: Venue; index: number }) {
           className="absolute inset-0 size-full object-cover"
         />
       </div>
-      <h3 className="mt-2 line-clamp-1 text-[16px] font-semibold">{venue.name}</h3>
-      <p className="flex items-center gap-1 text-[14px] text-muted">
-        <MapPin className="size-3.5" aria-hidden />
-        {[venue.area, venue.capacity > 0 ? `${venue.capacity} seats` : ""].filter(Boolean).join(" · ")}
-      </p>
+      <div className="px-3 pb-3 pt-2.5">
+        <h3 className="line-clamp-1 text-[16px] font-semibold">{venue.name}</h3>
+        <p className="flex items-center gap-1 text-[14px] text-muted">
+          <MapPin className="size-3.5" aria-hidden />
+          {[venue.area, venue.capacity > 0 ? `${venue.capacity} seats` : ""].filter(Boolean).join(" · ")}
+        </p>
+      </div>
     </Link>
   );
 }
@@ -252,7 +234,9 @@ export function HomeFeed() {
   const q = (params.get("q") ?? "").trim().toLowerCase();
   const [city, setCity] = useState(() => getNearbyCity() ?? "all");
   const [genre, setGenre] = useState<string | null>(null);
+  const [category, setCategory] = useState<CategoryId | null>(null);
   const top = useRef<HTMLDivElement>(null);
+  const rails = useRef<HTMLDivElement>(null);
   const kn = lang === "kn";
   const t = (en: string, k: string) => (kn ? k : en);
 
@@ -285,8 +269,11 @@ export function HomeFeed() {
   }, [upcoming]);
 
   const shown = useMemo(
-    () => (genre ? upcoming.filter((e) => e.genres.includes(genre)) : upcoming),
-    [upcoming, genre],
+    () =>
+      upcoming
+        .filter((e) => !genre || e.genres.includes(genre))
+        .filter((e) => !category || inCategory(category, e.genres)),
+    [upcoming, genre, category],
   );
 
   const results = useMemo(() => {
@@ -301,6 +288,9 @@ export function HomeFeed() {
   const weekEnd = daysFromNow(7);
   const thisWeek = shown.filter((e) => e.date <= weekEnd);
   const free = shown.filter(isFree);
+  const activeCategory = CATEGORIES.find((c) => c.id === category);
+  const categoryLabel = activeCategory?.label.toLowerCase() ?? "";
+  const categoryLabelKn = activeCategory?.labelKn ?? "";
   const where = city === "all" ? t("Mysuru & Bengaluru", "ಮೈಸೂರು ಮತ್ತು ಬೆಂಗಳೂರು") : city;
   const seeAll = t("See all", "ಎಲ್ಲವನ್ನೂ ನೋಡಿ");
 
@@ -309,17 +299,50 @@ export function HomeFeed() {
   const startHosting = () => openAuth("Host your event on Naada", { preferRole: "host" });
   const joinArtists = () => openAuth("Join Naada as an artist", { preferRole: "artist" });
 
+  // The first slide is a placeholder for the week's trending event. It is not a
+  // real listing; swap it for the best-selling upcoming event once there is one.
+  const slides: FeedSlide[] = [
+    {
+      id: "trending",
+      image: "/media/events/band-on-stage-energetic.jpg",
+      position: "50% 40%",
+      badge: t("Trending", "ಟ್ರೆಂಡಿಂಗ್"),
+      title: t("Friday Night Live", "ಶುಕ್ರವಾರ ರಾತ್ರಿ ಲೈವ್"),
+      body: t("The room everyone is talking about this week. Come early for a good seat.", "ಈ ವಾರ ಎಲ್ಲರೂ ಮಾತನಾಡುತ್ತಿರುವ ಕಾರ್ಯಕ್ರಮ. ಒಳ್ಳೆಯ ಸೀಟಿಗಾಗಿ ಬೇಗ ಬನ್ನಿ."),
+      cta: t("See what's on", "ಏನಿದೆ ನೋಡಿ"),
+      onClick: () => rails.current?.scrollIntoView({ behavior: "smooth" }),
+    },
+    {
+      id: "host",
+      image: "/media/venues/curtained-stage-mic.jpg",
+      position: "50% 50%",
+      title: t("Host your event for free", "ನಿಮ್ಮ ಕಾರ್ಯಕ್ರಮ ಉಚಿತವಾಗಿ ಆಯೋಜಿಸಿ"),
+      body: t("Have a café, studio, pub or courtyard? Bring an audience to it.", "ಕೆಫೆ, ಸ್ಟುಡಿಯೋ, ಪಬ್ ಅಥವಾ ಅಂಗಳ ಇದೆಯೇ? ಪ್ರೇಕ್ಷಕರನ್ನು ಕರೆತನ್ನಿ."),
+      cta: t("Start hosting", "ಆಯೋಜನೆ ಪ್ರಾರಂಭಿಸಿ"),
+      onClick: startHosting,
+    },
+    {
+      id: "artists",
+      image: "/media/artists/guitarist-stage-light.jpg",
+      position: "50% 30%",
+      title: t("Find your next stage", "ನಿಮ್ಮ ಮುಂದಿನ ವೇದಿಕೆ ಹುಡುಕಿ"),
+      body: t("Artists: find spaces to perform and collaborate across the city.", "ಕಲಾವಿದರೇ: ನಗರದಾದ್ಯಂತ ಪ್ರದರ್ಶನ ಮತ್ತು ಸಹಯೋಗಕ್ಕೆ ಸ್ಥಳಗಳನ್ನು ಹುಡುಕಿ."),
+      cta: t("Join as an artist", "ಕಲಾವಿದರಾಗಿ ಸೇರಿ"),
+      onClick: joinArtists,
+    },
+  ];
+
   /* Search results replace the rails */
   if (q) {
     return (
       <PublicShell>
-        <div className="mx-auto w-full max-w-[1280px] px-4 py-6 md:px-8">
+        <div className="w-full px-[var(--page-pad)] py-6">
           <h1 className="t-h1">{t("Search", "ಹುಡುಕಾಟ")}</h1>
           <p className="mt-2 text-[15px] text-muted">
             {results.length} {results.length === 1 ? "result" : "results"} for “{params.get("q")}” in {where}
           </p>
           {results.length === 0 ? (
-            <div className="mt-8 rounded-xl border border-dashed border-line p-8 text-center">
+            <div className="mt-8 glass-soft rounded-xl border-dashed p-8 text-center">
               <p className="text-[17px] font-semibold">{t("Nothing matched that search", "ಯಾವುದೂ ಹೊಂದಿಕೆಯಾಗಲಿಲ್ಲ")}</p>
               <p className="mt-1 text-[15px] text-muted">
                 {t("Try a different word, or switch city.", "ಬೇರೆ ಪದ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ನಗರ ಬದಲಿಸಿ.")}
@@ -335,7 +358,7 @@ export function HomeFeed() {
               )}
             </div>
           ) : (
-            <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-5">
+            <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
               {results.map((e, i) => (
                 <div key={e.id}>{poster(e, i)}</div>
               ))}
@@ -348,37 +371,37 @@ export function HomeFeed() {
 
   return (
     <PublicShell>
-      <div ref={top} className="mx-auto w-full max-w-[1280px] space-y-10 px-4 py-6 md:space-y-12 md:px-8 md:py-8">
-        {/* Category chips */}
-        {genres.length > 0 && (
-          <div
-            role="group"
-            aria-label={t("Filter by type", "ಪ್ರಕಾರದ ಪ್ರಕಾರ ಫಿಲ್ಟರ್")}
-            className="-mx-4 flex gap-2 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-8 md:px-8 [&::-webkit-scrollbar]:hidden"
-          >
-            {[null, ...genres.map(([g]) => g)].map((g) => {
-              const active = g === genre;
-              return (
-                <button
-                  key={g ?? "all"}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => setGenre(g)}
-                  className={`min-h-10 shrink-0 whitespace-nowrap rounded-full border px-4 text-[14px] font-semibold transition-colors ${
-                    active ? "border-signal bg-signal text-white" : "border-line text-paper hover:border-paper/50"
-                  }`}
-                >
-                  {g ?? t("All", "ಎಲ್ಲಾ")}
-                </button>
-              );
-            })}
-          </div>
-        )}
+      <div ref={top} className="w-full space-y-10 px-[var(--page-pad)] pb-6 pt-5 md:space-y-12 md:pb-8 md:pt-6">
+        {/* Banner flush under the header */}
+        <div className="banner-wrap relative z-0 -mx-[var(--page-pad)]">
+          <FeedCarousel slides={slides} label={t("Highlights", "ಮುಖ್ಯಾಂಶಗಳು")} />
+        </div>
+
+        {/* Categories, on their own with a heading, clear of the banner */}
+        <section aria-label={t("Pick an art form", "ಕಲಾ ಪ್ರಕಾರ ಆರಿಸಿ")} className="relative z-10">
+          <h2 className="font-megrim text-[clamp(22px,3vw,32px)] font-normal uppercase leading-tight tracking-[0.02em]">
+            {t("What's your scene?", "ನಿಮ್ಮ ಆಯ್ಕೆ ಯಾವುದು?")}
+          </h2>
+          <p className="mb-4 mt-0.5 text-[14px] text-muted">
+            {t("Pick an art form to see what's on", "ಏನಿದೆ ನೋಡಲು ಕಲಾ ಪ್ರಕಾರ ಆರಿಸಿ")}
+          </p>
+          <CategoryRow
+            value={category}
+            onChange={setCategory}
+            onSeeAll={() => {
+              setCategory(null);
+              setGenre(null);
+              rails.current?.scrollIntoView({ behavior: "smooth" });
+            }}
+          />
+        </section>
+
+        <div ref={rails} className="scroll-mt-24" />
 
         {/* Recommended */}
         {loading ? (
           <section aria-label="Loading events">
-            <div className="mb-3 h-7 w-56 animate-pulse rounded bg-surface-2" />
+            <div className="mb-3 h-7 w-56 animate-pulse rounded bg-paper/10" />
             <div className="flex gap-3 overflow-hidden">
               {Array.from({ length: 5 }, (_, i) => (
                 <PosterSkeleton key={i} />
@@ -386,23 +409,41 @@ export function HomeFeed() {
             </div>
           </section>
         ) : shown.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-line p-8 text-center">
-            <p className="text-[18px] font-semibold">{t("Nothing on sale right now", "ಇದೀಗ ಯಾವುದೂ ಮಾರಾಟದಲ್ಲಿಲ್ಲ")}</p>
-            <p className="mt-1 text-[15px] text-muted">
-              {t("Try another city or type, or check back soon.", "ಬೇರೆ ನಗರ ಅಥವಾ ಪ್ರಕಾರ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ಮತ್ತೆ ನೋಡಿ.")}
+          <div className="glass-soft rounded-xl border-dashed p-8 text-center">
+            <p className="text-[18px] font-semibold">
+              {category
+                ? t(`No ${categoryLabel} events yet`, `ಇನ್ನೂ ${categoryLabelKn} ಕಾರ್ಯಕ್ರಮಗಳಿಲ್ಲ`)
+                : t("Nothing on sale right now", "ಇದೀಗ ಯಾವುದೂ ಮಾರಾಟದಲ್ಲಿಲ್ಲ")}
             </p>
-            {(city !== "all" || genre) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setGenre(null);
-                  setNearbyCity("all");
-                }}
-                className="mt-4 min-h-11 rounded-md bg-signal px-5 text-[15px] font-semibold text-white hover:bg-[#d4503a]"
-              >
-                {t("Show everything", "ಎಲ್ಲವನ್ನೂ ತೋರಿಸಿ")}
-              </button>
-            )}
+            <p className="mt-1 text-[15px] text-muted">
+              {category
+                ? t("Be the first to put one on, or look at everything that's on.", "ಮೊದಲಿಗರಾಗಿ ಆಯೋಜಿಸಿ, ಅಥವಾ ಎಲ್ಲವನ್ನೂ ನೋಡಿ.")
+                : t("Try another city or type, or check back soon.", "ಬೇರೆ ನಗರ ಅಥವಾ ಪ್ರಕಾರ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ಮತ್ತೆ ನೋಡಿ.")}
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-3">
+              {category && (
+                <button
+                  type="button"
+                  onClick={startHosting}
+                  className="min-h-11 rounded-md bg-signal px-5 text-[15px] font-semibold text-white hover:bg-[#d4503a]"
+                >
+                  {t("Host one", "ಆಯೋಜಿಸಿ")}
+                </button>
+              )}
+              {(city !== "all" || genre || category) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGenre(null);
+                    setCategory(null);
+                    setNearbyCity("all");
+                  }}
+                  className="min-h-11 rounded-md border border-line px-5 text-[15px] font-semibold hover:border-paper/50"
+                >
+                  {t("Show everything", "ಎಲ್ಲವನ್ನೂ ತೋರಿಸಿ")}
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <Rail
@@ -433,7 +474,7 @@ export function HomeFeed() {
             <h2 className="mb-3 font-megrim text-[clamp(22px,3vw,32px)] font-normal uppercase leading-tight tracking-[0.02em]">
               {t("The best of live arts", "ಲೈವ್ ಕಲೆಯ ಅತ್ಯುತ್ತಮ")}
             </h2>
-            <div className="-mx-4 flex snap-x scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 md:scroll-px-8 [scrollbar-width:none] md:-mx-8 md:gap-4 md:px-8 [&::-webkit-scrollbar]:hidden">
+            <div className="-mx-[var(--page-pad)] flex snap-x scroll-px-[var(--page-pad)] gap-3 overflow-x-auto px-[var(--page-pad)] pb-2 [scrollbar-width:none] md:gap-4 [&::-webkit-scrollbar]:hidden">
               {genres.map(([g, n], i) => {
                 const sample = upcoming.find((e) => e.genres.includes(g));
                 const colour = GENRE_COLOURS[i % GENRE_COLOURS.length];
@@ -445,7 +486,7 @@ export function HomeFeed() {
                       setGenre(g);
                       top.current?.scrollIntoView({ behavior: "smooth" });
                     }}
-                    className="relative isolate h-[130px] w-[44vw] max-w-[200px] shrink-0 snap-start overflow-hidden rounded-xl text-left text-white sm:w-[200px]"
+                    className="relative isolate h-[130px] w-[44vw] max-w-[200px] shrink-0 snap-start overflow-hidden rounded-xl text-left text-white sm:w-[200px] lg:w-[220px] lg:max-w-none 2xl:w-[250px]"
                     style={{ background: colour }}
                   >
                     {sample && (
@@ -483,24 +524,6 @@ export function HomeFeed() {
           />
         )}
 
-        {/* Promotions: the supply side, in the same format as everything else */}
-        <section className="grid gap-4 md:grid-cols-2" aria-label={t("For hosts and artists", "ಆಯೋಜಕರು ಮತ್ತು ಕಲಾವಿದರಿಗೆ")}>
-          <Banner
-            image="/media/venues/curtained-stage-mic.jpg"
-            title={t("Host your event for free", "ನಿಮ್ಮ ಕಾರ್ಯಕ್ರಮ ಉಚಿತವಾಗಿ ಆಯೋಜಿಸಿ")}
-            body={t("Have a café, studio, pub or courtyard? Bring an audience to it.", "ಕೆಫೆ, ಸ್ಟುಡಿಯೋ, ಪಬ್ ಅಥವಾ ಅಂಗಳ ಇದೆಯೇ? ಪ್ರೇಕ್ಷಕರನ್ನು ಕರೆತನ್ನಿ.")}
-            cta={t("Start hosting", "ಆಯೋಜನೆ ಪ್ರಾರಂಭಿಸಿ")}
-            onClick={startHosting}
-          />
-          <Banner
-            image="/media/artists/guitarist-stage-light.jpg"
-            title={t("Find your next stage", "ನಿಮ್ಮ ಮುಂದಿನ ವೇದಿಕೆ ಹುಡುಕಿ")}
-            body={t("Artists: find spaces to perform and collaborate across the city.", "ಕಲಾವಿದರೇ: ನಗರದಾದ್ಯಂತ ಪ್ರದರ್ಶನ ಮತ್ತು ಸಹಯೋಗಕ್ಕೆ ಸ್ಥಳಗಳನ್ನು ಹುಡುಕಿ.")}
-            cta={t("Join as an artist", "ಕಲಾವಿದರಾಗಿ ಸೇರಿ")}
-            onClick={joinArtists}
-          />
-        </section>
-
         {/* Artists */}
         {artists.length > 0 && (
           <Rail
@@ -508,7 +531,7 @@ export function HomeFeed() {
             items={artists}
             itemKey={(a) => a.id}
             render={(a) => <ArtistCard artist={a} />}
-            cardWidth="w-[132px] sm:w-[148px]"
+            cardWidth="w-[132px] sm:w-[148px] 2xl:w-[172px]"
             seeAllLabel={seeAll}
           />
         )}
@@ -520,7 +543,7 @@ export function HomeFeed() {
             items={venues}
             itemKey={(v) => v.id}
             render={(v, i) => <VenueCard venue={v} index={i} />}
-            cardWidth="w-[62vw] max-w-[240px] sm:w-[240px]"
+            cardWidth="w-[62vw] max-w-[240px] sm:w-[240px] lg:max-w-none lg:w-[270px] 2xl:w-[310px]"
             seeAllLabel={seeAll}
           />
         )}

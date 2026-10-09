@@ -114,12 +114,12 @@ export function CityDropdown({ value, options, label, onChange, colors, compact,
           borderRadius: 999,
           fontSize: compact ? 14 : 15,
           fontWeight: 600,
-          fontFamily: "'Jost',sans-serif",
+          fontFamily: "'Manrope',sans-serif",
           whiteSpace: "nowrap",
           color: colors.paper,
           cursor: "pointer",
           border: `${compact ? 1 : 1.5}px solid ${selected ? colors.signal : colors.border}`,
-          background: selected ? `${colors.signal}18` : "transparent",
+          background: selected ? `color-mix(in srgb, ${colors.signal} 10%, transparent)` : "transparent",
         }}
       >
         <span style={{ fontSize: compact ? 12 : 13, color: colors.signal }}>◎</span>
@@ -154,8 +154,10 @@ export function CityDropdown({ value, options, label, onChange, colors, compact,
               border: `1px solid ${colors.border}`,
               borderRadius: 12,
               boxShadow: "0 14px 40px rgba(0,0,0,.45)",
+              backdropFilter: "blur(18px) saturate(150%)",
+              WebkitBackdropFilter: "blur(18px) saturate(150%)",
               outline: "none",
-              fontFamily: "'Jost',sans-serif",
+              fontFamily: "'Manrope',sans-serif",
             }}
           >
             {options.map((o, i) => (
@@ -178,7 +180,7 @@ export function CityDropdown({ value, options, label, onChange, colors, compact,
                   fontWeight: o === value ? 700 : 500,
                   color: colors.paper,
                   cursor: "pointer",
-                  background: i === active ? `${colors.signal}22` : "transparent",
+                  background: i === active ? `color-mix(in srgb, ${colors.signal} 14%, transparent)` : "transparent",
                 }}
               >
                 <span>{label(o)}</span>

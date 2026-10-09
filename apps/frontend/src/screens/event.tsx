@@ -153,7 +153,7 @@ export function EventScreen() {
 
   return (
     <PublicShell>
-      <div className="mx-auto w-full max-w-[1280px] px-4 pb-32 pt-6 md:px-8 md:pb-16 md:pt-10 lg:grid lg:grid-cols-[1fr_360px] lg:gap-10">
+      <div className="mx-auto w-full max-w-[1760px] px-[var(--page-pad)] pb-32 pt-6 md:pb-16 md:pt-10 lg:grid lg:grid-cols-[1fr_360px] lg:gap-10">
         {/* Left column */}
         <div className="min-w-0">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">

@@ -15,13 +15,29 @@ import { MapPin } from "lucide-react";
 import { randomFact, type FunFact } from "@/data/fun-facts";
 import { locateCity, type LocateResult } from "@/lib/nearby";
 
-const MIN_MS = 3000;
+/** Time for the title and the fact to arrive, before any reading starts. */
+const LEAD_IN_MS = 1200;
+/** About 260 words a minute, so a fact can be read start to finish. */
+const MS_PER_WORD = 230;
+
+/** Long enough to read this fact, never so long that it drags. */
+function showFor(fact: FunFact): number {
+  const words = fact.text.trim().split(/\s+/).length;
+  return Math.min(7500, Math.max(5000, LEAD_IN_MS + words * MS_PER_WORD));
+}
+
+interface ShowDetail {
+  fact: FunFact;
+  ms: number;
+}
 const SHOW = "naada:loader-show";
 const HIDE = "naada:loader-hide";
 
 export async function runNearbyLoader(): Promise<LocateResult> {
-  window.dispatchEvent(new CustomEvent(SHOW));
-  const [result] = await Promise.all([locateCity(), new Promise((r) => setTimeout(r, MIN_MS))]);
+  const fact = randomFact();
+  const ms = showFor(fact);
+  window.dispatchEvent(new CustomEvent<ShowDetail>(SHOW, { detail: { fact, ms } }));
+  const [result] = await Promise.all([locateCity(), new Promise((r) => setTimeout(r, ms))]);
   return result;
 }
 
@@ -33,11 +49,14 @@ export function NearbyLoader() {
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
   const [fact, setFact] = useState<FunFact>(() => randomFact());
+  const [ms, setMs] = useState(5000);
   const [run, setRun] = useState(0);
 
   useEffect(() => {
-    const show = () => {
-      setFact(randomFact());
+    const show = (e: Event) => {
+      const d = (e as CustomEvent<ShowDetail>).detail;
+      setFact(d.fact);
+      setMs(d.ms);
       setRun((n) => n + 1);
       setOpen(true);
     };
@@ -99,7 +118,7 @@ export function NearbyLoader() {
             key={`fact-${run}`}
             initial={reduce ? false : { opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: reduce ? 0 : 0.9, ease: "easeOut" }}
+            transition={{ duration: 0.7, delay: reduce ? 0 : 0.5, ease: "easeOut" }}
             className="mt-10 max-w-md"
             aria-live="polite"
           >
@@ -109,12 +128,12 @@ export function NearbyLoader() {
             <p className="mt-3 text-[18px] leading-relaxed text-paper/90 md:text-[20px]">{fact.text}</p>
           </motion.div>
 
-          <div className="mt-12 h-[3px] w-48 overflow-hidden rounded-full bg-white/15" aria-hidden>
+          <div className="mt-12 h-[3px] w-48 overflow-hidden rounded-full bg-paper/15" aria-hidden>
             <motion.div
               key={`bar-${run}`}
               initial={{ scaleX: reduce ? 1 : 0 }}
               animate={{ scaleX: 1 }}
-              transition={{ duration: reduce ? 0 : MIN_MS / 1000, ease: "linear" }}
+              transition={{ duration: reduce ? 0 : ms / 1000, ease: "linear" }}
               style={{ transformOrigin: "left" }}
               className="h-full bg-signal"
             />

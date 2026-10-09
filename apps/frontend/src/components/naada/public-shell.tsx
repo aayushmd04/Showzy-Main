@@ -8,7 +8,7 @@
  */
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Search } from "lucide-react";
+import { Moon, Search, Sun } from "lucide-react";
 
 import { Wordmark } from "@/components/naada/wordmark";
 import { CityPicker } from "@/components/naada/city-picker";
@@ -53,14 +53,36 @@ function SearchBox({ className = "" }: { className?: string }) {
         onChange={(e) => setQ(e.target.value)}
         placeholder={placeholder}
         aria-label={placeholder}
-        className="h-11 w-full rounded-md border border-line bg-surface pl-10 pr-3 text-[15px] text-paper placeholder:text-muted focus:border-signal focus:outline-none"
+        className="h-11 w-full rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] pl-10 pr-3 text-[15px] text-paper backdrop-blur-md placeholder:text-muted focus:border-signal focus:outline-none"
       />
     </form>
   );
 }
 
+function ThemeToggle({
+  theme,
+  setTheme,
+  className = "",
+}: {
+  theme: "dark" | "light";
+  setTheme: (t: "dark" | "light") => void;
+  className?: string;
+}) {
+  const light = theme === "light";
+  return (
+    <button
+      type="button"
+      onClick={() => setTheme(light ? "dark" : "light")}
+      aria-label={light ? "Switch to dark mode" : "Switch to light mode"}
+      className={`glass-soft size-11 shrink-0 place-items-center rounded-md text-paper hover:border-paper/40 ${className || "grid"}`}
+    >
+      {light ? <Moon className="size-[18px]" aria-hidden /> : <Sun className="size-[18px]" aria-hidden />}
+    </button>
+  );
+}
+
 export function PublicShell({ children }: { children: ReactNode }) {
-  const { role, currentUser, lang, setLang } = useStore();
+  const { role, currentUser, lang, setLang, theme, setTheme } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
   const location = useLocation();
@@ -76,15 +98,24 @@ export function PublicShell({ children }: { children: ReactNode }) {
   };
 
   return (
-    <div className="flex min-h-dvh flex-col bg-ink font-sans text-paper">
-      <header className="sticky top-0 z-40 border-b border-line bg-ink/90 backdrop-blur-xl">
+    <div className="relative isolate flex min-h-dvh flex-col font-sans text-paper">
+      {/* Blurred photos fixed behind the page: what the glass panels sit on */}
+      <div className="page-backdrop" aria-hidden>
+        <img src="/media/events/crowd-under-stage-lights.jpg" alt="" className="-left-[20vmax] -top-[24vmax]" />
+        <img src="/media/events/classical-dancer-stage.jpg" alt="" className="-bottom-[28vmax] -right-[22vmax]" />
+      </div>
+      <header className="glass-soft sticky top-0 z-40 rounded-none border-x-0 border-t-0 bg-[var(--glass-bar)]">
         {/* Row 1: brand, search, city, account */}
-        <div className="mx-auto flex h-16 w-full max-w-[1280px] items-center gap-3 px-4 md:gap-5 md:px-8">
+        <div className="flex h-16 w-full items-center gap-3 px-[var(--page-pad)] md:gap-5">
           <Link to="/" className="shrink-0 no-underline" aria-label="Naada home">
             <Wordmark className="text-[19px] md:text-[22px]" />
           </Link>
 
-          <SearchBox className="hidden max-w-xl flex-1 md:block" />
+          {/* The search takes the middle and centres in it, so the brand sits at the
+              left edge and the controls at the right edge, level with the strip below. */}
+          <div className="hidden flex-1 justify-center md:flex">
+            <SearchBox className="w-full max-w-3xl" />
+          </div>
           <div className="flex-1 md:hidden" />
 
           <CityPicker compact />
@@ -93,10 +124,12 @@ export function PublicShell({ children }: { children: ReactNode }) {
             type="button"
             onClick={() => setLang(kn ? "en" : "kn")}
             aria-label="Change language"
-            className="hidden min-h-11 shrink-0 rounded-md border border-line px-3 text-[14px] font-semibold text-paper hover:border-paper/50 sm:block"
+            className="glass-soft hidden min-h-11 shrink-0 rounded-md px-3 text-[14px] font-semibold text-paper hover:border-paper/50 sm:block"
           >
             {kn ? "EN" : "ಕನ್ನಡ"}
           </button>
+
+          <ThemeToggle theme={theme} setTheme={setTheme} className="hidden sm:grid" />
 
           {isLoggedIn ? (
             <div className="flex shrink-0 items-center gap-2">
@@ -120,7 +153,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
         </div>
 
         {/* Phone: search on its own row */}
-        <div className="px-4 pb-3 md:hidden">
+        <div className="px-[var(--page-pad)] pb-3 md:hidden">
           <SearchBox />
         </div>
 
@@ -128,7 +161,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
         <div className="border-t border-line">
           <nav
             aria-label="Sections"
-            className="mx-auto flex w-full max-w-[1280px] items-center gap-1 overflow-x-auto px-4 md:px-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex w-full items-center gap-1 overflow-x-auto px-[var(--page-pad)] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {NAV_LINKS.map(({ label, labelKn, path, exact }) => {
               const active = isActive(path, exact);
@@ -161,8 +194,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
 
       <main className="flex-1">{children}</main>
 
-      <footer className="mt-16 border-t border-line bg-surface">
-        <div className="mx-auto flex w-full max-w-[1280px] flex-wrap items-center justify-between gap-4 px-4 py-8 md:px-8">
+      <footer className="glass-soft mt-16 rounded-none border-x-0 border-b-0 bg-[var(--glass-bar)]">
+        <div className="flex w-full flex-wrap items-center justify-between gap-4 px-[var(--page-pad)] py-8">
           <Wordmark className="text-[19px]" />
           {/* Terms, Privacy, Refunds and Contact must be reachable from the
               site itself — a payment gateway's merchant review checks for them,
@@ -181,7 +214,10 @@ export function PublicShell({ children }: { children: ReactNode }) {
               </Link>
             ))}
           </div>
-          <p className="text-[13px] text-muted">Live art · Mysuru &amp; Bengaluru</p>
+          <div className="flex items-center gap-4">
+            <p className="text-[13px] text-muted">Live art · Mysuru &amp; Bengaluru</p>
+            <ThemeToggle theme={theme} setTheme={setTheme} className="sm:hidden" />
+          </div>
         </div>
       </footer>
     </div>

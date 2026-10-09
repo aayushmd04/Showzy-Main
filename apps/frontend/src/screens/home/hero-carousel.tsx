@@ -275,7 +275,7 @@ export function HeroCarousel() {
     <section
       aria-roledescription="carousel"
       aria-label="Why Naada"
-      className={`relative h-dvh min-h-[600px] w-full overflow-hidden bg-ink font-support transition-opacity duration-[450ms] ease-in ${
+      className={`theme-dark relative h-dvh min-h-[600px] w-full overflow-hidden bg-ink font-support transition-opacity duration-[450ms] ease-in ${
         leaving ? "opacity-0" : "opacity-100"
       }`}
       onMouseEnter={() => setPaused(true)}
@@ -321,7 +321,7 @@ export function HeroCarousel() {
               <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/55 to-black/15" />
               <div aria-hidden className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/70 to-transparent" />
 
-              <div className="relative mx-auto flex h-full w-full max-w-6xl items-center px-5 pb-24 pt-24 md:px-24 lg:px-28 [@media(max-height:720px)]:pb-20 [@media(max-height:720px)]:pt-16">
+              <div className="relative flex h-full w-full items-center px-5 pb-24 pt-24 md:px-[max(96px,var(--page-pad))] [@media(max-height:720px)]:pb-20 [@media(max-height:720px)]:pt-16">
                 {/* Fades in after its slide arrives. On the way out it stays put and
                     fades with the slide; it is only reset once the slide is hidden,
                     so nothing ever vanishes in a cut. */}
@@ -344,10 +344,10 @@ export function HeroCarousel() {
       </motion.div>
 
       {/* Top bar */}
-      <header className="absolute inset-x-0 top-0 z-20 mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 md:px-24 md:py-5 lg:px-28">
+      <header className="absolute inset-x-0 top-0 z-20 flex w-full items-center justify-between px-4 py-4 md:px-[max(96px,var(--page-pad))] md:py-5">
         <Wordmark className="text-[17px] md:text-[22px]" />
         <div className="flex items-center gap-2 md:gap-6">
-          <CityPicker />
+          <CityPicker onPhoto />
           <Link
             to="/whats-on"
             onClick={(e) => {
@@ -366,7 +366,7 @@ export function HeroCarousel() {
       <ArrowButton dir="next" onClick={next} />
 
       {/* Same line on every slide */}
-      <p className="pointer-events-none absolute inset-x-0 bottom-14 [@media(max-height:720px)]:hidden z-10 mx-auto w-full max-w-6xl px-5 text-[14px] text-white/75 md:px-24 md:text-[15px] lg:px-28">
+      <p className="pointer-events-none absolute inset-x-0 bottom-14 [@media(max-height:720px)]:hidden z-10 w-full px-5 text-[14px] text-white/75 md:px-[max(96px,var(--page-pad))] md:text-[15px]">
         Built by artists. For the live arts community.
       </p>
 

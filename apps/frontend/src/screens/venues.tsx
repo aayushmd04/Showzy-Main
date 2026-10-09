@@ -21,7 +21,7 @@ export function VenuesScreen() {
 
   return (
     <PublicShell>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "40px 24px 80px" }}>
+      <div style={{ padding: "40px var(--page-pad) 80px" }}>
         {/* Header */}
         <div style={{ marginBottom: 32 }}>
           <h1 style={{ fontSize: 32, fontWeight: 800, color: tok.paper, margin: 0 }}>Venues</h1>

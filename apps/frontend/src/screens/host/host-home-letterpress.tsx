@@ -1,41 +1,43 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarPlus, ChevronRight, Music2, Users } from "lucide-react";
+import { CalendarPlus, ChevronRight, Handshake, Users } from "lucide-react";
+
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
-import { Button } from "@/components/ui/button";
 import { useStore } from "@/store/app-store";
 import { getMyEvents } from "@/lib/api";
 import { adaptEvent } from "@/lib/adapters";
 import type { NaadaEvent } from "@/data/fixtures";
 import { today, dateListing, money } from "@/lib/format";
 
-const MONTHS = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const MONTHS = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
 
 function tableDate(iso: string): string {
   const [, m, d] = iso.split("-").map(Number);
-  return `${String(d).padStart(2,"0")} ${MONTHS[m - 1]}`;
+  return `${String(d).padStart(2, "0")} ${MONTHS[m - 1]}`;
 }
 
-function statusColor(status: string): string {
-  if (status === "published" || status === "sales_closed" || status === "live") return "#1EA874";
-  if (status === "completed") return "rgba(0,0,0,.35)";
-  if (status === "cancelled") return "#CF1322";
-  return "#E8B33C"; // draft
+/** Status as a word with a colour, using the theme's own colours so it reads in both modes. */
+function statusStyle(status: string): string {
+  if (status === "published" || status === "sales_closed" || status === "live") return "text-live border-live/40";
+  if (status === "completed") return "text-muted border-line";
+  if (status === "cancelled") return "text-fault border-fault/40";
+  return "text-gold border-gold/40"; // draft
 }
 
-/** Host dashboard — overview on login. */
+const card = "glass-soft rounded-2xl";
+
+/** Host dashboard: the overview a host lands on in the console. */
 export function HostHomeLetterpressScreen() {
   const { users, currentUser, venueOf, soldOf, capacityOf, artists } = useStore();
 
   /*
    * `getMyEvents()`, not the store's `events`.
    *
-   * The store holds the public catalogue — every published event on the
-   * platform — and this screen was reading straight from it. A host in Mysuru
-   * therefore saw a Bengaluru venue's nights listed among their own, and the
-   * "Revenue (est.)" figure on their dashboard was the sum of every ticket
-   * Naada had ever sold, presented as theirs. The Events screen has always
-   * called the scoped endpoint; this one was simply missed.
+   * The store holds the public catalogue: every published event on the
+   * platform. This screen once read straight from it, so a host in Mysuru saw
+   * a Bengaluru venue's nights among their own, and "Revenue (est.)" was the
+   * sum of every ticket Naada had ever sold, presented as theirs. The Events
+   * screen has always called the scoped endpoint.
    */
   const [events, setEvents] = useState<NaadaEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,428 +68,176 @@ export function HostHomeLetterpressScreen() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
+  const stats = [
+    { label: "Upcoming", value: String(upcoming.length) },
+    { label: "Artists booked", value: String(new Set(events.flatMap((e) => e.lineup)).size) },
+    { label: "Revenue (est.)", value: money(totalRevenue) },
+  ];
+
+  const nextSold = nextUp ? soldOf(nextUp) : 0;
+  const nextCap = nextUp ? capacityOf(nextUp) : 0;
+
   return (
     <ConsoleShell nav={HOST_NAV} breadcrumb={["Overview"]}>
-      {/* ── Greeting ──────────────────────────────────────────────────── */}
-      <div
-        style={{
-          borderRadius: 14,
-          padding: "28px 32px",
-          marginBottom: 28,
-          background: "linear-gradient(135deg, #FBF3E3 0%, #F6E8D0 60%, #EDD5B5 100%)",
-          border: "1px solid rgba(212,56,13,.12)",
-          display: "flex",
-          alignItems: "flex-end",
-          justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: 20,
-        }}
-      >
-        <div>
-          <p
-            style={{
-              fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 10,
-              letterSpacing: ".14em",
-              textTransform: "uppercase",
-              color: "rgba(20,18,16,.4)",
-              marginBottom: 4,
-            }}
-          >
-            {greeting}
-          </p>
-          <h1
-            style={{
-              fontVariationSettings: "'wdth' 80,'wght' 900",
-              fontSize: "clamp(28px,3.5vw,42px)",
-              letterSpacing: "-.04em",
-              textTransform: "uppercase",
-              color: "#141210",
-              lineHeight: 0.95,
-            }}
-          >
-            {(currentUser?.full_name ?? users.host.name).split(" ")[0]}
-          </h1>
-          <p
-            style={{
-              fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 10,
-              letterSpacing: ".1em",
-              color: "rgba(20,18,16,.4)",
-              textTransform: "uppercase",
-              marginTop: 6,
-            }}
-          >
-            {currentUser?.email ?? users.host.org}
-          </p>
+      {/* Greeting and the three numbers a host checks first */}
+      <section className={`${card} flex flex-wrap items-end justify-between gap-x-8 gap-y-5 p-6 md:p-8`}>
+        <div className="min-w-0">
+          <p className="text-[14px] text-muted">{greeting}</p>
+          <h1 className="t-h1 mt-1 break-words">{(currentUser?.full_name ?? users.host.name).split(" ")[0]}</h1>
+          <p className="mt-1.5 truncate text-[13px] text-muted">{currentUser?.email ?? users.host.org}</p>
         </div>
 
-        {/* Quick stats */}
-        <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
-          {[
-            { label: "Upcoming", value: upcoming.length },
-            { label: "Artists booked", value: new Set(events.flatMap((e) => e.lineup)).size },
-            { label: "Revenue (est.)", value: money(totalRevenue) },
-          ].map(({ label, value }) => (
-            <div key={label} style={{ textAlign: "right" }}>
-              <div
-                style={{
-                  fontVariationSettings: "'wdth' 70,'wght' 900",
-                  fontSize: 26,
-                  letterSpacing: "-.03em",
-                  color: "#141210",
-                  lineHeight: 1,
-                }}
-              >
-                {value}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono',monospace",
-                  fontSize: 9,
-                  letterSpacing: ".1em",
-                  textTransform: "uppercase",
-                  color: "rgba(20,18,16,.4)",
-                  marginTop: 2,
-                }}
-              >
-                {label}
-              </div>
+        <dl className="flex flex-wrap gap-x-10 gap-y-4">
+          {stats.map(({ label, value }) => (
+            <div key={label}>
+              <dd className="text-[clamp(24px,3vw,34px)] font-bold leading-none tabular-nums text-paper">{value}</dd>
+              <dt className="mt-1.5 text-[13px] text-muted">{label}</dt>
             </div>
           ))}
-        </div>
-      </div>
+        </dl>
+      </section>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 28 }}>
-
-        {/* ── Next Up ───────────────────────────────────────────────── */}
-        <div className="border border-line bg-surface" style={{ borderRadius: 12, overflow: "hidden" }}>
-          <div
-            className="border-b border-line"
-            style={{ padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}
-          >
-            <span
-              style={{
-                fontFamily: "'JetBrains Mono',monospace",
-                fontSize: 9,
-                letterSpacing: ".14em",
-                textTransform: "uppercase",
-                color: "#1EA874",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                fontWeight: 700,
-              }}
-            >
-              <span
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: "#1EA874",
-                  boxShadow: "0 0 6px rgba(30,168,116,.6)",
-                  display: "inline-block",
-                  animation: "naada-live-pulse 1.8s ease-in-out infinite",
-                }}
-              />
-              Next Up
+      <div className="mt-5 grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Next up */}
+        <section className={`${card} overflow-hidden`} aria-label="Next up">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--glass-border-soft)] px-5 py-3.5">
+            <span className="flex items-center gap-2 text-[13px] font-semibold text-live">
+              <span aria-hidden className="size-1.5 animate-pulse rounded-full bg-live" />
+              Next up
             </span>
             {nextUp && (
-              <span
-                style={{
-                  fontFamily: "'JetBrains Mono',monospace",
-                  fontSize: 9,
-                  letterSpacing: ".08em",
-                  textTransform: "uppercase",
-                  color: "rgba(0,0,0,.35)",
-                }}
-              >
+              <span className="text-[13px] text-muted">
                 {dateListing(nextUp.date)} · {nextUp.time}
               </span>
             )}
           </div>
 
           {nextUp ? (
-            <div style={{ padding: "16px" }}>
-              <div
-                style={{
-                  fontVariationSettings: "'wdth' 80,'wght' 900",
-                  fontSize: 22,
-                  letterSpacing: "-.03em",
-                  textTransform: "uppercase",
-                  color: "#141210",
-                  lineHeight: 1,
-                  marginBottom: 6,
-                }}
-              >
-                {nextUp.name}
-              </div>
-              <div
-                style={{
-                  fontFamily: "'JetBrains Mono',monospace",
-                  fontSize: 10,
-                  color: "rgba(0,0,0,.4)",
-                  letterSpacing: ".05em",
-                  marginBottom: 16,
-                }}
-              >
+            <div className="p-5">
+              <h2 className="text-[20px] font-bold leading-snug text-paper">{nextUp.name}</h2>
+              <p className="mt-1 text-[14px] text-muted">
                 {nextVenue?.name} · {nextVenue?.area}
-              </div>
+              </p>
 
-              {/* Sold bar */}
-              <div style={{ marginBottom: 16 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    marginBottom: 6,
-                    fontFamily: "'JetBrains Mono',monospace",
-                    fontSize: 10,
-                    letterSpacing: ".06em",
-                  }}
-                >
-                  <span style={{ color: "rgba(0,0,0,.5)" }}>Sold</span>
-                  <span style={{ color: "#141210", fontWeight: 700 }}>
-                    {soldOf(nextUp)}/{capacityOf(nextUp)}
+              <div className="mt-5">
+                <div className="flex items-baseline justify-between text-[13px]">
+                  <span className="text-muted">Sold</span>
+                  <span className="font-semibold tabular-nums text-paper">
+                    {nextSold}/{nextCap}
                   </span>
                 </div>
-                <div
-                  style={{
-                    height: 3,
-                    background: "rgba(0,0,0,.08)",
-                    borderRadius: 2,
-                    overflow: "hidden",
-                  }}
-                >
+                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-paper/10">
                   <div
-                    style={{
-                      height: "100%",
-                      width: `${Math.min(100, (soldOf(nextUp) / capacityOf(nextUp)) * 100)}%`,
-                      background: "linear-gradient(90deg, #D4380D, #E8763A)",
-                      borderRadius: 2,
-                    }}
+                    className="h-full rounded-full bg-signal"
+                    style={{ width: `${nextCap > 0 ? Math.min(100, (nextSold / nextCap) * 100) : 0}%` }}
                   />
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 8 }}>
+              <div className="mt-5 flex flex-wrap gap-2">
                 <Link
                   to={`/host/events/${nextUp.id}`}
-                  className="btn btn-primary btn-sm"
-                  style={{ fontSize: 12, flex: 1, justifyContent: "center" }}
+                  className="grid min-h-11 flex-1 place-items-center rounded-md bg-signal px-5 text-[14px] font-semibold text-white no-underline hover:bg-[#d4503a]"
                 >
                   Manage event
                 </Link>
                 <Link
                   to={`/e/${nextUp.id}`}
-                  className="btn btn-secondary btn-sm"
-                  style={{ fontSize: 12 }}
+                  className="grid min-h-11 place-items-center rounded-md border border-[var(--glass-border)] px-5 text-[14px] font-semibold text-paper no-underline hover:border-paper/50"
                 >
                   Public page
                 </Link>
               </div>
             </div>
           ) : (
-            <div style={{ padding: "24px 16px", textAlign: "center" }}>
-              <p className="t-small text-muted">No upcoming events</p>
-              <Link to="/host/events" className="btn btn-primary btn-sm mt-3">
-                Create your first
+            <div className="px-5 py-10 text-center">
+              <p className="text-[15px] font-semibold text-paper">Nothing coming up</p>
+              <p className="mt-1 text-[14px] text-muted">Publish a night and it shows up here.</p>
+              <Link
+                to="/host/events/new"
+                className="mt-4 inline-grid min-h-11 place-items-center rounded-md bg-signal px-5 text-[14px] font-semibold text-white no-underline hover:bg-[#d4503a]"
+              >
+                Create an event
               </Link>
             </div>
           )}
-        </div>
+        </section>
 
-        {/* ── Quick Actions ─────────────────────────────────────────── */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-
-          {/* Publish event */}
+        {/* Quick actions */}
+        <div className="flex flex-col gap-3">
           <Link
             to="/host/events"
-            style={{
-              flex: 1,
-              borderRadius: 12,
-              padding: "20px",
-              background: "linear-gradient(135deg,#D4380D,#C42E08)",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              textDecoration: "none",
-              boxShadow: "0 4px 20px rgba(212,56,13,.3)",
-              color: "#fff",
-            }}
+            className="flex items-center gap-4 rounded-2xl bg-signal p-5 text-white no-underline transition-colors hover:bg-[#d4503a]"
           >
-            <CalendarPlus size={22} strokeWidth={1.8} style={{ flexShrink: 0, opacity: 0.9 }} />
-            <div>
-              <div
-                style={{
-                  fontVariationSettings: "'wdth' 90,'wght' 700",
-                  fontSize: 15,
-                  letterSpacing: "-.01em",
-                  marginBottom: 2,
-                }}
-              >
-                Publish an Event
-              </div>
-              <div style={{ fontSize: 12, opacity: 0.7, fontFamily: "'JetBrains Mono',monospace", letterSpacing: ".04em" }}>
-                Create · set tiers · go live
-              </div>
-            </div>
-            <ChevronRight size={16} style={{ marginLeft: "auto", opacity: 0.6 }} />
+            <CalendarPlus className="size-6 shrink-0" strokeWidth={1.6} aria-hidden />
+            <span className="min-w-0">
+              <span className="block text-[16px] font-bold">Publish an event</span>
+              <span className="block text-[13px] text-white/80">Create, set ticket tiers, go live</span>
+            </span>
+            <ChevronRight className="ml-auto size-4 shrink-0 opacity-70" aria-hidden />
           </Link>
 
-          {/* Discover Artists */}
           <Link
             to="/host/artists"
-            className="border border-line bg-surface"
-            style={{
-              flex: 1,
-              borderRadius: 12,
-              padding: "20px",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              textDecoration: "none",
-              color: "#141210",
-              transition: "background .15s",
-            }}
+            className={`${card} flex items-center gap-4 p-5 text-paper no-underline transition-transform duration-300 hover:-translate-y-0.5`}
           >
-            <Users size={22} strokeWidth={1.5} style={{ flexShrink: 0, color: "#D4380D" }} />
-            <div>
-              <div
-                style={{
-                  fontVariationSettings: "'wdth' 90,'wght' 700",
-                  fontSize: 15,
-                  letterSpacing: "-.01em",
-                  color: "#141210",
-                  marginBottom: 2,
-                }}
-              >
-                Discover Artists
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "rgba(0,0,0,.4)",
-                  fontFamily: "'JetBrains Mono',monospace",
-                  letterSpacing: ".04em",
-                }}
-              >
-                {artists.length} artists · browse by genre
-              </div>
-            </div>
-            <ChevronRight size={16} style={{ marginLeft: "auto", color: "rgba(0,0,0,.3)" }} />
+            <Users className="size-6 shrink-0 text-signal" strokeWidth={1.6} aria-hidden />
+            <span className="min-w-0">
+              <span className="block text-[16px] font-bold">Find artists</span>
+              <span className="block text-[13px] text-muted">{artists.length} artists · browse by genre</span>
+            </span>
+            <ChevronRight className="ml-auto size-4 shrink-0 text-muted" aria-hidden />
           </Link>
 
-          {/* Bookings shortcut */}
           <Link
             to="/host/bookings"
-            className="border border-line bg-surface"
-            style={{
-              borderRadius: 12,
-              padding: "16px 20px",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              textDecoration: "none",
-              color: "#141210",
-            }}
+            className={`${card} flex items-center gap-4 p-5 text-paper no-underline transition-transform duration-300 hover:-translate-y-0.5`}
           >
-            <Music2 size={18} strokeWidth={1.5} style={{ flexShrink: 0, color: "rgba(0,0,0,.35)" }} />
-            <span
-              style={{
-                fontVariationSettings: "'wdth' 90,'wght' 600",
-                fontSize: 14,
-                color: "rgba(0,0,0,.6)",
-              }}
-            >
-              View Bookings
+            <Handshake className="size-6 shrink-0 text-signal" strokeWidth={1.6} aria-hidden />
+            <span className="min-w-0">
+              <span className="block text-[16px] font-bold">Bookings</span>
+              <span className="block text-[13px] text-muted">Offers, counters and confirmations</span>
             </span>
-            <ChevronRight size={14} style={{ marginLeft: "auto", color: "rgba(0,0,0,.25)" }} />
+            <ChevronRight className="ml-auto size-4 shrink-0 text-muted" aria-hidden />
           </Link>
         </div>
       </div>
 
-      {/* ── Your Events ───────────────────────────────────────────────── */}
-      <div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "baseline",
-            justifyContent: "space-between",
-            marginBottom: 12,
-          }}
-        >
-          <h2
-            style={{
-              fontVariationSettings: "'wdth' 90,'wght' 800",
-              fontSize: 13,
-              letterSpacing: ".08em",
-              textTransform: "uppercase",
-              color: "#141210",
-            }}
-          >
-            Your Events
+      {/* Your events */}
+      <section className="mt-10" aria-label="Your events">
+        <div className="mb-3 flex items-baseline justify-between gap-4">
+          <h2 className="font-megrim text-[clamp(22px,3vw,30px)] font-normal uppercase leading-tight tracking-[0.02em]">
+            Your events
           </h2>
-          <Link
-            to="/host/events"
-            style={{
-              fontFamily: "'JetBrains Mono',monospace",
-              fontSize: 10,
-              letterSpacing: ".1em",
-              textTransform: "uppercase",
-              color: "#D4380D",
-              textDecoration: "none",
-            }}
-          >
+          <Link to="/host/events" className="text-[14px] font-semibold text-signal no-underline hover:underline">
             View all →
           </Link>
         </div>
 
         {loading ? (
-          <div
-            className="border border-line"
-            style={{ borderRadius: 12, padding: "32px 16px", textAlign: "center" }}
-          >
-            <p className="t-small text-muted">Loading your events…</p>
+          <div className={`${card} border-dashed px-4 py-10 text-center text-[14px] text-muted`} role="status">
+            Loading your events…
           </div>
         ) : allRows.length === 0 ? (
-          <div
-            className="border border-line"
-            style={{ borderRadius: 12, padding: "32px 16px", textAlign: "center" }}
-          >
-            <p className="t-small text-muted">No events yet</p>
-            <Button variant="primary" className="mt-3" onClick={() => {}}>
+          <div className={`${card} border-dashed px-4 py-10 text-center`}>
+            <p className="text-[15px] font-semibold text-paper">No events yet</p>
+            <p className="mt-1 text-[14px] text-muted">Your nights will be listed here.</p>
+            <Link
+              to="/host/events/new"
+              className="mt-4 inline-grid min-h-11 place-items-center rounded-md bg-signal px-5 text-[14px] font-semibold text-white no-underline hover:bg-[#d4503a]"
+            >
               Create your first event
-            </Button>
+            </Link>
           </div>
         ) : (
-          /* `overflow: hidden` here was clipping, not scrolling: the table
-             wants 468px and a phone gives it 343, so Sold and Status — the
-             two columns a host actually opens this screen for — were cut off
-             the right edge with no way to reach them. Every other table in
-             the console is wrapped in `overflow-x-auto`; this one was missed.
-             `min-w` keeps the columns legible instead of crushing them. */
-          <div
-            className="overflow-x-auto border border-line"
-            style={{ borderRadius: 12 }}
-          >
-            <table style={{ width: "100%", minWidth: 480, borderCollapse: "collapse" }}>
+          /* The table wants about 470px and a phone gives it 343, so it scrolls
+             sideways inside its own box rather than cutting Sold and Status off. */
+          <div className={`${card} overflow-x-auto`}>
+            <table className="w-full min-w-[520px] border-collapse text-left text-[14px]">
               <thead>
-                <tr className="border-b border-line" style={{ background: "rgba(0,0,0,.02)" }}>
+                <tr className="border-b border-[var(--glass-border-soft)] text-[13px] text-muted">
                   {["Date", "Event", "Venue", "Sold", "Status"].map((h) => (
-                    <th
-                      key={h}
-                      style={{
-                        fontFamily: "'JetBrains Mono',monospace",
-                        fontSize: 9,
-                        letterSpacing: ".14em",
-                        textTransform: "uppercase",
-                        color: "rgba(0,0,0,.4)",
-                        fontWeight: 500,
-                        textAlign: "left",
-                        padding: "10px 16px",
-                      }}
-                    >
+                    <th key={h} scope="col" className="px-4 py-3 font-medium">
                       {h}
                     </th>
                   ))}
@@ -496,70 +246,27 @@ export function HostHomeLetterpressScreen() {
               <tbody>
                 {allRows.map((ev, i) => {
                   const venue = venueOf(ev);
-                  const sold = soldOf(ev);
-                  const cap = capacityOf(ev);
-                  const isDone = ev.status === "completed" || ev.status === "cancelled";
                   return (
                     <tr
                       key={ev.id}
-                      className={i < allRows.length - 1 ? "border-b border-line" : ""}
-                      style={{ opacity: isDone ? 0.55 : 1 }}
+                      className={i < allRows.length - 1 ? "border-b border-[var(--glass-border-soft)]" : ""}
                     >
-                      <td
-                        style={{
-                          fontFamily: "'JetBrains Mono',monospace",
-                          fontSize: 11,
-                          color: "rgba(0,0,0,.5)",
-                          padding: "12px 16px",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {tableDate(ev.date)}
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-muted">{tableDate(ev.date)}</td>
+                      <td className="px-4 py-3">
                         <Link
                           to={`/host/events/${ev.id}`}
-                          style={{
-                            fontVariationSettings: "'wdth' 90,'wght' 600",
-                            fontSize: 14,
-                            color: "#141210",
-                            textDecoration: "none",
-                          }}
+                          className="font-semibold text-paper no-underline hover:text-signal"
                         >
                           {ev.name}
                         </Link>
                       </td>
-                      <td
-                        style={{
-                          fontFamily: "'JetBrains Mono',monospace",
-                          fontSize: 11,
-                          color: "rgba(0,0,0,.4)",
-                          padding: "12px 16px",
-                        }}
-                      >
-                        {venue?.name ?? "—"}
+                      <td className="px-4 py-3 text-muted">{venue?.name ?? "—"}</td>
+                      <td className="whitespace-nowrap px-4 py-3 tabular-nums text-paper">
+                        {soldOf(ev)}/{capacityOf(ev)}
                       </td>
-                      <td
-                        style={{
-                          fontFamily: "'JetBrains Mono',monospace",
-                          fontSize: 11,
-                          color: "#141210",
-                          padding: "12px 16px",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {sold}/{cap}
-                      </td>
-                      <td style={{ padding: "12px 16px" }}>
+                      <td className="px-4 py-3">
                         <span
-                          style={{
-                            fontFamily: "'JetBrains Mono',monospace",
-                            fontSize: 9,
-                            letterSpacing: ".1em",
-                            textTransform: "uppercase",
-                            color: statusColor(ev.status),
-                            fontWeight: 600,
-                          }}
+                          className={`inline-block rounded-full border px-2.5 py-0.5 text-[12px] font-semibold capitalize ${statusStyle(ev.status)}`}
                         >
                           {ev.status.replace("_", " ")}
                         </span>
@@ -571,7 +278,7 @@ export function HostHomeLetterpressScreen() {
             </table>
           </div>
         )}
-      </div>
+      </section>
     </ConsoleShell>
   );
 }

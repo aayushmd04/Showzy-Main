@@ -607,3 +607,35 @@
   90% { opacity: 1; }
   100% { transform: translateY(240px); opacity: 0; }
 }
+
+
+/* ── Theme switch: a cross-fade, not a cut ───────────────────────────────── */
+
+/* Browsers with the View Transitions API fade a snapshot of the old page into
+   the new one (see lib/theme-transition.ts). */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 450ms;
+  animation-timing-function: ease;
+}
+
+/* Fallback for the rest: transition the colour properties for a moment. */
+html.theme-fading,
+html.theme-fading *,
+html.theme-fading *::before,
+html.theme-fading *::after {
+  transition:
+    background-color 450ms ease,
+    color 450ms ease,
+    border-color 450ms ease,
+    box-shadow 450ms ease,
+    fill 450ms ease,
+    stroke 450ms ease !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 0.001ms;
+  }
+}

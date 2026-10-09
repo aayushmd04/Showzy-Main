@@ -23,6 +23,8 @@ import {
 import { Wordmark } from "./wordmark";
 import { NotificationBell } from "./notification-bell";
 import { AccountMenu } from "./account-menu";
+import { PageBackdrop } from "./page-backdrop";
+import { ThemeToggle } from "./display-controls";
 import { cn } from "@/lib/utils";
 
 /**
@@ -100,9 +102,10 @@ export function ConsoleShell({
 
 
   return (
-    <div className="min-h-dvh bg-ink md:flex">
+    <div className="relative isolate min-h-dvh md:flex">
+      <PageBackdrop />
       {/* Desktop sidebar / tablet icon rail */}
-      <aside className="sticky top-0 hidden h-dvh shrink-0 border-r border-line bg-surface md:block md:w-[72px] lg:w-[240px]">
+      <aside className="glass-soft sticky top-0 hidden h-dvh shrink-0 rounded-none border-y-0 border-l-0 bg-[var(--glass-bar)] md:block md:w-[72px] lg:w-[240px]">
         <div className="flex h-16 items-center border-b border-line px-4 lg:px-6">
           <Link to="/" aria-label="Naada home" className="flex items-center">
             <Wordmark className="hidden lg:inline" />
@@ -132,10 +135,10 @@ export function ConsoleShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Top bar */}
-        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-line px-4 backdrop-blur md:px-6" style={{ background: "rgba(251,243,227,0.88)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)" }}>
+        <header className="sticky top-0 z-40 flex h-16 items-center gap-3 border-b border-[var(--glass-border-soft)] bg-[var(--glass-bar)] px-4 backdrop-blur-xl md:px-6">
           <button
             type="button"
-            className="grid size-11 shrink-0 place-items-center border border-line md:hidden"
+            className="grid size-11 shrink-0 place-items-center rounded-md border border-line md:hidden"
             aria-label="Open navigation"
             aria-expanded={menuOpen}
             onClick={() => setMenuOpen(true)}
@@ -165,12 +168,14 @@ export function ConsoleShell({
 
           {actions}
 
+          <ThemeToggle className="hidden sm:grid" />
+
           <NotificationBell />
 
           <AccountMenu />
         </header>
 
-        <main className="mx-auto w-full max-w-[1080px] flex-1 px-4 py-6 md:px-8 md:py-8">
+        <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 py-6 md:px-8 md:py-8">
           {children}
         </main>
       </div>
@@ -190,7 +195,7 @@ export function ConsoleShell({
             />
             <motion.nav
               aria-label="Console"
-              className="absolute inset-y-0 left-0 w-[260px] border-r border-line bg-surface p-3"
+              className="absolute inset-y-0 left-0 w-[260px] border-r border-line bg-[var(--menu-bg)] p-3 backdrop-blur-xl"
               initial={reduce ? { opacity: 0 } : { x: -260 }}
               animate={reduce ? { opacity: 1 } : { x: 0 }}
               exit={reduce ? { opacity: 0 } : { x: -260 }}
@@ -210,9 +215,13 @@ export function ConsoleShell({
               {nav.map((item) => (
                 <SidebarLink key={item.to} item={item} forceLabel />
               ))}
+              <div className="mt-3 flex items-center justify-between border-t border-line px-3 pt-3">
+                <span className="text-[13px] text-muted">Appearance</span>
+                <ThemeToggle className="grid" />
+              </div>
               <Link
                 to="/"
-                className="mt-3 flex min-h-11 items-center gap-3 border-t border-line px-3 pt-4 text-[14px] text-muted"
+                className="flex min-h-11 items-center gap-3 px-3 pt-2 text-[14px] text-muted"
               >
                 Back to Discover
               </Link>
@@ -235,7 +244,8 @@ function SidebarLink({ item, forceLabel }: { item: NavItem; forceLabel?: boolean
         cn(
           "relative flex min-h-11 items-center gap-3 px-3 text-[14px] transition-colors",
           forceLabel ? "" : "justify-center lg:justify-start",
-          isActive ? "bg-surface-2 text-paper" : "text-muted hover:bg-surface-2 hover:text-paper",
+          "rounded-md",
+          isActive ? "bg-paper/10 text-paper" : "text-muted hover:bg-paper/5 hover:text-paper",
         )
       }
     >

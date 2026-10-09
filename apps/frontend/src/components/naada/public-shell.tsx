@@ -8,10 +8,12 @@
  */
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Moon, Search, Sun } from "lucide-react";
+import { Search } from "lucide-react";
 
 import { Wordmark } from "@/components/naada/wordmark";
 import { CityPicker } from "@/components/naada/city-picker";
+import { PageBackdrop } from "@/components/naada/page-backdrop";
+import { LanguageToggle, ThemeToggle } from "@/components/naada/display-controls";
 import { useStore } from "@/store/app-store";
 import { AccountMenu } from "./account-menu";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
@@ -85,30 +87,8 @@ function SearchBox({ className = "", boxed = false }: { className?: string; boxe
   );
 }
 
-function ThemeToggle({
-  theme,
-  setTheme,
-  className = "",
-}: {
-  theme: "dark" | "light";
-  setTheme: (t: "dark" | "light") => void;
-  className?: string;
-}) {
-  const light = theme === "light";
-  return (
-    <button
-      type="button"
-      onClick={() => setTheme(light ? "dark" : "light")}
-      aria-label={light ? "Switch to dark mode" : "Switch to light mode"}
-      className={`size-9 shrink-0 place-items-center rounded-full text-paper/80 transition-colors hover:bg-paper/10 hover:text-paper ${className || "grid"}`}
-    >
-      {light ? <Moon className="size-[17px]" aria-hidden /> : <Sun className="size-[17px]" aria-hidden />}
-    </button>
-  );
-}
-
 export function PublicShell({ children }: { children: ReactNode }) {
-  const { role, currentUser, lang, setLang, theme, setTheme } = useStore();
+  const { role, currentUser, lang } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
   const location = useLocation();
@@ -130,11 +110,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col font-sans text-paper">
-      {/* Blurred photos fixed behind the page: what the glass panels sit on */}
-      <div className="page-backdrop" aria-hidden>
-        <img src="/media/events/crowd-under-stage-lights.jpg" alt="" className="-left-[20vmax] -top-[24vmax]" />
-        <img src="/media/events/classical-dancer-stage.jpg" alt="" className="-bottom-[28vmax] -right-[22vmax]" />
-      </div>
+      <PageBackdrop />
       <header className="sticky top-0 z-40 border-b border-[var(--glass-border-soft)] bg-[var(--glass-bar)] backdrop-blur-xl">
         {/* One bar on a laptop; on a phone the brand and sign-in stay on top, then
             search, then the section links. One nav element, placed by `order`. */}
@@ -150,17 +126,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
           <div className="order-3 ml-auto flex h-16 shrink-0 items-center gap-3 md:gap-4 lg:order-4">
             <CityPicker plain />
             <span aria-hidden className="hidden h-4 w-px bg-[var(--color-line)] sm:block" />
-            <button
-              type="button"
-              onClick={() => setLang(kn ? "en" : "kn")}
-              aria-label="Change language"
-              className="hidden whitespace-nowrap text-[13px] font-semibold sm:block"
-            >
-              <span className={kn ? "text-muted" : "text-paper"}>EN</span>
-              <span className="mx-1 text-muted">/</span>
-              <span className={kn ? "text-paper" : "text-muted"}>ಕನ್ನಡ</span>
-            </button>
-            <ThemeToggle theme={theme} setTheme={setTheme} className="hidden sm:grid" />
+            <LanguageToggle className="hidden sm:block" />
+            <ThemeToggle className="hidden sm:grid" />
 
             {isLoggedIn ? (
               <div className="flex shrink-0 items-center gap-2">
@@ -243,7 +210,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-4">
             <p className="text-[13px] text-muted">Live art · Mysuru &amp; Bengaluru</p>
-            <ThemeToggle theme={theme} setTheme={setTheme} className="sm:hidden" />
+            <ThemeToggle className="sm:hidden" />
           </div>
         </div>
       </footer>

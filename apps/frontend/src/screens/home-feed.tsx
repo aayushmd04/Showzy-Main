@@ -271,7 +271,7 @@ function VenueCard({ venue, index }: { venue: Venue; index: number }) {
 /* ── Screen ─────────────────────────────────────────────────────────────── */
 
 export function HomeFeed() {
-  const { events, artists, venues, venueOf, lang } = useStore();
+  const { events, artists, venues, venueOf, lang, role, currentUser } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -341,6 +341,7 @@ export function HomeFeed() {
   const poster = (e: NaadaEvent, i: number) => <PosterCard event={e} index={i} venue={venueOf(e)} />;
 
   const showAllEvents = () => rails.current?.scrollIntoView({ behavior: "smooth" });
+  const signedIn = role !== "out" && currentUser !== null;
   const startHosting = () => openAuth("Host your event on Naada", { preferRole: "host" });
   const joinArtists = () => openAuth("Join Naada as an artist", { preferRole: "artist" });
 
@@ -357,24 +358,50 @@ export function HomeFeed() {
       cta: t("See what's on", "ಏನಿದೆ ನೋಡಿ"),
       onClick: () => rails.current?.scrollIntoView({ behavior: "smooth" }),
     },
-    {
-      id: "host",
-      image: "/media/venues/curtained-stage-mic.jpg",
-      position: "50% 50%",
-      title: t("Host your event for free", "ನಿಮ್ಮ ಕಾರ್ಯಕ್ರಮ ಉಚಿತವಾಗಿ ಆಯೋಜಿಸಿ"),
-      body: t("Have a café, studio, pub or courtyard? Bring an audience to it.", "ಕೆಫೆ, ಸ್ಟುಡಿಯೋ, ಪಬ್ ಅಥವಾ ಅಂಗಳ ಇದೆಯೇ? ಪ್ರೇಕ್ಷಕರನ್ನು ಕರೆತನ್ನಿ."),
-      cta: t("Start hosting", "ಆಯೋಜನೆ ಪ್ರಾರಂಭಿಸಿ"),
-      onClick: startHosting,
-    },
-    {
-      id: "artists",
-      image: "/media/artists/guitarist-stage-light.jpg",
-      position: "50% 30%",
-      title: t("Find your next stage", "ನಿಮ್ಮ ಮುಂದಿನ ವೇದಿಕೆ ಹುಡುಕಿ"),
-      body: t("Artists: find spaces to perform and collaborate across the city.", "ಕಲಾವಿದರೇ: ನಗರದಾದ್ಯಂತ ಪ್ರದರ್ಶನ ಮತ್ತು ಸಹಯೋಗಕ್ಕೆ ಸ್ಥಳಗಳನ್ನು ಹುಡುಕಿ."),
-      cta: t("Join as an artist", "ಕಲಾವಿದರಾಗಿ ಸೇರಿ"),
-      onClick: joinArtists,
-    },
+    // Anyone signed in has already chosen what they are here for, so the two
+    // sell-side banners go to people who have not: signed-out visitors, who
+    // could be hosts or artists. Everyone else sees the audience's own pair.
+    ...(signedIn
+      ? [
+          {
+            id: "artists-browse",
+            image: "/media/artists/sitar-player-stage.jpg",
+            position: "50% 40%",
+            title: t("Meet the artists", "ಕಲಾವಿದರನ್ನು ಭೇಟಿಯಾಗಿ"),
+            body: t("The people behind the nights, from open-mic regulars to classical masters.", "ರಾತ್ರಿಗಳ ಹಿಂದಿನ ಕಲಾವಿದರು, ಓಪನ್ ಮೈಕ್‌ನಿಂದ ಶಾಸ್ತ್ರೀಯ ಗುರುಗಳವರೆಗೆ."),
+            cta: t("Browse artists", "ಕಲಾವಿದರನ್ನು ನೋಡಿ"),
+            onClick: () => navigate("/artists"),
+          },
+          {
+            id: "venues-browse",
+            image: "/media/venues/four-chairs-blue-stage.jpg",
+            position: "50% 50%",
+            title: t("Rooms worth knowing", "ತಿಳಿಯಬೇಕಾದ ಸ್ಥಳಗಳು"),
+            body: t("Cafés, studios and small halls where the best nights happen.", "ಅತ್ಯುತ್ತಮ ರಾತ್ರಿಗಳು ನಡೆಯುವ ಕೆಫೆ, ಸ್ಟುಡಿಯೋ ಮತ್ತು ಸಣ್ಣ ಸಭಾಂಗಣಗಳು."),
+            cta: t("Browse venues", "ಸ್ಥಳಗಳನ್ನು ನೋಡಿ"),
+            onClick: () => navigate("/venues"),
+          },
+        ]
+      : [
+          {
+            id: "host",
+            image: "/media/venues/curtained-stage-mic.jpg",
+            position: "50% 50%",
+            title: t("Host your event for free", "ನಿಮ್ಮ ಕಾರ್ಯಕ್ರಮ ಉಚಿತವಾಗಿ ಆಯೋಜಿಸಿ"),
+            body: t("Have a café, studio, pub or courtyard? Bring an audience to it.", "ಕೆಫೆ, ಸ್ಟುಡಿಯೋ, ಪಬ್ ಅಥವಾ ಅಂಗಳ ಇದೆಯೇ? ಪ್ರೇಕ್ಷಕರನ್ನು ಕರೆತನ್ನಿ."),
+            cta: t("Start hosting", "ಆಯೋಜನೆ ಪ್ರಾರಂಭಿಸಿ"),
+            onClick: startHosting,
+          },
+          {
+            id: "artists",
+            image: "/media/artists/guitarist-stage-light.jpg",
+            position: "50% 30%",
+            title: t("Find your next stage", "ನಿಮ್ಮ ಮುಂದಿನ ವೇದಿಕೆ ಹುಡುಕಿ"),
+            body: t("Artists: find spaces to perform and collaborate across the city.", "ಕಲಾವಿದರೇ: ನಗರದಾದ್ಯಂತ ಪ್ರದರ್ಶನ ಮತ್ತು ಸಹಯೋಗಕ್ಕೆ ಸ್ಥಳಗಳನ್ನು ಹುಡುಕಿ."),
+            cta: t("Join as an artist", "ಕಲಾವಿದರಾಗಿ ಸೇರಿ"),
+            onClick: joinArtists,
+          },
+        ]),
   ];
 
   /* Search results replace the rails */

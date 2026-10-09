@@ -213,7 +213,7 @@ export function HostHomeLandingScreen() {
             }
           >
             {(rows) => (
-              <ul className="divide-y divide-line border border-line bg-surface">
+              <ul className="divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
                 {rows.slice(0, 5).map(({ event, sold, capacity }) => {
                   const pct =
                     sold !== null && capacity !== null && capacity > 0
@@ -282,7 +282,7 @@ export function HostHomeLandingScreen() {
           hint="Artists who applied to your events, and threads already in progress."
           action={{ to: "/host/bookings", label: "All bookings" }}
         >
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <div>
               <p className={`${T_MICRO} mb-2`}>Artist applications</p>
               <AsyncSection
@@ -299,7 +299,7 @@ export function HostHomeLandingScreen() {
                 }
               >
                 {(d) => (
-                  <ul className="divide-y divide-line border border-line bg-surface">
+                  <ul className="divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
                     {d.results.slice(0, 5).map((a) => (
                       <li key={a.id}>
                         <Link
@@ -347,7 +347,7 @@ export function HostHomeLandingScreen() {
                 }
               >
                 {(d) => (
-                  <ul className="divide-y divide-line border border-line bg-surface">
+                  <ul className="divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
                     {d.results.slice(0, 5).map((c) => (
                       <li key={c.id} className="px-4 py-3">
                         <Link to="/host/bookings" className="block">
@@ -372,7 +372,7 @@ export function HostHomeLandingScreen() {
           {openOrders.length > 0 && (
             <>
               <p className={`${T_MICRO} mb-2 mt-5`}>Bookings still open</p>
-              <ul className="divide-y divide-line border border-line bg-surface">
+              <ul className="divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
                 {openOrders.slice(0, 4).map((o) => (
                   <li key={o.id}>
                     <Link
@@ -422,11 +422,11 @@ export function HostHomeLandingScreen() {
             }
           >
             {(list) => (
-              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 {list.slice(0, 8).map((a: ApiArtist) => {
                   const fee = budgetRange(a.fee_range_min, a.fee_range_max);
                   return (
-                    <li key={a.id} className="flex flex-col border border-line bg-surface p-4">
+                    <li key={a.id} className="flex flex-col glass-soft rounded-xl p-4 md:p-5">
                       <Link
                         to={`/a/${a.id}`}
                         className={`${T_H3} text-paper transition-colors hover:text-signal`}
@@ -468,9 +468,9 @@ export function HostHomeLandingScreen() {
               actionLabel="Create an event"
             />
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {whatsOn.map((e) => (
-                <li key={e.id} className="border border-line bg-surface p-4">
+                <li key={e.id} className="glass-soft rounded-xl p-4 md:p-5">
                   <p className={T_MICRO}>{stampDateTime(e.start_datetime)}</p>
                   <Link
                     to={`/e/${e.id}`}

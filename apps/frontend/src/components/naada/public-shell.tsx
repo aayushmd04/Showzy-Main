@@ -24,6 +24,25 @@ const NAV_LINKS = [
   { label: "How it works", labelKn: "ಹೇಗೆ ಕೆಲಸ ಮಾಡುತ್ತದೆ", path: "/how-it-works" },
 ];
 
+/** What the strip under the logo links to, by who is looking. */
+const ARTIST_NAV = [
+  { label: "Home", labelKn: "ಮುಖಪುಟ", path: "/", exact: true },
+  { label: "Gig board", labelKn: "ಗಿಗ್ ಬೋರ್ಡ್", path: "/artist/gig-board" },
+  { label: "Offers", labelKn: "ಆಫರ್‌ಗಳು", path: "/artist/offers" },
+  { label: "My gigs", labelKn: "ನನ್ನ ಗಿಗ್‌ಗಳು", path: "/artist/gigs" },
+  { label: "Earnings", labelKn: "ಗಳಿಕೆ", path: "/artist/earnings" },
+  { label: "What's on", labelKn: "ಏನಿದೆ", path: "/whats-on", exact: true },
+];
+
+const HOST_NAV = [
+  { label: "Home", labelKn: "ಮುಖಪುಟ", path: "/", exact: true },
+  { label: "Events", labelKn: "ಕಾರ್ಯಕ್ರಮಗಳು", path: "/host/events" },
+  { label: "Bookings", labelKn: "ಬುಕಿಂಗ್‌ಗಳು", path: "/host/bookings" },
+  { label: "Find artists", labelKn: "ಕಲಾವಿದರನ್ನು ಹುಡುಕಿ", path: "/host/artists" },
+  { label: "Settlements", labelKn: "ಪಾವತಿಗಳು", path: "/host/settlements" },
+  { label: "What's on", labelKn: "ಏನಿದೆ", path: "/whats-on", exact: true },
+];
+
 function SearchBox({ className = "", boxed = false }: { className?: string; boxed?: boolean }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -96,8 +115,13 @@ export function PublicShell({ children }: { children: ReactNode }) {
   const kn = lang === "kn";
 
   const isLoggedIn = role !== "out" && currentUser !== null;
-  const isActive = (path: string, exact?: boolean) =>
-    exact ? location.pathname === path || location.pathname === "/" : location.pathname.startsWith(path);
+  const navLinks = isLoggedIn && role === "artist" ? ARTIST_NAV : isLoggedIn && role === "host" ? HOST_NAV : NAV_LINKS;
+  const isActive = (path: string, exact?: boolean) => {
+    if (!exact) return location.pathname.startsWith(path);
+    // For an audience member, "What's on" is also what "/" shows.
+    if (navLinks === NAV_LINKS && path === "/whats-on") return location.pathname === "/" || location.pathname === "/whats-on";
+    return location.pathname === path;
+  };
 
   const afterSignIn = (_outcome: unknown, nextRole: string) => {
     if (nextRole === "host") navigate("/host");
@@ -176,7 +200,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             aria-label="Sections"
             className="order-5 -mx-[var(--page-pad)] flex basis-full items-center gap-3 overflow-x-auto border-t sm:gap-7 border-[var(--color-line)] px-[var(--page-pad)] [scrollbar-width:none] lg:order-2 lg:mx-0 lg:basis-auto lg:border-t-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
           >
-            {NAV_LINKS.map(({ label, labelKn, path, exact }) => {
+            {navLinks.map(({ label, labelKn, path, exact }) => {
               const active = isActive(path, exact);
               return (
                 <Link

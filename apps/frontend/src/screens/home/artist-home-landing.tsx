@@ -228,7 +228,7 @@ export function ArtistHomeLandingScreen() {
         ) : (
           !profile.loading &&
           gaps.length > 0 && (
-            <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border border-line bg-surface p-4">
+            <div className="mt-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 glass-soft rounded-xl p-4 md:p-5">
               <div className="min-w-0">
                 <p className={`${T_H3} text-paper`}>
                   {profile.data ? "Your profile is what gets you booked" : "You don't have an artist profile yet"}
@@ -265,7 +265,7 @@ export function ArtistHomeLandingScreen() {
             }
           >
             {() => (
-              <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
                 {openGigs.slice(0, 6).map((event) => {
                   const mine = applicationByEvent.get(event.id);
                   const budget = budgetRange(
@@ -275,7 +275,7 @@ export function ArtistHomeLandingScreen() {
                   return (
                     <li
                       key={event.id}
-                      className="flex flex-col border border-line bg-surface p-4"
+                      className="flex flex-col glass-soft rounded-xl p-4 md:p-5"
                     >
                       <p className={T_MICRO}>{stampDateTime(event.start_datetime)}</p>
                       <Link
@@ -316,7 +316,7 @@ export function ArtistHomeLandingScreen() {
           hint="Applications you've sent and venues already talking to you."
           action={{ to: "/artist/offers", label: "All offers" }}
         >
-          <div className="grid gap-3 lg:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
             <div>
               <p className={`${T_MICRO} mb-2`}>Your applications</p>
               <AsyncSection
@@ -333,7 +333,7 @@ export function ArtistHomeLandingScreen() {
                 }
               >
                 {(d) => (
-                  <ul className="divide-y divide-line border border-line bg-surface">
+                  <ul className="divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
                     {d.results.slice(0, 5).map((a) => (
                       <li
                         key={a.id}
@@ -381,7 +381,7 @@ export function ArtistHomeLandingScreen() {
                 }
               >
                 {(d) => (
-                  <ul className="divide-y divide-line border border-line bg-surface">
+                  <ul className="divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
                     {d.results.slice(0, 5).map((c) => (
                       <li key={c.id} className="px-4 py-3">
                         <Link to="/artist/offers" className="block">
@@ -424,7 +424,7 @@ export function ArtistHomeLandingScreen() {
             }
           >
             {() => (
-              <ul className="divide-y divide-line border border-line bg-surface">
+              <ul className="divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
                 {confirmedGigs.slice(0, 5).map((o) => (
                   <li key={o.id}>
                     <Link
@@ -470,9 +470,9 @@ export function ArtistHomeLandingScreen() {
               body="Nothing is published for the days ahead. New nights go up here as hosts announce them."
             />
           ) : (
-            <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {whatsOn.map((e) => (
-                <li key={e.id} className="border border-line bg-surface p-4">
+                <li key={e.id} className="glass-soft rounded-xl p-4 md:p-5">
                   <p className={T_MICRO}>{stampDateTime(e.start_datetime)}</p>
                   <Link
                     to={`/e/${e.id}`}

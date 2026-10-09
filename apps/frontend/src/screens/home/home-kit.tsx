@@ -17,15 +17,14 @@ import { actionError } from "@/components/naada/api-message";
 
 /* ── Type scale ─────────────────────────────────────────────────────────── */
 
-export const T_H1 =
-  "t-h1 font-display text-[clamp(24px,4vw,32px)] font-bold leading-[1.1] tracking-[-0.01em]";
-export const T_H2 = "t-h2 font-display text-[22px] font-bold leading-[1.2]";
+export const T_H1 = "t-h1";
+export const T_H2 =
+  "font-megrim text-[clamp(22px,3vw,32px)] font-normal uppercase leading-tight tracking-[0.02em]";
 export const T_H3 = "t-h3 font-display text-[17px] font-bold leading-[1.3]";
 export const T_BODY = "t-body text-[15px] leading-[1.55]";
 export const T_SMALL = "t-small text-[13px] leading-[1.5]";
-export const T_MONO = "t-mono font-mono tabular-nums";
-export const T_MICRO =
-  "t-micro font-mono text-[11px] uppercase tracking-[0.08em] leading-[1.4] text-muted";
+export const T_MONO = "tabular-nums font-semibold";
+export const T_MICRO = "text-[13px] font-medium leading-[1.4] text-muted";
 
 /* ── Async data ─────────────────────────────────────────────────────────── */
 
@@ -77,7 +76,7 @@ export function useAsync<T>(fn: () => Promise<T>, action: string): Async<T> {
 
 export function HomeLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="mx-auto w-full max-w-[1180px] px-5 py-8 md:px-8 md:py-10">{children}</div>
+    <div className="mx-auto w-full max-w-[1600px] px-[var(--page-pad)] py-8 md:py-10">{children}</div>
   );
 }
 
@@ -93,7 +92,7 @@ export function HomeHeader({
   actions: ReactNode;
 }) {
   return (
-    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b border-line pb-6">
+    <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 pb-2">
       <div className="min-w-0">
         <p className={T_MICRO}>{kicker}</p>
         <h1 className={`${T_H1} mt-1 text-paper`}>{title}</h1>
@@ -116,7 +115,7 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="mt-10">
+    <section className="mt-10 md:mt-12">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h2 className={`${T_H2} text-paper`}>{title}</h2>
         {action && (
@@ -134,7 +133,7 @@ export function Section({
   );
 }
 
-/** Border-only tile so a count never reads as a decorative badge. */
+/** A count tile: the number is the content, the label says what it counts. */
 export function CountTile({
   value,
   label,
@@ -149,16 +148,16 @@ export function CountTile({
   return (
     <Link
       to={to}
-      className="block border border-line bg-surface p-4 transition-colors hover:bg-surface-2"
+      className="glass-soft block rounded-xl p-5 transition-transform duration-300 hover:-translate-y-0.5"
     >
       <p
-        className={`${T_MONO} text-[24px] font-medium leading-tight ${
+        className={`${T_MONO} text-[clamp(28px,3vw,38px)] leading-none ${
           tone === "gold" ? "text-gold" : tone === "signal" ? "text-signal" : "text-paper"
         }`}
       >
         {value}
       </p>
-      <p className={`${T_MICRO} mt-2`}>{label}</p>
+      <p className={`${T_MICRO} mt-2.5`}>{label}</p>
     </Link>
   );
 }
@@ -169,7 +168,7 @@ export function LoadingBlock({ label }: { label: string }) {
   return (
     <p
       role="status"
-      className={`${T_SMALL} border border-dashed border-line px-4 py-8 text-center text-muted`}
+      className={`${T_SMALL} glass-soft rounded-xl border-dashed px-4 py-8 text-center text-muted`}
     >
       {label}
     </p>
@@ -178,7 +177,7 @@ export function LoadingBlock({ label }: { label: string }) {
 
 export function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="border border-line bg-surface px-4 py-6 text-center">
+    <div className="glass-soft rounded-xl px-4 py-6 text-center">
       <p className={`${T_SMALL} text-fault`} role="alert">
         {message}
       </p>
@@ -202,7 +201,7 @@ export function EmptyBlock({
   actionLabel?: string;
 }) {
   return (
-    <div className="flex flex-col items-center border border-dashed border-line px-6 py-12 text-center">
+    <div className="glass-soft flex flex-col items-center rounded-xl border-dashed px-6 py-12 text-center">
       <h3 className={`${T_H3} max-w-[30ch] text-paper`}>{headline}</h3>
       <p className={`${T_BODY} mt-2 max-w-[46ch] text-muted`}>{body}</p>
       {to && actionLabel && (

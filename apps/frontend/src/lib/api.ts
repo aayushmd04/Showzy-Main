@@ -557,10 +557,29 @@ export interface ApiOrder {
   funded_at?: string;
   completed_at?: string;
   released_at?: string;
-  organizer: ApiOrganizer;
+  /** The API sends the organiser's id with its name beside it; older shapes nested the whole object. */
+  organizer: string | ApiOrganizer;
+  organizer_name?: string;
+  /** What the venue and artist agreed (the venue pays this plus the Naada fee). */
+  agreed_amount?: string;
   artist: string;
-  offer: string;
+  artist_name?: string;
+  /** The event this booking is for, with its title beside it. */
+  event?: string | null;
+  event_title?: string | null;
+  offer?: string;
   created_at: string;
+}
+
+/** The fee the venue and artist agreed, before Naada's fee and TDS. */
+export function orderAgreed(order: ApiOrder): number {
+  if (order.agreed_amount !== undefined) return parseFloat(order.agreed_amount);
+  return parseFloat(order.gross_amount) - parseFloat(order.platform_fee);
+}
+
+/** The organiser's name on a booking, whichever shape the order arrived in. */
+export function orderOrganizerName(order: ApiOrder): string {
+  return order.organizer_name ?? (typeof order.organizer === "object" ? order.organizer.name : "") ?? "";
 }
 
 export function getMyConversations(): Promise<{ results: ApiConversation[] }> {

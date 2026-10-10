@@ -82,16 +82,16 @@ export function ArtistGigBoardScreen() {
             const venue = venueOf(event);
             const mine = myApplication(event.id);
             return (
-              <li key={event.id} className="border border-line bg-surface p-4">
-                <p className="t-mono text-[11px] uppercase tracking-[0.08em] text-muted">
+              <li key={event.id} className="glass-soft rounded-xl p-4">
+                <p className="text-[12px] font-medium tabular-nums tracking-[0.04em] text-muted">
                   {dateListing(event.date)}
                 </p>
                 <p className="t-h3 mt-1">{event.name}</p>
                 <p className="t-small mt-1 text-muted">
                   {venue?.name} · {venue?.area}
                 </p>
-                {(event.budgetMin || event.budgetMax) && (
-                  <p className="t-mono mt-2 text-[14px] text-brass">
+                {Boolean(event.budgetMin || event.budgetMax) && (
+                  <p className="tabular-nums font-semibold mt-2 text-[14px] text-brass">
                     {money(event.budgetMin ?? 0)}–{money(event.budgetMax ?? 0)}
                   </p>
                 )}
@@ -127,7 +127,7 @@ export function ArtistGigBoardScreen() {
             {(open.budgetMin || open.budgetMax) && (
               <p className="t-small text-muted">
                 Host's budget:{" "}
-                <span className="t-mono text-brass">
+                <span className="tabular-nums font-semibold text-brass">
                   {money(open.budgetMin ?? 0)}–{money(open.budgetMax ?? 0)}
                 </span>
               </p>
@@ -136,7 +136,7 @@ export function ArtistGigBoardScreen() {
               Your rate
             </label>
             <div className="flex items-stretch gap-2">
-              <span className="t-mono grid w-11 place-items-center border border-line bg-ink text-[15px] text-muted">
+              <span className="tabular-nums font-semibold grid w-11 place-items-center border border-line bg-ink text-[15px] text-muted">
                 ₹
               </span>
               <input
@@ -144,7 +144,7 @@ export function ArtistGigBoardScreen() {
                 inputMode="numeric"
                 value={rate}
                 onChange={(e) => setRate(e.target.value.replace(/\D/g, ""))}
-                className="field t-mono flex-1"
+                className="field tabular-nums font-semibold flex-1"
               />
             </div>
             <label htmlFor="apply-message" className="t-micro mb-2 mt-4 block">

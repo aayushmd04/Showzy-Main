@@ -3,6 +3,7 @@ import { ConsoleShell, ARTIST_NAV } from "@/components/naada/console-shell";
 import { Pill } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
 import { useStore } from "@/store/app-store";
+import { bookingEventTitle } from "@/lib/adapters";
 import { today, dateListing, daysFromToday, money, pluralise } from "@/lib/format";
 
 /** Section 7.17 — Offer inbox. */
@@ -19,7 +20,7 @@ export function ArtistOffersScreen() {
       <h1 className="t-h1">Offers</h1>
 
       {offers.length > 0 ? (
-        <ul className="mt-6 divide-y divide-line border border-line bg-surface">
+        <ul className="mt-6 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
           {offers.map((b) => {
             const event = eventById(b.eventId);
             const venue = event ? venueOf(event) : undefined;
@@ -31,16 +32,16 @@ export function ArtistOffersScreen() {
               daysFromToday(last?.at.slice(0, 10) ?? today()) + 4,
             );
             return (
-              <li key={b.id} className="px-4 py-4 transition-colors hover:bg-surface-2">
+              <li key={b.id} className="px-4 py-4 transition-colors hover:bg-paper/5">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[15px]">
-                      {event?.name ?? "Event offer"}
+                      {event?.name ?? bookingEventTitle(b) ?? "Event offer"}
                     </p>
                     <p className="t-small mt-0.5 text-muted">
                       {venue?.name}{event ? ` · ${dateListing(event.date)}` : ""}
                     </p>
-                    <p className="t-mono mt-2 text-[19px]">
+                    <p className="tabular-nums font-semibold mt-2 text-[19px]">
                       {money(last?.amount ?? 0)}
                       {mine && <span className="t-small ml-2 text-muted">(your counter)</span>}
                     </p>

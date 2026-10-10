@@ -171,7 +171,11 @@ export interface Settlement {
 }
 
 /** Platform economics — Section 1. */
-export const PLATFORM_FEE_RATE = 0.07;
+/**
+ * Naada's fee on an artist booking: 5% of the agreed fee, added on top and paid
+ * by the venue. Must equal PLATFORM_FEE_PCT in the backend settings.
+ */
+export const PLATFORM_FEE_RATE = 0.05;
 export const CONVENIENCE_FEE = 19;
 export const TDS_RATE = 0.01;
 export const MAX_COUNTERS = 3;

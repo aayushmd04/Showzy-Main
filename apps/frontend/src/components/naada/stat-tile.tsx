@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-/** Numbers in mono, labels in micro-caps (Section 7.9). */
+/** A count tile: the number is the content, the label says what it counts. */
 export function StatTile({
   value,
   label,
@@ -11,10 +11,10 @@ export function StatTile({
   tone?: "brass" | "live" | "signal";
 }) {
   return (
-    <div className="border border-line bg-surface p-4">
+    <div className="glass-soft rounded-xl p-5">
       <p
         className={cn(
-          "t-mono text-[24px] font-medium leading-tight",
+          "text-[clamp(26px,2.8vw,34px)] font-bold leading-none tabular-nums",
           tone === "brass" && "text-brass",
           tone === "live" && "text-live",
           tone === "signal" && "text-signal",
@@ -22,7 +22,7 @@ export function StatTile({
       >
         {value}
       </p>
-      <p className="t-micro mt-2">{label}</p>
+      <p className="t-micro mt-2.5">{label}</p>
     </div>
   );
 }

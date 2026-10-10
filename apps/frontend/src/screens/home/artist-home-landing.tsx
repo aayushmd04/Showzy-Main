@@ -57,6 +57,7 @@ import {
   type HomeGigApplication,
 } from "./home-data";
 import { usePageMeta } from "@/lib/use-meta";
+import { PLATFORM_FEE_RATE, TDS_RATE } from "@/data/fixtures";
 
 const APPLICATION_TONE: Record<GigApplicationStatus, PillTone> = {
   pending: "brass",
@@ -407,7 +408,7 @@ export function ArtistHomeLandingScreen() {
         {/* ── Confirmed gigs ────────────────────────────────────────────── */}
         <Section
           title="Confirmed gigs"
-          hint="Bookings with agreed terms. Naada takes no fee from artists — the venue pays it."
+          hint={`Bookings with agreed terms. The venue pays Naada's ${Math.round(PLATFORM_FEE_RATE * 100)}% fee on top; you receive your fee less ${Math.round(TDS_RATE * 100)}% TDS.`}
           action={{ to: "/artist/gigs", label: "All gigs" }}
         >
           <AsyncSection

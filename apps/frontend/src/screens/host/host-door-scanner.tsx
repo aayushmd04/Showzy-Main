@@ -452,7 +452,7 @@ export function HostDoorScannerScreen() {
             </p>
           )}
           {matches.length > 0 && (
-            <ul className="mt-2 divide-y divide-line border border-line bg-surface">
+            <ul className="mt-2 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
               {matches.map((a) => {
                 const alreadyIn = a.status === "used";
                 return (
@@ -464,7 +464,7 @@ export function HostDoorScannerScreen() {
                         void handleCode(a.qr_data);
                         setSearch("");
                       }}
-                      className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left hover:bg-surface-2 disabled:opacity-50"
+                      className="flex w-full items-center justify-between gap-3 px-4 py-4 text-left hover:bg-paper/5 disabled:opacity-50"
                     >
                       <span className="min-w-0">
                         <span className="block truncate text-[16px]">

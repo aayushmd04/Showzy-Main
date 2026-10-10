@@ -53,7 +53,7 @@ export function AdminHomeScreen() {
       <div className="mt-10 grid gap-3 sm:grid-cols-3">
         <Link
           to="/admin/verification"
-          className="border border-line bg-surface p-4 transition-colors hover:border-[#3a3a45] hover:bg-surface-2"
+          className="glass-soft rounded-xl p-4 transition-colors hover:border-[#3a3a45] hover:bg-paper/5"
         >
           <p className="t-h3">Verification queue</p>
           <p className="t-small mt-1 text-muted">
@@ -62,7 +62,7 @@ export function AdminHomeScreen() {
         </Link>
         <Link
           to="/admin/disputes"
-          className="border border-line bg-surface p-4 transition-colors hover:border-[#3a3a45] hover:bg-surface-2"
+          className="glass-soft rounded-xl p-4 transition-colors hover:border-[#3a3a45] hover:bg-paper/5"
         >
           <p className="t-h3">Disputes</p>
           <p className="t-small mt-1 text-muted">
@@ -71,7 +71,7 @@ export function AdminHomeScreen() {
         </Link>
         <Link
           to="/admin/messages"
-          className="border border-line bg-surface p-4 transition-colors hover:border-[#3a3a45] hover:bg-surface-2"
+          className="glass-soft rounded-xl p-4 transition-colors hover:border-[#3a3a45] hover:bg-paper/5"
         >
           <p className="t-h3">Flagged messages</p>
           <p className="t-small mt-1 text-muted">

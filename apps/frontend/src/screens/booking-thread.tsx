@@ -14,6 +14,7 @@ import type { ChatMessage } from "@/data/fixtures";
 import {
   MAX_COUNTERS,
   PLATFORM_FEE_RATE,
+  TDS_RATE,
   type BookingState,
   type DisputeResolution,
 } from "@/data/fixtures";
@@ -105,6 +106,8 @@ export function BookingThreadScreen() {
   const lastQuote = booking.quotes[booking.quotes.length - 1];
   const standing = booking.agreedFee ?? lastQuote?.amount ?? 0;
   const platformFee = Math.round(standing * PLATFORM_FEE_RATE);
+  // TDS is deducted from the artist's side only; the venue never sees it.
+  const tds = Math.round(standing * TDS_RATE);
 
   // Section 7.13 action table: on a request only the artist can act; once the
   // thread is negotiating, either side can counter, accept or decline.
@@ -232,13 +235,19 @@ export function BookingThreadScreen() {
         </div>
         <div className="flex justify-between gap-4 py-1">
           <dt className="t-small text-muted">
-            Platform fee ({Math.round(PLATFORM_FEE_RATE * 100)}%)
+            Naada fee ({Math.round(PLATFORM_FEE_RATE * 100)}%, paid by the venue)
           </dt>
           <dd className="t-mono text-[15px]">{money(platformFee)}</dd>
         </div>
+        {!viewerIsHost && (
+          <div className="flex justify-between gap-4 py-1">
+            <dt className="t-small text-muted">TDS ({Math.round(TDS_RATE * 100)}%, deducted from the artist)</dt>
+            <dd className="t-mono text-[15px]">−{money(tds)}</dd>
+          </div>
+        )}
         {isAdmin ? (
           <div className="flex justify-between gap-4 border-t border-line pt-2">
-            <dt className="text-[15px]">Total (host pays, artist receives {money(standing)})</dt>
+            <dt className="text-[15px]">Total (host pays; artist receives {money(standing - tds)})</dt>
             <dd className="t-mono text-[17px] font-medium">{money(standing + platformFee)}</dd>
           </div>
         ) : viewerIsHost ? (
@@ -249,7 +258,7 @@ export function BookingThreadScreen() {
         ) : (
           <div className="flex justify-between gap-4 border-t border-line pt-2">
             <dt className="text-[15px]">You receive</dt>
-            <dd className="t-mono text-[17px] font-medium text-live">{money(standing)}</dd>
+            <dd className="t-mono text-[17px] font-medium text-live">{money(standing - tds)}</dd>
           </div>
         )}
       </dl>
@@ -447,17 +456,18 @@ export function BookingThreadScreen() {
 
       <Modal open={fundOpen} onClose={() => setFundOpen(false)} title="Fund escrow">
         <p className="t-body text-paper/90">
-          {money(standing)} goes into escrow now and is released to {artist?.name} 72 hours after
-          the gig. You can cancel until the event starts.
+          {money(standing + platformFee)} goes into escrow now. {artist?.name} receives{" "}
+          {money(standing - tds)} (their fee less {Math.round(TDS_RATE * 100)}% TDS) 72 hours after the
+          gig; Naada keeps its {money(platformFee)} fee. You can cancel until the event starts.
         </p>
         <dl className="mt-5 border border-line bg-ink p-4">
           <div className="flex justify-between gap-4 py-1">
-            <dt className="t-small text-muted">Artist fee</dt>
+            <dt className="t-small text-muted">Artist's agreed fee</dt>
             <dd className="t-mono text-[14px]">{money(standing)}</dd>
           </div>
           <div className="flex justify-between gap-4 py-1">
             <dt className="t-small text-muted">
-              Platform fee ({Math.round(PLATFORM_FEE_RATE * 100)}%)
+              Naada fee ({Math.round(PLATFORM_FEE_RATE * 100)}%)
             </dt>
             <dd className="t-mono text-[14px]">{money(platformFee)}</dd>
           </div>

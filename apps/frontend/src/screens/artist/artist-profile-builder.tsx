@@ -409,7 +409,7 @@ export function ArtistProfileBuilderScreen() {
           </div>
         )}
         {loadState === "missing" && (
-          <div className="mt-6 max-w-[46ch] border border-line bg-surface p-5">
+          <div className="mt-6 max-w-[46ch] glass-soft rounded-xl p-5">
             <h2 className="t-h3">No artist profile yet</h2>
             <p className="t-body mt-2 text-muted">
               Nothing is linked to this account. Start with the name you perform under — you can
@@ -476,7 +476,7 @@ export function ArtistProfileBuilderScreen() {
           <Button variant="primary" onClick={() => void save()} disabled={saving || !dirty}>
             {saving ? "Saving…" : dirty ? "Save changes" : "Saved"}
           </Button>
-          <span className="t-mono text-[12px] text-muted" aria-live="polite">
+          <span className="tabular-nums font-semibold text-[12px] text-muted" aria-live="polite">
             {dirty
               ? "Unsaved changes"
               : savedAt
@@ -512,7 +512,7 @@ export function ArtistProfileBuilderScreen() {
                     />
                     <div className="mt-1 flex items-center justify-between gap-1">
                       {photo.is_primary ? (
-                        <span className="t-mono flex items-center gap-1 text-[11px] uppercase tracking-[0.08em] text-brass">
+                        <span className="tabular-nums font-semibold flex items-center gap-1 text-[11px] uppercase tracking-[0.08em] text-brass">
                           <Star className="size-3 fill-brass text-brass" aria-hidden="true" />
                           Cover
                         </span>
@@ -521,7 +521,7 @@ export function ArtistProfileBuilderScreen() {
                           type="button"
                           disabled={photoBusy}
                           onClick={() => void makeCover(photo)}
-                          className="t-mono text-[11px] uppercase tracking-[0.08em] text-muted transition-colors hover:text-paper disabled:opacity-50"
+                          className="text-[12px] font-medium tabular-nums tracking-[0.04em] text-muted transition-colors hover:text-paper disabled:opacity-50"
                         >
                           Make cover
                         </button>
@@ -580,7 +580,7 @@ export function ArtistProfileBuilderScreen() {
                 {draft.genres.map((id) => (
                   <span
                     key={id}
-                    className="flex items-center gap-2 border border-line bg-surface px-3 py-1.5 text-[14px]"
+                    className="flex items-center gap-2 glass-soft rounded-xl px-3 py-1.5 text-[14px]"
                   >
                     {genreName(id) || `Genre ${id}`}
                     <button
@@ -657,7 +657,7 @@ export function ArtistProfileBuilderScreen() {
               <Input
                 aria-label="Minimum fee"
                 inputMode="numeric"
-                className="t-mono w-[120px]"
+                className="tabular-nums font-semibold w-[120px]"
                 value={draft.fee_range_min}
                 onChange={(e) => patch({ fee_range_min: e.target.value.replace(/[^\d.]/g, "") })}
               />
@@ -665,7 +665,7 @@ export function ArtistProfileBuilderScreen() {
               <Input
                 aria-label="Maximum fee"
                 inputMode="numeric"
-                className="t-mono w-[120px]"
+                className="tabular-nums font-semibold w-[120px]"
                 value={draft.fee_range_max}
                 onChange={(e) => patch({ fee_range_max: e.target.value.replace(/[^\d.]/g, "") })}
               />
@@ -691,7 +691,7 @@ export function ArtistProfileBuilderScreen() {
                 {draft.availability.blackout_dates.map((iso) => (
                   <li
                     key={iso}
-                    className="t-mono flex items-center gap-2 border border-line bg-surface px-3 py-1.5 text-[13px]"
+                    className="tabular-nums font-semibold flex items-center gap-2 glass-soft rounded-xl px-3 py-1.5 text-[13px]"
                   >
                     {availabilityDate(iso)}
                     <button
@@ -715,7 +715,7 @@ export function ArtistProfileBuilderScreen() {
                 aria-label="Date to block"
                 type="date"
                 min={todayIso()}
-                className="t-mono flex-1"
+                className="tabular-nums font-semibold flex-1"
                 value={blockDate}
                 onChange={(e) => setBlockDate(e.target.value)}
               />
@@ -793,7 +793,7 @@ export function ArtistProfileBuilderScreen() {
                   value={draft.gst_number}
                   onChange={(e) => patch({ gst_number: e.target.value.toUpperCase() })}
                   placeholder="22AAAAA0000A1Z5"
-                  className="t-mono"
+                  className="tabular-nums font-semibold"
                   maxLength={15}
                 />
               </Field>
@@ -803,7 +803,7 @@ export function ArtistProfileBuilderScreen() {
                   value={draft.pan_number}
                   onChange={(e) => patch({ pan_number: e.target.value.toUpperCase() })}
                   placeholder="ABCDE1234F"
-                  className="t-mono"
+                  className="tabular-nums font-semibold"
                   maxLength={10}
                 />
               </Field>
@@ -838,7 +838,7 @@ export function ArtistProfileBuilderScreen() {
                   value={draft.bank_account_number}
                   onChange={(e) => patch({ bank_account_number: e.target.value.replace(/\D/g, "") })}
                   placeholder={artist.has_bank_details ? "Enter a new number to replace it" : ""}
-                  className="t-mono"
+                  className="tabular-nums font-semibold"
                 />
               </Field>
               <Field label="IFSC code" htmlFor="ap-bank-ifsc">
@@ -847,7 +847,7 @@ export function ArtistProfileBuilderScreen() {
                   value={draft.bank_ifsc_code}
                   onChange={(e) => patch({ bank_ifsc_code: e.target.value.toUpperCase() })}
                   placeholder="HDFC0001234"
-                  className="t-mono"
+                  className="tabular-nums font-semibold"
                   maxLength={11}
                 />
               </Field>
@@ -874,8 +874,8 @@ export function ArtistProfileBuilderScreen() {
 
         {/* Live preview — the artist's own row, not a sample */}
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <h2 className="t-micro">Preview</h2>
-          <div className="mt-3 border border-line bg-surface p-4">
+          <h2 className="t-section">Preview</h2>
+          <div className="mt-3 glass-soft rounded-xl p-4">
             <div className="flex items-center gap-3">
               {cover ? (
                 <img
@@ -886,7 +886,7 @@ export function ArtistProfileBuilderScreen() {
               ) : (
                 <span
                   aria-hidden="true"
-                  className="grid size-12 shrink-0 place-items-center border border-line bg-surface-2 font-display text-[18px] font-bold text-signal"
+                  className="grid size-12 shrink-0 place-items-center glass-soft rounded-xl-2 font-display text-[18px] font-bold text-signal"
                 >
                   {draft.stage_name.charAt(0) || "?"}
                 </span>
@@ -902,10 +902,10 @@ export function ArtistProfileBuilderScreen() {
             <p className="t-small mt-3 text-muted">{cityName || "No city set"}</p>
 
             {artist.total_gigs > 0 && (
-              <p className="t-mono mt-2 text-[13px] text-muted">{artist.total_gigs} gigs on Naada</p>
+              <p className="tabular-nums font-semibold mt-2 text-[13px] text-muted">{artist.total_gigs} gigs on Naada</p>
             )}
 
-            <p className="t-mono mt-2 text-[13px] text-brass">
+            <p className="tabular-nums font-semibold mt-2 text-[13px] text-brass">
               {feeMin !== null && feeMax !== null
                 ? `${money(feeMin)}–${money(feeMax)}`
                 : "No fee range set"}

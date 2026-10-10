@@ -452,7 +452,7 @@ export function HostVenueLayoutScreen() {
       <div className="flex gap-3" style={{ minHeight: 500 }}>
 
         {/* Left toolbar */}
-        <aside className="w-[148px] shrink-0 border border-line bg-surface">
+        <aside className="w-[148px] shrink-0 glass-soft rounded-xl">
           <div className="border-b border-line px-3 py-2">
             <p className="t-micro">Add element</p>
           </div>
@@ -464,7 +464,7 @@ export function HostVenueLayoutScreen() {
                   key={type}
                   type="button"
                   onClick={() => addElement(type)}
-                  className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-surface-2"
+                  className="flex items-center gap-2 rounded px-2 py-1.5 text-left text-[13px] transition-colors hover:bg-paper/5"
                 >
                   <span className="text-[15px] leading-none">{p.emoji}</span>
                   <span className="truncate text-paper/80">{p.label}</span>
@@ -692,7 +692,7 @@ export function HostVenueLayoutScreen() {
         </div>
 
         {/* Right properties panel */}
-        <aside className="w-[228px] shrink-0 border border-line bg-surface">
+        <aside className="w-[228px] shrink-0 glass-soft rounded-xl">
           <div className="border-b border-line px-3 py-2">
             <p className="t-micro">Properties</p>
           </div>
@@ -743,7 +743,7 @@ export function HostVenueLayoutScreen() {
                           "rounded border px-1 py-1 text-[11px] transition-colors",
                           selShape === shape
                             ? "border-signal bg-signal/15 text-paper"
-                            : "border-line text-paper/70 hover:bg-surface-2",
+                            : "border-line text-paper/70 hover:bg-paper/5",
                         )}
                       >
                         {shape === "round" ? "Round" : shape === "square" ? "Square" : "Rect."}
@@ -890,7 +890,7 @@ export function HostVenueLayoutScreen() {
       </div>
 
       {/* ── Tips ── */}
-      <div className="mt-5 border border-line bg-surface p-4">
+      <div className="mt-5 glass-soft rounded-xl p-4">
         <p className="t-micro mb-2">Layout tips</p>
         <ul className="t-small space-y-1 text-muted">
           <li>· Put the <strong className="text-paper/80">Stage</strong> at the top — audience orientation is automatic</li>

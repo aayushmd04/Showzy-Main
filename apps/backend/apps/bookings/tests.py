@@ -26,13 +26,15 @@ User = get_user_model()
 
 def make_booking_order(organizer, artist, gross=Decimal("10000.00")):
     """A funded booking order with correct fee math, for ledger/transfer tests."""
-    platform_fee = (gross * Decimal("0.10")).quantize(Decimal("0.01"))
-    tds = (gross * Decimal("0.01")).quantize(Decimal("0.01"))
-    payout = gross - platform_fee - tds
+    agreed = gross
+    platform_fee = (agreed * Decimal("0.05")).quantize(Decimal("0.01"))
+    tds = (agreed * Decimal("0.01")).quantize(Decimal("0.01"))
+    payout = agreed - tds
+    gross = agreed + platform_fee
     offer = Offer.objects.create(
         conversation=BookingConversation.objects.create(organizer=organizer, artist=artist),
         proposed_by=organizer.memberships.first().user,
-        fee_amount=gross,
+        fee_amount=agreed,
         performance_date=timezone.now().date(),
     )
     return BookingOrder.objects.create(
@@ -359,3 +361,42 @@ class DisputeQueueShapeTests(AdminOpsTestCase):
             booking_order=self.order, raised_by=self.host_user, reason="Turned up late.")
 
         self.assertRegex(self._queue()[0]["created_at"], r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}")
+
+
+class FeeMathTests(TestCase):
+    """The platform fee is paid by the venue on top; the artist is never charged.
+
+    These pin the one rule every screen and the ledger depend on, so the fee in
+    the copy cannot drift from the fee in the money.
+    """
+
+    def test_fee_is_five_percent_added_on_top_for_the_venue(self):
+        from apps.bookings.serializers import compute_fees
+
+        platform_fee, tds, payout, gross = compute_fees(Decimal("15000"))
+        self.assertEqual(platform_fee, Decimal("750.00"))
+        self.assertEqual(gross, Decimal("15750.00"))  # what the venue pays
+
+    def test_the_artist_receives_the_agreed_fee_less_tds_only(self):
+        from apps.bookings.serializers import compute_fees
+
+        platform_fee, tds, payout, gross = compute_fees(Decimal("15000"))
+        self.assertEqual(tds, Decimal("150.00"))
+        self.assertEqual(payout, Decimal("14850.00"))
+
+    def test_the_ledger_always_balances(self):
+        from apps.bookings.serializers import compute_fees
+
+        for agreed in ("1", "999", "1234.56", "5000", "15000", "250000.99"):
+            platform_fee, tds, payout, gross = compute_fees(Decimal(agreed))
+            self.assertEqual(payout + platform_fee + tds, gross, agreed)
+
+    def test_the_rate_comes_from_settings(self):
+        from django.test import override_settings
+
+        from apps.bookings.serializers import compute_fees
+
+        with override_settings(PLATFORM_FEE_PCT="0.08"):
+            platform_fee, _tds, _payout, gross = compute_fees(Decimal("10000"))
+        self.assertEqual(platform_fee, Decimal("800.00"))
+        self.assertEqual(gross, Decimal("10800.00"))

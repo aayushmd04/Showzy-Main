@@ -202,8 +202,10 @@ export function LegalScreen({ doc }: { doc: Doc }) {
               </p>
               <p>
                 Artist fees are held by Naada and released after the performance
-                under the terms of the accepted offer. Platform fees and any tax
-                deducted at source are shown on the order before you accept it.
+                under the terms of the accepted offer. Naada charges the organiser
+                a platform fee of 5% of the agreed fee, on top of that fee; artists
+                are not charged it. Tax deducted at source (1%) is deducted from the
+                artist's fee. Both are shown on the order before you accept it.
               </p>
             </S>
             <S heading="6. Behaviour">

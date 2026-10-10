@@ -71,7 +71,7 @@ export function AdminLedgerScreen() {
         on a ledger yet, so it isn't shown here rather than guessed at.
       </p>
 
-      <div className="mt-6 overflow-x-auto border border-line bg-surface">
+      <div className="mt-6 overflow-x-auto glass-soft rounded-xl">
         <table className="w-full min-w-[680px] text-left">
           <caption className="sr-only">Ledger entries</caption>
           <thead>

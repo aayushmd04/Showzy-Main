@@ -344,6 +344,19 @@ export function getEvents(params = ""): Promise<ApiEventList> {
   return get<ApiEventList>(`/events/${params}`, false);
 }
 
+export interface ApiPayoutSummary {
+  collected: string;
+  refunded: string;
+  naada_fee: string;
+  owed_to_organiser: string;
+  paid_out: string;
+  balance: string;
+}
+
+export function getEventPayoutSummary(eventId: string): Promise<ApiPayoutSummary> {
+  return get<ApiPayoutSummary>(`/events/${eventId}/payout-summary/`);
+}
+
 export function getMyEvents(): Promise<ApiEventList> {
   return get<ApiEventList>("/events/?mine=true");
 }

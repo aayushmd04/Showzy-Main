@@ -648,3 +648,45 @@ class MockFetchPaymentTests(PaymentsTestCase):
     def test_fetch_unknown_payment_raises(self):
         with self.assertRaises(GatewayError):
             get_gateway().fetch_payment("pay_doesnotexist1")
+
+
+class PayoutSummaryTests(PaymentsTestCase):
+    def url(self):
+        return reverse("event-payout-summary", args=[self.event.id])
+
+    def test_owed_is_collected_less_fee_and_refunds(self):
+        order = self.make_order(total=Decimal("1038.00"), qty=2)
+        order.platform_fee = Decimal("38.00")
+        order.subtotal = Decimal("1000.00")
+        order.save()
+        init, _ = self.pay_successfully(order)
+        s = self.client.get(self.url()).data
+        self.assertEqual(s["collected"], "1038.00")
+        self.assertEqual(s["naada_fee"], "38.00")
+        self.assertEqual(s["owed_to_organiser"], "1000.00")
+        self.assertEqual(s["balance"], "1000.00")
+
+    def test_recorded_payouts_reduce_the_balance(self):
+        from django.utils import timezone
+        from .models import OrganizerPayout
+        self.pay_successfully(self.make_order(total=Decimal("1000.00")))
+        OrganizerPayout.objects.create(event=self.event, amount=Decimal("400.00"),
+                                       reference="UTR123", paid_at=timezone.now())
+        s = self.client.get(self.url()).data
+        self.assertEqual(s["paid_out"], "400.00")
+        self.assertEqual(s["balance"], "600.00")
+
+    def test_fully_refunded_order_owes_nothing_and_keeps_no_fee(self):
+        order = self.make_order(total=Decimal("519.00"), qty=1)
+        order.platform_fee = Decimal("19.00")
+        order.save()
+        init, _ = self.pay_successfully(order)
+        self.client.post(reverse("payments-refund"),
+                         {"payment_id": init["payment_id"], "reason": "user_request"}, format="json")
+        s = self.client.get(self.url()).data
+        self.assertEqual(s["naada_fee"], "0.00")
+        self.assertEqual(s["owed_to_organiser"], "0.00")
+
+    def test_only_the_organiser_can_see_it(self):
+        self.client.force_authenticate(user=self.other)
+        self.assertEqual(self.client.get(self.url()).status_code, 403)

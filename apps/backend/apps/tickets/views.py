@@ -616,3 +616,14 @@ def order_invoice(request, pk):
         # True only once a rate is configured; until then this is a receipt.
         "is_tax_invoice": taxes > 0,
     })
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def event_payout_summary_view(request, event_id):
+    """Ticket money collected for an event and what Naada still owes its organiser."""
+    from apps.payments.payouts import event_payout_summary
+    event = generics.get_object_or_404(Event, pk=event_id)
+    if not works_the_door(request.user, event):
+        raise exceptions.PermissionDenied("Only this event's organiser can see its payout summary.")
+    return Response({k: str(v) for k, v in event_payout_summary(event).items()})

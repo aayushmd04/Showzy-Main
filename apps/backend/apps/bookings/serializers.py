@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 from .models import (
@@ -7,8 +8,12 @@ from .models import (
     BookingOrder, Transfer, LedgerEntry, Dispute, BookingAuditLog,
 )
 
-PLATFORM_FEE_PCT = Decimal("0.10")  # 10%
-TDS_PCT = Decimal("0.01")           # 1% TDS (194-O — confirm with CA)
+TDS_PCT = Decimal("0.01")  # 1% TDS (194-O — confirm with CA)
+
+
+def platform_fee_pct() -> Decimal:
+    """Naada's fee on a booking, read from settings (PLATFORM_FEE_PCT, default 5%)."""
+    return Decimal(str(settings.PLATFORM_FEE_PCT))
 
 
 class OrganizerSerializer(serializers.ModelSerializer):
@@ -114,12 +119,14 @@ class BookingOrderSerializer(serializers.ModelSerializer):
     artist_name = serializers.CharField(source="artist.stage_name", read_only=True)
     event_title = serializers.CharField(source="event.title", read_only=True, allow_null=True)
     dispute_raised = serializers.SerializerMethodField()
+    agreed_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = BookingOrder
         fields = [
             "id", "organizer", "organizer_name", "artist", "artist_name",
             "event", "event_title", "status",
+            "agreed_amount",
             "gross_amount", "platform_fee", "tds_amount", "artist_payout", "currency",
             "performance_date", "performance_duration_minutes",
             "razorpay_order_id", "funded_at", "auto_release_at",
@@ -130,6 +137,10 @@ class BookingOrderSerializer(serializers.ModelSerializer):
 
     def get_dispute_raised(self, obj):
         return hasattr(obj, "dispute")
+
+    def get_agreed_amount(self, obj):
+        """What the venue and artist agreed: what the venue pays, less Naada's fee."""
+        return str(obj.gross_amount - obj.platform_fee)
 
 
 class LedgerEntrySerializer(serializers.ModelSerializer):
@@ -197,9 +208,20 @@ class MakeOfferSerializer(serializers.Serializer):
     counter_of = serializers.UUIDField(required=False, allow_null=True)
 
 
-def compute_fees(gross: Decimal):
-    """Return (platform_fee, tds, artist_payout) — fee math must always sum to gross."""
-    platform_fee = (gross * PLATFORM_FEE_PCT).quantize(Decimal("0.01"))
-    tds = (gross * TDS_PCT).quantize(Decimal("0.01"))
-    artist_payout = gross - platform_fee - tds
-    return platform_fee, tds, artist_payout
+def compute_fees(agreed: Decimal):
+    """Split a booking into (platform_fee, tds, artist_payout, gross).
+
+    ``agreed`` is the fee the venue and artist settled on. Naada's fee is added
+    on top and paid by the venue; TDS is deducted from the artist's side. So:
+
+        gross         = agreed + platform_fee      (what the venue pays)
+        artist_payout = agreed - tds               (what the artist receives)
+
+    and the ledger invariant still holds exactly:
+        artist_payout + platform_fee + tds = gross
+    """
+    platform_fee = (agreed * platform_fee_pct()).quantize(Decimal("0.01"))
+    tds = (agreed * TDS_PCT).quantize(Decimal("0.01"))
+    artist_payout = agreed - tds
+    gross = agreed + platform_fee
+    return platform_fee, tds, artist_payout, gross

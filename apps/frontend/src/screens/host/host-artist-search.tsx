@@ -104,15 +104,15 @@ export function HostArtistSearchScreen() {
           </p>
 
           {results.length > 0 ? (
-            <ul className="mt-3 divide-y divide-line border border-line bg-surface">
+            <ul className="mt-3 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
               {results.map((artist) => (
                 <li
                   key={artist.id}
-                  className="flex flex-wrap items-center gap-4 px-4 py-4 transition-colors hover:bg-surface-2"
+                  className="flex flex-wrap items-center gap-4 px-4 py-4 transition-colors hover:bg-paper/5"
                 >
                   <span
                     aria-hidden="true"
-                    className="grid size-11 shrink-0 place-items-center border border-line bg-surface-2 font-display text-[16px] font-bold"
+                    className="grid size-11 shrink-0 place-items-center glass-soft rounded-xl-2 font-display text-[16px] font-bold"
                   >
                     {artist.name.charAt(0)}
                   </span>

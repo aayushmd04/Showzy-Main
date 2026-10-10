@@ -315,8 +315,9 @@ def accept_offer(request, offer_id):
     if offer.proposed_by == request.user:
         return Response({"detail": "You cannot accept your own offer."}, status=400)
 
-    gross = offer.fee_amount
-    platform_fee, tds, artist_payout = compute_fees(gross)
+    # The offer's fee is what was agreed. Naada's fee is added on top and paid
+    # by the venue, so gross (the venue's payment) is larger than the offer.
+    platform_fee, tds, artist_payout, gross = compute_fees(offer.fee_amount)
 
     with transaction.atomic():
         # Double-booking guard

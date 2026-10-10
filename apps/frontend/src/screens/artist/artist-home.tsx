@@ -4,6 +4,8 @@ import { StatTile } from "@/components/naada/stat-tile";
 import { Pill, statusLabel } from "@/components/ui/pill";
 import { useStore } from "@/store/app-store";
 import { dateListing, money } from "@/lib/format";
+import { PLATFORM_FEE_RATE, TDS_RATE } from "@/data/fixtures";
+import { bookingEventTitle } from "@/lib/adapters";
 
 /** Section 7.16 — Artist console home. */
 export function ArtistHomeScreen() {
@@ -34,16 +36,16 @@ export function ArtistHomeScreen() {
         <StatTile value={money(paid)} label="Paid this month" tone="live" />
       </div>
 
-      <p className="t-small mt-6 flex items-center justify-between gap-3 border border-line bg-surface p-4 text-muted">
+      <p className="t-small mt-6 flex items-center justify-between gap-3 glass-soft rounded-xl p-4 text-muted">
         <span>Hosts with an open slot and a budget post it to the gig board.</span>
         <Link to="/artist/gig-board" className="btn btn-secondary btn-sm shrink-0">
           Browse gig board
         </Link>
       </p>
 
-      <h2 className="t-micro mt-10">Upcoming gigs</h2>
+      <h2 className="t-section mt-10">Upcoming gigs</h2>
       {confirmed.length > 0 ? (
-        <ul className="mt-3 divide-y divide-line border border-line bg-surface">
+        <ul className="mt-3 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
           {confirmed.map((b) => {
             const event = eventById(b.eventId);
             const venue = event ? venueOf(event) : undefined;
@@ -51,16 +53,16 @@ export function ArtistHomeScreen() {
               <li key={b.id}>
                 <Link
                   to={`/bookings/${b.id}`}
-                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4 transition-colors hover:bg-surface-2"
+                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4 transition-colors hover:bg-paper/5"
                 >
                   <span className="min-w-0 flex-1 basis-[200px]">
-                    <span className="t-mono block text-[11px] uppercase tracking-[0.08em] text-muted">
+                    <span className="block text-[12px] font-medium tabular-nums tracking-[0.04em] text-muted">
                       {event ? dateListing(event.date) : ""}
                     </span>
-                    <span className="block truncate text-[15px]">{event?.name}</span>
+                    <span className="block truncate text-[15px] font-semibold">{event?.name ?? bookingEventTitle(b) ?? "Confirmed gig"}</span>
                     <span className="t-small block truncate text-muted">{venue?.name}</span>
                   </span>
-                  <span className="t-mono shrink-0 text-[15px]">{money(b.agreedFee ?? 0)}</span>
+                  <span className="tabular-nums font-semibold shrink-0 text-[15px]">{money(b.agreedFee ?? 0)}</span>
                   <Pill>{statusLabel(b.state)}</Pill>
                 </Link>
               </li>
@@ -73,8 +75,9 @@ export function ArtistHomeScreen() {
         </p>
       )}
 
-      <p className="t-small mt-6 border border-line bg-surface p-4 text-muted">
-        Naada takes no fee from artists. The venue pays our fee.
+      <p className="t-small mt-6 glass-soft rounded-xl p-4 text-muted">
+        You are not charged a Naada fee: the venue pays {Math.round(PLATFORM_FEE_RATE * 100)}% on top of your
+        agreed fee. You receive your fee less {Math.round(TDS_RATE * 100)}% TDS.
       </p>
     </ConsoleShell>
   );

@@ -21,7 +21,7 @@ export function ArtistGigsScreen() {
       <h1 className="t-h1">Gigs</h1>
 
       {gigs.length > 0 ? (
-        <ul className="mt-6 divide-y divide-line border border-line bg-surface">
+        <ul className="mt-6 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
           {gigs.map((b) => {
             const event = eventById(b.eventId);
             const venue = event ? venueOf(event) : undefined;
@@ -29,16 +29,16 @@ export function ArtistGigsScreen() {
               <li key={b.id}>
                 <Link
                   to={`/bookings/${b.id}`}
-                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4 transition-colors hover:bg-surface-2"
+                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4 transition-colors hover:bg-paper/5"
                 >
                   <span className="min-w-0 flex-1 basis-[200px]">
-                    <span className="t-mono block text-[11px] uppercase tracking-[0.08em] text-muted">
+                    <span className="block text-[12px] font-medium tabular-nums tracking-[0.04em] text-muted">
                       {event ? dateListing(event.date) : ""}
                     </span>
                     <span className="block truncate text-[15px]">{event?.name}</span>
                     <span className="t-small block truncate text-muted">{venue?.name}</span>
                   </span>
-                  <span className="t-mono shrink-0 text-[15px]">{money(b.agreedFee ?? 0)}</span>
+                  <span className="tabular-nums font-semibold shrink-0 text-[15px]">{money(b.agreedFee ?? 0)}</span>
                   <Pill>{statusLabel(b.state)}</Pill>
                 </Link>
               </li>

@@ -54,7 +54,7 @@ export function AdminMessagesScreen() {
       {loading ? (
         <p className="t-small mt-6 text-muted">Loading…</p>
       ) : flagged.length > 0 ? (
-        <ul className="mt-6 divide-y divide-line border border-line bg-surface">
+        <ul className="mt-6 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
           {flagged.map((m) => (
             <li key={m.id} className="flex flex-wrap items-start gap-4 px-4 py-4">
               <ShieldAlert className="mt-1 size-5 shrink-0 text-brass" aria-hidden="true" />

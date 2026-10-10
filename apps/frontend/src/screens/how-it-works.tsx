@@ -12,13 +12,13 @@ const CARD_TOKENS = {
 const LISTENER_STEPS = [
   { icon: "🔍", title: "Browse tonight's shows",    body: "Find live events near you — open mics, concerts, theatre, and classical nights in Mysuru and Bengaluru." },
   { icon: "🎟",  title: "Book in seconds",           body: "Select a tier, log in with your email, and your ticket is confirmed instantly. No app download needed." },
-  { icon: "📱",  title: "Show your QR at the door",  body: "Your digital ticket lives in My Tickets. Show the QR and walk in. Zero booking fees." },
+  { icon: "📱",  title: "Show your QR at the door",  body: "Your digital ticket lives in My Tickets. Show the QR and walk in." },
 ];
 
 const ARTIST_STEPS = [
   { icon: "✍️",  title: "Build your profile",        body: "Add your genres, fee range, and bio. Hosts search our artist directory to find their lineup." },
   { icon: "💬",  title: "Negotiate in-app",           body: "Receive offers, counter-propose, and agree on a fee — all in the Naada message thread." },
-  { icon: "🔒",  title: "Escrow keeps you safe",      body: "Once accepted, the host funds escrow. You get paid within 24 hours of the gig — no chasing invoices." },
+  { icon: "🔒",  title: "Escrow keeps you safe",      body: "Once accepted, the host funds escrow. You are paid 72 hours after the gig unless a dispute is raised — no chasing invoices." },
 ];
 
 const HOST_STEPS = [
@@ -56,7 +56,7 @@ export function HowItWorksScreen() {
           </h1>
           <p style={{ fontSize: 17, color: tok.muted, marginTop: 16, maxWidth: 560, margin: "16px auto 0", lineHeight: 1.6 }}>
             A three-sided platform connecting music lovers, independent artists, and venue hosts.
-            Zero booking fees for listeners. Escrow-backed payments for artists.
+            Clear fees, shown before you pay. Escrow-backed payments for artists.
           </p>
         </div>
 
@@ -124,8 +124,9 @@ export function HowItWorksScreen() {
         <section>
           <h2 style={{ fontSize: 24, fontWeight: 800, color: tok.paper, marginBottom: 24 }}>Common questions</h2>
           {[
-            ["Is it really free for ticket buyers?", "Yes. Naada charges zero booking fees. The price you see is the price you pay."],
-            ["How does the escrow work?", "When a host and artist agree on a fee, the host locks the amount in escrow before the show. After the gig is marked complete, the funds are released to the artist automatically within 24 hours."],
+            ["Is it free for ticket buyers?", "Browsing is free. Paid tickets carry a small booking fee of ₹19 per ticket, shown before you pay. Free events have no fee."],
+            ["What does Naada charge for artist bookings?", "Artists are not charged. The venue pays Naada 5% on top of the agreed fee. The artist receives the agreed fee less 1% TDS, a statutory tax deduction."],
+            ["How does the escrow work?", "When a host and artist agree on a fee, the host locks the amount in escrow before the show. After the gig is marked complete, the funds are released to the artist automatically 72 hours after, unless a dispute is raised."],
             ["What if the event is cancelled?", "If the host cancels, the escrowed funds are refunded in full. Ticket buyers also receive automatic refunds."],
             ["What cities are you in?", "We're live in Mysuru and Bengaluru. More cities coming soon."],
             ["Can I sign up as both an artist and a host?", "Currently each account has one role. If you need both, reach out to hello@naada.live."],

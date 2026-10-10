@@ -186,12 +186,12 @@ export function AdminVerificationScreen() {
       {loading ? (
         <p className="t-small mt-6 text-muted">Loading…</p>
       ) : rows.length > 0 ? (
-        <ul className="mt-6 divide-y divide-line border border-line bg-surface">
+        <ul className="mt-6 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
           {rows.map((row) => (
             <li key={row.key} className="flex flex-wrap items-center gap-4 px-4 py-4">
               <span
                 aria-hidden="true"
-                className="grid size-11 shrink-0 place-items-center border border-line bg-surface-2 font-display text-[16px] font-bold"
+                className="grid size-11 shrink-0 place-items-center glass-soft rounded-xl-2 font-display text-[16px] font-bold"
               >
                 {row.name.charAt(0)}
               </span>

@@ -3,7 +3,7 @@
  * Keeps the store shape stable so screens don't need changes.
  */
 
-import { API_BASE } from "./api";
+import { API_BASE, orderAgreed } from "./api";
 import type {
   ApiEvent,
   ApiArtist,
@@ -187,26 +187,33 @@ export function adaptOrder(
 ): Booking {
   return {
     id: order.id,
-    eventId: conversation?.event ?? order.offer ?? "",
+    // The order names its own event. This used to fall back to `order.offer`,
+    // which the server does not send, so every booking lost its event and the
+    // artist's screens showed "Event offer" instead of the night.
+    eventId: conversation?.event ?? order.event ?? order.offer ?? "",
     artistId: order.artist,
-    hostId: order.organizer.id,
+    hostId: typeof order.organizer === "string" ? order.organizer : (order.organizer?.id ?? ""),
     state: ORDER_STATUS_MAP[order.status] ?? "accepted",
-    agreedFee: parseFloat(order.gross_amount),
+    // The fee both sides agreed. `gross_amount` is what the venue pays, which
+    // now includes Naada's fee on top.
+    agreedFee: orderAgreed(order),
     message: "",
     quotes: [
       {
         by: "host" as const,
-        amount: parseFloat(order.gross_amount),
+        amount: orderAgreed(order),
         at: order.created_at,
         accepted: true,
       },
     ],
     _orderId: order.id,
+    _eventTitle: order.event_title ?? undefined,
     _platformFee: parseFloat(order.platform_fee),
     _artistPayout: parseFloat(order.artist_payout),
     _performanceDate: order.performance_date,
   } as Booking & {
     _orderId: string;
+    _eventTitle?: string;
     _platformFee: number;
     _artistPayout: number;
     _performanceDate: string;
@@ -238,4 +245,9 @@ export function adaptOfferToQuote(o: ApiOffer): Quote {
     at: o.created_at,
     accepted: o.status === "accepted",
   };
+}
+
+/** The title the server sent with a booking, for when the event itself is not in the catalogue. */
+export function bookingEventTitle(b: Booking): string | undefined {
+  return (b as Booking & { _eventTitle?: string })._eventTitle;
 }

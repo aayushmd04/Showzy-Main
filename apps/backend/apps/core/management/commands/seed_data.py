@@ -483,10 +483,12 @@ class Command(BaseCommand):
                 organizer=org,
                 artist=artist,
                 event=event,
-                gross_amount=Decimal("15000"),
-                platform_fee=Decimal("1500"),
+                # ₹15,000 agreed; Naada's 5% (₹750) is added for the venue; the
+                # artist receives ₹15,000 less 1% TDS.
+                gross_amount=Decimal("15750"),
+                platform_fee=Decimal("750"),
                 tds_amount=Decimal("150"),
-                artist_payout=Decimal("13350"),
+                artist_payout=Decimal("14850"),
                 performance_date=perf_date,
                 performance_duration_minutes=90,
                 status=BookingOrder.Status.FUNDED,

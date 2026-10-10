@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useStore } from "@/store/app-store";
-import { PLATFORM_FEE_RATE } from "@/data/fixtures";
+import { PLATFORM_FEE_RATE, TDS_RATE } from "@/data/fixtures";
 import { dateCompact, money } from "@/lib/format";
 
 /**
@@ -50,6 +50,7 @@ export function BriefComposerProvider({ children }: { children: ReactNode }) {
   const artist = artists.find((a) => a.id === artistId);
   const offer = Number(amount.replace(/[^\d]/g, "")) || 0;
   const platformFee = Math.round(offer * PLATFORM_FEE_RATE);
+  const tds = Math.round(offer * TDS_RATE);
   const firstName = artist?.name.split(" ")[0] ?? "the artist";
 
   const submit = (e: React.FormEvent) => {
@@ -117,16 +118,16 @@ export function BriefComposerProvider({ children }: { children: ReactNode }) {
           </div>
 
           <dl className="mt-5 border border-line bg-ink p-4">
-            <Row label={`Platform fee (${Math.round(PLATFORM_FEE_RATE * 100)}%)`} value={money(platformFee)} />
+            <Row label={`Naada fee (${Math.round(PLATFORM_FEE_RATE * 100)}%, added for you)`} value={money(platformFee)} />
             <Row label="You pay" value={money(offer + platformFee)} strong />
-            <Row label={`${firstName} receives`} value={money(offer)} tone="live" />
+            <Row label={`${firstName} receives, after ${Math.round(TDS_RATE * 100)}% TDS`} value={money(offer - tds)} tone="live" />
           </dl>
 
           <Button type="submit" variant="primary" full className="mt-5" disabled={offer <= 0}>
             Send brief
           </Button>
           <p className="t-small mt-3 text-center text-muted">
-            Naada takes no fee from artists.
+            You pay Naada's {Math.round(PLATFORM_FEE_RATE * 100)}% fee on top; the artist is not charged.
           </p>
         </form>
       </Modal>

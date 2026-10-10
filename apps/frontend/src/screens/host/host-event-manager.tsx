@@ -182,10 +182,10 @@ export function HostEventManagerScreen() {
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_240px]">
         <div className="min-w-0">
-          <h2 className="t-micro">Ticket tiers</h2>
+          <h2 className="t-section">Ticket tiers</h2>
           {tiers.length > 0 ? (
             <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[420px] border border-line bg-surface text-left">
+              <table className="w-full min-w-[420px] glass-soft rounded-xl text-left">
                 <thead>
                   <tr className="border-b border-line">
                     <th scope="col" className="t-micro px-4 py-3">Tier</th>
@@ -223,7 +223,7 @@ export function HostEventManagerScreen() {
         </div>
 
         <div>
-          <h2 className="t-micro">Poster</h2>
+          <h2 className="t-section">Poster</h2>
           <div className="mt-3">
             <Poster event={adaptEvent(event)} />
           </div>
@@ -329,7 +329,7 @@ function ApplicationQueue({ eventId }: { eventId: string }) {
 
   return (
     <section className="mt-10">
-      <h2 className="t-micro">
+      <h2 className="t-section">
         Artist applications{open.length > 0 && ` (${open.length} to review)`}
       </h2>
 
@@ -349,7 +349,7 @@ function ApplicationQueue({ eventId }: { eventId: string }) {
           {open.map((app) => (
             <li
               key={app.id}
-              className="flex flex-wrap items-start gap-3 border border-line bg-surface p-3"
+              className="flex flex-wrap items-start gap-3 glass-soft rounded-xl p-3"
             >
               <div className="min-w-0 flex-1 basis-[220px]">
                 <p className="text-[15px]">{app.artist_name ?? "Artist"}</p>
@@ -390,7 +390,7 @@ function ApplicationQueue({ eventId }: { eventId: string }) {
       )}
 
       {decided.length > 0 && (
-        <ul className="mt-3 divide-y divide-line border border-line bg-surface">
+        <ul className="mt-3 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
           {decided.map((app) => (
             <li key={app.id} className="flex items-center justify-between gap-3 px-4 py-3">
               <span className="min-w-0 truncate text-[15px] text-muted">

@@ -549,7 +549,7 @@ export function HostEventEditorScreen() {
         {/* Right — poster preview and tiers */}
         <div className="space-y-8">
           <section>
-            <h2 className="t-micro">Poster</h2>
+            <h2 className="t-section">Poster</h2>
             <div className="mt-3">
               <Poster event={previewEvent} />
             </div>
@@ -559,7 +559,7 @@ export function HostEventEditorScreen() {
           </section>
 
           <section>
-            <h2 className="t-micro">Ticket tiers</h2>
+            <h2 className="t-section">Ticket tiers</h2>
             {isCreate ? (
               <p className="t-small mt-3 border border-dashed border-line px-4 py-5 text-muted">
                 Tiers are set up once the draft exists. Create the event first — you'll land on its
@@ -568,7 +568,7 @@ export function HostEventEditorScreen() {
             ) : tiers.length > 0 ? (
               <ul className="mt-3 space-y-2">
                 {tiers.map((t) => (
-                  <li key={t.id} className="border border-line bg-surface p-3">
+                  <li key={t.id} className="glass-soft rounded-xl p-3">
                     <p className="truncate text-[15px]">{t.name}</p>
                     <p className="t-mono mt-1 text-[13px] text-muted">
                       {Number(t.price) === 0 ? "FREE" : money(Number(t.price))} ·{" "}

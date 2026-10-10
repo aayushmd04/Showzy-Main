@@ -13,7 +13,7 @@ export function EmptyState({
   onAction: () => void;
 }) {
   return (
-    <div className="flex flex-col items-center border border-dashed border-line px-6 py-16 text-center">
+    <div className="glass-soft flex flex-col items-center rounded-xl border-dashed px-6 py-16 text-center">
       <h3 className="t-h2 max-w-[26ch]">{headline}</h3>
       <p className="t-body mt-2 max-w-[42ch] text-muted">{body}</p>
       <Button variant="primary" className="mt-6" onClick={onAction}>

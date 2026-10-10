@@ -82,10 +82,10 @@ export function AdminDisputesScreen() {
         fires on a disputed booking.
       </p>
 
-      <h2 className="t-micro mt-8">Open</h2>
+      <h2 className="t-section mt-8">Open</h2>
       {loading && <p className="t-small mt-3 text-muted">Loading…</p>}
       {!loading && open.length > 0 ? (
-        <ul className="mt-3 divide-y divide-line border border-line bg-surface">
+        <ul className="mt-3 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
           {open.map((d) => (
             <li key={d.id} className="flex flex-wrap items-start gap-4 px-4 py-4">
               <div className="min-w-0 flex-1 basis-[240px]">
@@ -113,8 +113,8 @@ export function AdminDisputesScreen() {
 
       {resolved.length > 0 && (
         <>
-          <h2 className="t-micro mt-10">Resolved</h2>
-          <ul className="mt-3 divide-y divide-line border border-line bg-surface">
+          <h2 className="t-section mt-10">Resolved</h2>
+          <ul className="mt-3 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
             {resolved.map((d) => (
               <li key={d.id} className="flex flex-wrap items-center gap-4 px-4 py-3">
                 <div className="min-w-0 flex-1 basis-[220px]">

@@ -39,7 +39,7 @@ export function HostEventsScreen() {
             <li key={event.id}>
               <Link
                 to={`/host/events/${event.id}`}
-                className="group flex h-full flex-col border border-line bg-surface transition-colors hover:border-[#3a3a45]"
+                className="group flex h-full flex-col glass-soft rounded-xl transition-colors hover:border-[#3a3a45]"
               >
                 <Poster event={event} compact className="border-0 border-b" />
                 <div className="flex flex-1 flex-col p-4">

@@ -253,6 +253,13 @@ RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET", default="placeholder_secret"
 # Set to 0 to sell at face value.
 CONVENIENCE_FEE = config("CONVENIENCE_FEE", default=19, cast=int)
 
+# ── Booking economics ────────────────────────────────────────────────────────
+# Naada's fee on an artist booking, as a fraction of the agreed fee (0.05 = 5%).
+# The venue pays it ON TOP of the agreed fee, so the artist is never charged:
+# they receive the agreed fee less TDS. The frontend shows the same number
+# (PLATFORM_FEE_RATE in src/data/fixtures.ts); change both together.
+PLATFORM_FEE_PCT = config("PLATFORM_FEE_PCT", default="0.05")
+
 # ── Operator details shown on the public policy pages ────────────────────────
 # Blank by default. Until these are filled in, the policy pages say so plainly,
 # because a payment gateway rejects an application whose policies still read

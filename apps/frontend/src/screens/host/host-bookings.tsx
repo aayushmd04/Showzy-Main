@@ -19,7 +19,7 @@ export function HostBookingsScreen() {
       </p>
 
       {rows.length > 0 ? (
-        <ul className="mt-6 divide-y divide-line border border-line bg-surface">
+        <ul className="mt-6 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
           {rows.map((b) => {
             const event = eventById(b.eventId);
             const artist = artistById(b.artistId);
@@ -28,7 +28,7 @@ export function HostBookingsScreen() {
               <li key={b.id}>
                 <Link
                   to={`/bookings/${b.id}`}
-                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4 transition-colors hover:bg-surface-2"
+                  className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-4 transition-colors hover:bg-paper/5"
                 >
                   <span className="min-w-0 flex-1 basis-[200px]">
                     <span className="block truncate text-[15px]">{artist?.name}</span>

@@ -128,7 +128,7 @@ export function HostVenueBusinessScreen() {
           </p>
         )}
         {loadState === "no-venue" && (
-          <div className="mt-6 max-w-[46ch] border border-line bg-surface p-5">
+          <div className="mt-6 max-w-[46ch] glass-soft rounded-xl p-5">
             <h2 className="t-h3">No venue yet</h2>
             <p className="t-body mt-2 text-muted">
               GST, PAN and payout details live on your venue record, and there isn't one on this
@@ -167,7 +167,7 @@ export function HostVenueBusinessScreen() {
         </div>
       </div>
 
-      <div className="mt-6 flex items-center justify-between gap-3 border border-line bg-surface px-4 py-3">
+      <div className="mt-6 flex items-center justify-between gap-3 glass-soft rounded-xl px-4 py-3">
         <div>
           <p className="t-small text-muted">KYC status</p>
           {venue.kyc_status === "rejected" && venue.kyc_rejection_reason && (

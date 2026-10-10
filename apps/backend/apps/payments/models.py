@@ -121,3 +121,33 @@ class PaymentWebhook(models.Model):
                 name="uniq_webhook_event_per_gateway",
             ),
         ]
+
+
+class OrganizerPayout(TimeStampedModel):
+    """A manual transfer of ticket money from Naada to an event's organiser.
+
+    While every ticket payment lands in Naada's own gateway account, what each
+    organiser is owed has to be tracked and paid out by hand. One row per
+    transfer made (bank/UPI reference included), so the summary can show what
+    has been paid and what is still owed.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey("events.Event", on_delete=models.PROTECT,
+                              related_name="organizer_payouts")
+    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    reference = models.CharField(max_length=120, help_text="UTR / bank or UPI reference")
+    paid_at = models.DateTimeField()
+    recorded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                    null=True, blank=True, related_name="+")
+    note = models.CharField(max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["-paid_at"]
+        constraints = [
+            models.CheckConstraint(condition=models.Q(amount__gt=0),
+                                   name="organizer_payout_amount_positive"),
+        ]
+
+    def __str__(self):
+        return f"₹{self.amount} to {self.event.organizer_id} for {self.event_id}"

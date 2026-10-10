@@ -1,3 +1,4 @@
+import { KANNADA_ENABLED } from "@/lib/features";
 import { Moon, Sun } from "lucide-react";
 
 import { useStore } from "@/store/app-store";
@@ -29,6 +30,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
 export function LanguageToggle({ className = "" }: { className?: string }) {
   const { lang, setLang } = useStore();
   const kn = lang === "kn";
+  if (!KANNADA_ENABLED) return null;
   return (
     <button
       type="button"

@@ -55,9 +55,8 @@ export function usePageMeta({ title, description, image, type = "website" }: Pag
     const fullTitle = title ? `${title} · ${SITE}` : `${SITE} — live music in Mysuru & Bengaluru`;
     const desc = description?.trim() || DEFAULT_DESCRIPTION;
     const url = window.location.href;
-    const absoluteImage = image
-      ? new URL(image, window.location.origin).href
-      : undefined;
+    // No page image means the branded card, never the previous page's poster.
+    const absoluteImage = new URL(image || "/og-image.png", window.location.origin).href;
 
     document.title = fullTitle;
     setMeta("description", desc);

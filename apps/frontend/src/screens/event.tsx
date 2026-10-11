@@ -396,7 +396,7 @@ export function EventScreen() {
 
       {/* Mobile fixed bar */}
       {!soldOut && tier && (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-line px-4 py-3 backdrop-blur lg:hidden" style={{ background: "rgba(244,241,235,0.97)" }}>
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--glass-border-soft)] bg-[var(--glass-bar)] px-4 py-3 backdrop-blur-xl lg:hidden">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="t-small truncate text-muted">{tier.name}</p>

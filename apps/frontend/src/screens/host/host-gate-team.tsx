@@ -184,6 +184,10 @@ export function HostGateTeamScreen() {
                 {busy ? "Sending…" : "Send invite"}
               </Button>
             </form>
+            <p className="t-micro mt-3 text-muted">
+              Only invite people who know you're asking. Naada uses the email or number you enter just to
+              match the invitation to their account, and it is deleted if they decline or you cancel.
+            </p>
             {formError && <p className="t-small mt-2 text-fault" role="alert">{formError}</p>}
           </section>
 

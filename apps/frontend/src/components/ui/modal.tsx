@@ -88,7 +88,7 @@ export function Modal({ open, onClose, title, children, className, hideClose }: 
   return createPortal(
     <AnimatePresence>
       {open && (
-        <div className="fixed inset-0 z-[90] flex items-end justify-center overflow-y-auto p-0 md:items-center md:p-6">
+        <div className="fixed inset-0 z-[90] flex items-end justify-center overflow-y-auto p-0 md:items-start md:p-6">
           <motion.div
             className="fixed inset-0 bg-black/72 backdrop-blur-[2px]"
             initial={{ opacity: 0 }}
@@ -109,7 +109,7 @@ export function Modal({ open, onClose, title, children, className, hideClose }: 
             exit={reduce ? { opacity: 0 } : { opacity: 0, y: 12, scale: 0.99 }}
             transition={{ duration: reduce ? 0 : 0.2, ease: [0.16, 1, 0.3, 1] }}
             className={cn(
-              "relative z-10 w-full max-w-[460px] border border-line bg-surface",
+              "relative z-10 w-full max-w-[460px] border border-line bg-surface md:my-auto",
               "rounded-t-[4px] md:rounded-[4px]",
               "shadow-[0_24px_60px_-12px_rgba(0,0,0,0.75)]",
               className,

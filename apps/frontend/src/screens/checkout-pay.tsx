@@ -122,8 +122,15 @@ export function CheckoutPayScreen() {
     ? Number(placed.total_amount)
     : Math.max(0, ticketTotal - discount + estimatedFee);
 
+  // Set once payment has succeeded and we're on our way to the ticket. Clearing
+  // the checkout draft empties `event`, and the "nothing to pay for → go home"
+  // guard below would otherwise race the redirect to the ticket (React Router 7
+  // runs navigations in a transition, so the later one doesn't reliably win).
+  const leaving = useRef(false);
+
   const finish = useCallback(
     async (eventId: string) => {
+      leaving.current = true;
       await hydrateFromApi().catch(() => {});
       clearCheckout();
       // The server issues the ticket number; find the newest one for this event.
@@ -324,7 +331,7 @@ export function CheckoutPayScreen() {
     }
   };
 
-  if (!event || !tier) return <Navigate to="/" replace />;
+  if (!event || !tier) return leaving.current ? null : <Navigate to="/" replace />;
 
   const busy = phase === "reserving" || phase === "verifying";
   // A zone with named seats needs exactly one seat per ticket before paying —
@@ -491,6 +498,11 @@ export function CheckoutPayScreen() {
             <p className="t-small mt-4 flex items-center justify-center gap-1.5 text-muted">
               <Lock className="size-3.5" aria-hidden="true" />
               Payment is processed securely. Naada never sees your card details.
+            </p>
+            <p className="t-micro mt-2 text-center text-muted">
+              By paying you agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="link-underline text-paper">Terms</a> and{" "}
+              <a href="/refunds" target="_blank" rel="noopener noreferrer" className="link-underline text-paper">Refund policy</a>. The organiser
+              sees your name and ticket details so they can admit you.
             </p>
           </section>
         )}

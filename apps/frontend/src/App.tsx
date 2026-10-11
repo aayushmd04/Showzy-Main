@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/naada/error-boundary";
 import { NearbyLoader } from "@/components/naada/nearby-loader";
 import { RequireRole } from "@/components/naada/require-role";
 import { Toaster } from "@/components/ui/toaster";
+import { CookieConsent } from "@/components/naada/cookie-consent";
 import { useStore } from "@/store/app-store";
 import { getMe, tokens, AUTH_EXPIRED_EVENT } from "@/lib/api";
 
@@ -230,6 +231,7 @@ export default function App() {
                     <Route path="/terms" element={<LegalScreen doc="terms" />} />
                     <Route path="/privacy" element={<LegalScreen doc="privacy" />} />
                     <Route path="/refunds" element={<LegalScreen doc="refunds" />} />
+                    <Route path="/cookies" element={<LegalScreen doc="cookies" />} />
                     <Route path="/contact" element={<LegalScreen doc="contact" />} />
 
                     {/* Host console */}
@@ -286,6 +288,7 @@ export default function App() {
                 </Suspense>
 
                 <NearbyLoader />
+                <CookieConsent />
                 <Toaster />
               </BriefComposerProvider>
             </AuthSheetProvider>

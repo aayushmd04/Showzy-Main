@@ -1,11 +1,14 @@
 import { KANNADA_ENABLED } from "@/lib/features";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Download, LogOut, Trash2 } from "lucide-react";
+import { Download, LogOut, ShieldCheck, Trash2 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { PublicShell } from "@/components/naada/public-shell";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/input";
-import { Modal } from "@/components/ui/modal";
+import { DeleteAccountFlow } from "@/components/naada/delete-account-flow";
+import { openCookieSettings, useConsent } from "@/lib/consent";
+import { LEGAL_VERSION } from "@/lib/legal";
 import { useStore } from "@/store/app-store";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import * as api from "@/lib/api";
@@ -31,9 +34,9 @@ export function SettingsScreen() {
   const [savingProfile, setSavingProfile] = useState(false);
 
   const [prefs, setPrefs] = useState<api.NotificationPreferences | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleteWord, setDeleteWord] = useState("");
-  const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [consents, setConsents] = useState<Partial<Record<api.ConsentKind, api.ConsentPosition>>>({});
+  const cookieChoice = useConsent();
 
   const signedIn = role !== "out" && Boolean(currentUser);
 
@@ -48,6 +51,7 @@ export function SettingsScreen() {
       })
       .catch(() => {});
     api.getNotificationPreferences().then(setPrefs).catch(() => {});
+    api.getConsents().then(setConsents).catch(() => {});
   }, [signedIn]);
 
   const saveProfile = async (e: React.FormEvent) => {
@@ -79,6 +83,12 @@ export function SettingsScreen() {
     setPrefs(next); // optimistic — a toggle that lags feels broken
     try {
       await api.updateNotificationPreferences({ [key]: next[key] });
+      // Marketing email is the one that rests on consent, so log each choice.
+      if (key === "marketing_email") {
+        void api.recordConsent("marketing_email", LEGAL_VERSION, "settings", Boolean(next[key])).then(() =>
+          api.getConsents().then(setConsents).catch(() => {}),
+        );
+      }
     } catch {
       setPrefs(prefs);
       toast("Could not change that setting", "fault");
@@ -101,18 +111,11 @@ export function SettingsScreen() {
     }
   };
 
-  const doDelete = async () => {
-    setDeleting(true);
-    try {
-      await api.deleteMyAccount();
-      setCurrentUser(null);
-      setRole("out");
-      toast("Your account has been deleted");
-      navigate("/", { replace: true });
-    } catch (err) {
-      toast(err instanceof ApiError ? err.detail : "Could not delete the account", "fault");
-      setDeleting(false);
-    }
+  const afterDeleted = () => {
+    setDeleteOpen(false);
+    setCurrentUser(null);
+    setRole("out");
+    navigate("/", { replace: true });
   };
 
   const signOut = async () => {
@@ -220,6 +223,38 @@ export function SettingsScreen() {
           )}
         </section>
 
+        {/* ── Privacy & consent ──────────────────────────────────── */}
+        <section className="mt-6 border border-line bg-surface p-5">
+          <h2 className="t-h3 flex items-center gap-2">
+            <ShieldCheck className="size-5 text-signal" aria-hidden="true" /> Privacy &amp; consent
+          </h2>
+          <ul className="t-small mt-3 space-y-2 text-paper/85">
+            <li>
+              <strong>Terms &amp; Privacy Policy:</strong>{" "}
+              {consents.terms_privacy?.granted
+                ? `agreed ${new Date(consents.terms_privacy.at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} (version ${consents.terms_privacy.version})`
+                : "agreed when you signed in"}
+              {" · "}
+              <Link to="/terms" className="link-underline text-paper">Terms</Link>{" · "}
+              <Link to="/privacy" className="link-underline text-paper">Privacy</Link>
+            </li>
+            <li>
+              <strong>Marketing email:</strong>{" "}
+              {prefs?.marketing_email ? "on — change it under Email notifications above" : "off (the default)"}
+            </li>
+            <li>
+              <strong>Cookies:</strong>{" "}
+              {cookieChoice
+                ? cookieChoice.preferences ? "necessary + remember language & theme" : "necessary only"
+                : "not chosen yet"}
+              {" · "}
+              <button type="button" onClick={openCookieSettings} className="link-underline text-paper">Change</button>
+              {" · "}
+              <Link to="/cookies" className="link-underline text-paper">Cookie policy</Link>
+            </li>
+          </ul>
+        </section>
+
         {/* ── Your data ──────────────────────────────────────────── */}
         <section className="mt-6 border border-line bg-surface p-5">
           <h2 className="t-h3">Your data</h2>
@@ -243,44 +278,24 @@ export function SettingsScreen() {
         <section className="mt-6 border border-fault/40 bg-surface p-5">
           <h2 className="t-h3 text-fault">Delete your account</h2>
           <p className="t-small mt-2 text-muted">
-            This removes your profile and signs you out everywhere. Records of past
-            ticket purchases are kept, without your personal details attached, because
-            tax law requires them. This can't be undone.
+            We'll show you exactly what is erased and what we must keep, check nothing is pending, and
+            confirm with a code sent to your email. Past ticket and payment records stay, without your
+            name or contact details, because tax law requires them. This can't be undone.
           </p>
-          <Button className="mt-4" onClick={() => setConfirmDelete(true)}>
+          <Button className="mt-4" onClick={() => setDeleteOpen(true)}>
             <Trash2 className="size-4" aria-hidden="true" />
             Delete account
           </Button>
         </section>
       </div>
 
-      <Modal open={confirmDelete} onClose={() => setConfirmDelete(false)} title="Delete your account?">
-        <p className="t-body text-paper/85">
-          Your profile, saved events and notification settings will be erased, and any
-          tickets you hold will no longer be accessible to you. Type{" "}
-          <strong className="t-mono">DELETE</strong> to confirm.
-        </p>
-        <Input
-          value={deleteWord}
-          onChange={(e) => setDeleteWord(e.target.value)}
-          placeholder="DELETE"
-          className="t-mono mt-4"
-          aria-label="Type DELETE to confirm"
-        />
-        <div className="mt-5 flex gap-2">
-          <Button onClick={() => setConfirmDelete(false)} disabled={deleting}>
-            Keep my account
-          </Button>
-          <Button
-            variant="primary"
-            full
-            disabled={deleteWord !== "DELETE" || deleting}
-            onClick={doDelete}
-          >
-            {deleting ? "Deleting…" : "Permanently delete"}
-          </Button>
-        </div>
-      </Modal>
+      <DeleteAccountFlow
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        email={currentUser?.email ?? ""}
+        onExport={exportData}
+        onDeleted={afterDeleted}
+      />
     </PublicShell>
   );
 }

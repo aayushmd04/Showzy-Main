@@ -4,6 +4,8 @@
  * All mutations return the parsed JSON body or throw an ApiError.
  */
 
+import { clearPersonalLocalData } from "@/lib/local-data";
+
 export const API_BASE =
   import.meta.env.VITE_API_BASE?.replace(/\/$/, "") ?? "http://localhost:8000/api/v1";
 
@@ -238,11 +240,65 @@ export async function setUserRole(role: "attendee" | "artist" | "venue_owner"): 
   return post<MeResponse>("/auth/set-role/", { role });
 }
 
-/** Erasure request under the DPDP Act. Irreversible. */
-export async function deleteMyAccount(): Promise<{ detail: string }> {
-  const res = await request<{ detail: string }>("DELETE", "/auth/me/");
+/** What deleting the account would erase and keep, and anything that blocks it. */
+export interface DeletionNote {
+  code: string;
+  title: string;
+  detail: string;
+  items?: string[];
+  action_url?: string;
+}
+export interface DeletionReport {
+  can_delete: boolean;
+  blockers: DeletionNote[];
+  warnings: DeletionNote[];
+  erase: string[];
+  keep: string[];
+}
+
+export function getDeletionCheck(): Promise<DeletionReport> {
+  return get<DeletionReport>("/auth/me/deletion-check/");
+}
+
+/** Emails a one-time code that must accompany the deletion request. */
+export function requestDeletionCode(): Promise<{ detail: string; debug_otp?: string }> {
+  return post("/auth/me/deletion-code/");
+}
+
+/** Erasure request under the DPDP Act. Irreversible; needs the emailed code. */
+export async function deleteMyAccount(body: {
+  code: string;
+  acknowledge_losses?: boolean;
+}): Promise<{ detail: string }> {
+  const res = await request<{ detail: string }>("DELETE", "/auth/me/", body);
   tokens.clear();
+  clearPersonalLocalData();
   return res;
+}
+
+// ─── Consent log (what the person agreed to, and when) ────────────────────────
+
+export interface ConsentPosition {
+  version: string;
+  granted: boolean;
+  source: string;
+  at: string;
+}
+
+export function getConsents(): Promise<Partial<Record<ConsentKind, ConsentPosition>>> {
+  return get("/auth/consents/");
+}
+
+export type ConsentKind = "terms_privacy" | "organiser_terms" | "marketing_email" | "ticket_contact";
+
+/** Append to the consent log. Safe to call repeatedly: the server ignores exact repeats. */
+export function recordConsent(
+  kind: ConsentKind,
+  version: string,
+  source: string,
+  granted = true,
+): Promise<unknown> {
+  return post("/auth/consents/", { kind, version, source, granted }).catch(() => undefined);
 }
 
 /** Access request under the DPDP Act — everything we hold, as JSON. */
@@ -258,6 +314,7 @@ export function exportMyData(): Promise<Record<string, unknown>> {
 export async function logout(): Promise<void> {
   const refresh = tokens.refresh;
   tokens.clear();
+  clearPersonalLocalData();
   if (!refresh) return;
   try {
     await post("/auth/logout/", { refresh }, false);

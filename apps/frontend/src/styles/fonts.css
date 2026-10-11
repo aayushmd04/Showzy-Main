@@ -1,0 +1,30 @@
+/*
+ * Self-hosted fonts (via @fontsource). They used to load from Google Fonts,
+ * which meant every visitor's IP address was sent to Google before they had a
+ * chance to read a privacy notice. Serving them ourselves removes that
+ * third-party request and lets the site work offline in the service worker.
+ *
+ * Only the weights the design actually uses are imported; browsers download
+ * just the unicode-range subset (latin / kannada) a page needs.
+ */
+@import "@fontsource/megrim/400.css";
+@import "@fontsource/josefin-sans/300.css";
+@import "@fontsource/josefin-sans/400.css";
+@import "@fontsource/josefin-sans/500.css";
+@import "@fontsource/josefin-sans/600.css";
+@import "@fontsource/manrope/400.css";
+@import "@fontsource/manrope/500.css";
+@import "@fontsource/manrope/600.css";
+@import "@fontsource/manrope/700.css";
+@import "@fontsource/manrope/800.css";
+@import "@fontsource/anek-kannada/400.css";
+@import "@fontsource/anek-kannada/500.css";
+@import "@fontsource/anek-kannada/600.css";
+@import "@fontsource/anek-kannada/700.css";
+@import "@fontsource/anek-kannada/800.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/500.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/700.css";

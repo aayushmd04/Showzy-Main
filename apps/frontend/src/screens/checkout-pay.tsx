@@ -82,6 +82,8 @@ export function CheckoutPayScreen() {
    * ever describes seats that make sense for the current selection.
    */
   const [seatIds, setSeatIds] = useState<string[]>([]);
+  // Optional free add-on for guests bringing a little one.
+  const [babyChairs, setBabyChairs] = useState(0);
   const cancelled = useRef(false);
 
   // Reset on mount, not just set on unmount: StrictMode's dev-only
@@ -216,6 +218,7 @@ export function CheckoutPayScreen() {
         promo_code: promoState?.valid ? promo.trim() : undefined,
         ...(zone ? { zone_id: zone.id } : {}),
         ...(zone && zone.seats.length > 0 ? { seat_ids: seatIds } : {}),
+        ...(zone && babyChairs > 0 ? { baby_chairs: babyChairs } : {}),
       };
       const order = await api.createTicketOrder(orderPayload);
 
@@ -280,6 +283,7 @@ export function CheckoutPayScreen() {
       if (zone) {
         setZoneRefresh((n) => n + 1);
         setSeatIds([]);
+        setBabyChairs(0);
       }
     }
   };
@@ -342,7 +346,10 @@ export function CheckoutPayScreen() {
               {dateListing(event.date)} · {tier.name} × {qty}
             </p>
             {zone && (
-              <p className="t-small mt-1 text-paper/90">Seated at {zone.label}</p>
+              <p className="t-small mt-1 text-paper/90">
+                Seated at {zone.label}
+                {babyChairs > 0 ? ` · ${babyChairs} baby chair${babyChairs === 1 ? "" : "s"}` : ""}
+              </p>
             )}
 
             <dl className="mt-4 space-y-1.5 border-t border-line pt-4">
@@ -392,6 +399,8 @@ export function CheckoutPayScreen() {
           refreshToken={zoneRefresh}
           selectedSeatIds={seatIds}
           onSeatIdsChange={setSeatIds}
+          babyChairs={babyChairs}
+          onBabyChairsChange={setBabyChairs}
         />
 
         {zone && zone.seats.length > 0 && seatIds.length < qty && (

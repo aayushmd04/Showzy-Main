@@ -29,7 +29,11 @@ from django.utils import timezone
 
 #: Elements that describe the room rather than offer a place to sit. A host can
 #: type a capacity onto a stage; it still is not something a buyer can book.
-STRUCTURAL_TYPES = frozenset({"stage", "entrance", "exit"})
+STRUCTURAL_TYPES = frozenset({"stage", "entrance", "exit", "restroom", "speaker"})
+
+#: Most baby (high) chairs a single table can offer. Stops a typo'd 500 from
+#: turning into an absurd add-on count on the buyer's screen.
+MAX_BABY_CHAIRS = 8
 
 #: Field widths, matched to ZoneAllocation / Ticket.seat_label.
 ZONE_ID_MAX = 64
@@ -116,6 +120,9 @@ def _normalise(raw):
         # "round" for every non-table zone too (the field is meaningless there,
         # but ZoneSerializer expects every zone dict to carry it).
         "shape": "round",
+        "baby_chairs_total": 0,
+        # Facility count (restroom cubicles, speaker units); purely descriptive.
+        "count": max(0, min(99, int(_num(raw.get("count"), 0)))),
     }
 
     if zone_type == "table":
@@ -132,6 +139,9 @@ def _normalise(raw):
                 seen_seat_ids.add(seat["id"])
                 seats.append(seat)
         element["seats"] = seats
+        element["baby_chairs_total"] = max(
+            0, min(MAX_BABY_CHAIRS, int(_num(raw.get("babyChairs"), 0)))
+        )
 
         if seats:
             # Seats are the source of truth for a table's capacity once the
@@ -232,6 +242,12 @@ def taken_seat_ids_by_zone(event):
     return taken
 
 
+def taken_baby_chairs_by_zone(event):
+    """Baby chairs already claimed per zone — same liveness rules as seats."""
+    rows = _live_allocations(event).values("zone_id").annotate(total=Sum("baby_chairs"))
+    return {row["zone_id"]: row["total"] or 0 for row in rows}
+
+
 def zone_availability(event):
     """Every layout element for an event, with live availability on the
     bookable ones. Empty list when the venue has no floor plan."""
@@ -243,6 +259,8 @@ def zone_availability(event):
     taken_map = taken_by_zone(event) if any_bookable else {}
     any_seats = any(e.get("seats") for e in elements)
     taken_seats_map = taken_seat_ids_by_zone(event) if any_seats else {}
+    any_baby = any(e.get("baby_chairs_total") for e in elements)
+    taken_baby_map = taken_baby_chairs_by_zone(event) if any_baby else {}
 
     zones = []
     for element in elements:
@@ -254,6 +272,11 @@ def zone_availability(event):
         else:
             zone["taken"] = 0
             zone["available"] = 0
+
+        baby_total = zone.get("baby_chairs_total", 0)
+        zone["baby_chairs_available"] = max(
+            0, baby_total - taken_baby_map.get(zone["id"], 0)
+        ) if baby_total else 0
 
         seats = element.get("seats") or []
         if seats:

@@ -130,6 +130,7 @@ def create_order(request):
         # buyer who does not care never sends one.
         zone = None
         matched_seats = []
+        baby_chairs = 0
         if requested_zone_id:
             # Lock this zone's existing claims for the length of the
             # transaction so two buyers racing for the last table cannot both
@@ -172,6 +173,16 @@ def create_order(request):
                     )
             # A zone with no seats ignores any seat_ids the buyer sent —
             # whole-zone booking, exactly as before.
+
+            # Optional baby-chair add-on, checked against what is left now.
+            baby_chairs = data.get("baby_chairs") or 0
+            if baby_chairs > zone.get("baby_chairs_available", 0):
+                raise ZoneUnavailable(
+                    f"{zone['label']} has no baby chairs left."
+                    if zone.get("baby_chairs_available", 0) == 0
+                    else f"Only {zone['baby_chairs_available']} baby chair"
+                         f"{'' if zone['baby_chairs_available'] == 1 else 's'} left at {zone['label']}."
+                )
 
         if promo:
             if promo.discount_type == "pct":
@@ -228,6 +239,7 @@ def create_order(request):
                 quantity=ticket_count,
                 capacity_at_booking=zone["capacity"],
                 seat_ids=matched_seats,
+                baby_chairs=baby_chairs,
             )
 
     return Response(OrderSerializer(order).data, status=status.HTTP_201_CREATED)
@@ -455,11 +467,12 @@ def works_the_door(user, event) -> bool:
     received one of those images could burn the ticket before its holder
     reached the door, and the holder would arrive to "Ticket is used."
     """
-    if not user or not user.is_authenticated:
-        return False
-    if user.is_staff or getattr(user, "role", "") == "admin":
+    from . import gate
+
+    if gate.is_organiser(user, event):
         return True
-    return event.organizer_id == user.id
+    # An invited gatekeeper — only for this event, only inside its window.
+    return gate.gatekeeper_may_scan(user, event)
 
 
 @api_view(["GET"])
@@ -474,7 +487,8 @@ def event_attendees(request, event_id):
     """
     event = generics.get_object_or_404(Event, pk=event_id)
     if not works_the_door(request.user, event):
-        raise exceptions.PermissionDenied("Only this event's organiser can see its door list.")
+        from . import gate
+        raise exceptions.PermissionDenied(gate.gate_denial_reason(request.user, event))
 
     tickets = (
         Ticket.objects.filter(event=event)
@@ -497,7 +511,8 @@ def scan_ticket(request, qr_data):
         Ticket.objects.select_related("event"), qr_data=qr_data
     )
     if not works_the_door(request.user, ticket.event):
-        raise exceptions.PermissionDenied("Only this event's organiser can check tickets in.")
+        from . import gate
+        raise exceptions.PermissionDenied(gate.gate_denial_reason(request.user, ticket.event))
 
     # Locked so two doors (or one door double-tapping a slow scan) can't both
     # read VALID before either write commits and admit the same ticket twice.
@@ -513,8 +528,15 @@ def scan_ticket(request, qr_data):
         locked.checked_in_by = request.user
         locked.save(update_fields=["status", "checked_in_at", "checked_in_by"])
         ticket = locked
-    serializer = TicketSerializer(ticket, context={"request": request})
-    return Response({"valid": True, "ticket": serializer.data})
+    from . import gate
+
+    # An invited gatekeeper gets the same narrow view as the door list — name,
+    # tier and seat — never the buyer's email and phone.
+    if gate.is_organiser(request.user, ticket.event):
+        data = TicketSerializer(ticket, context={"request": request}).data
+    else:
+        data = AttendeeSerializer(ticket).data
+    return Response({"valid": True, "ticket": data})
 
 
 @api_view(["POST"])

@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
-import { Armchair, Loader2, MapPin, RotateCw, Sofa, StretchHorizontal } from "lucide-react";
+import { Armchair, Baby, Loader2, MapPin, Minus, Plus, RotateCw, Sofa, StretchHorizontal, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getEventZones } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { resolveTableShape, seatOffset } from "@/components/naada/table-seats";
+import { isNearSpeaker, SPEAKER_RADIUS, summarizePlan } from "@/components/naada/plan-facts";
 
 /**
  * The buyer's half of the venue layout designer.
@@ -55,6 +56,11 @@ export interface VenueZone {
   /** Individually bookable seats around this zone. Empty = whole-zone
    *  quantity booking, exactly as before this field existed. */
   seats: VenueZoneSeat[];
+  /** Restroom cubicles / speaker units, 0 when not applicable. */
+  count: number;
+  /** Free baby/high chairs a table offers, and how many are still unclaimed. */
+  baby_chairs_total: number;
+  baby_chairs_available: number;
 }
 
 const FURNITURE_ICON: Record<string, typeof Armchair> = {
@@ -93,12 +99,14 @@ function TableSeatGrid({
   quantity,
   seatIds,
   onToggle,
+  onPickForMe,
   disabled,
 }: {
   zone: VenueZone;
   quantity: number;
   seatIds: string[];
   onToggle: (seatId: string, taken: boolean) => void;
+  onPickForMe: () => void;
   disabled: boolean;
 }) {
   const shape = resolveTableShape(zone.shape);
@@ -108,13 +116,18 @@ function TableSeatGrid({
 
   return (
     <div className="mt-4 border-t border-line pt-4">
-      <p className="t-micro text-muted">
-        Pick {quantity === 1 ? "your seat" : `your ${quantity} seats`} at{" "}
-        <span className="text-paper/80">{zone.label}</span>
-      </p>
+      <div className="flex items-center justify-between gap-3">
+        <p className="t-micro text-muted">
+          Pick {quantity === 1 ? "your seat" : `your ${quantity} seats`} at{" "}
+          <span className="text-paper/80">{zone.label}</span>
+        </p>
+        <Button size="sm" type="button" disabled={disabled} onClick={onPickForMe}>
+          Pick for me
+        </Button>
+      </div>
 
       <div
-        className="relative mx-auto mt-3 w-full max-w-[280px] border border-line bg-ink"
+        className="relative mx-auto mt-3 w-full max-w-[300px] border border-line bg-ink"
         style={{ aspectRatio: `${zone.w} / ${zone.h}`, borderRadius: shape === "round" ? "50%" : 8 }}
       >
         {groupIds.map((gid) => {
@@ -150,7 +163,7 @@ function TableSeatGrid({
               disabled={disabled || seat.taken}
               onClick={() => onToggle(seat.id, seat.taken)}
               className={cn(
-                "absolute flex size-10 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border transition-colors",
+                "absolute flex size-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border transition-colors",
                 seat.taken
                   ? "cursor-not-allowed border-line bg-surface-2 text-muted/50"
                   : isSelected
@@ -159,10 +172,16 @@ function TableSeatGrid({
               )}
               style={{ left: `${left}%`, top: `${top}%` }}
             >
-              <Icon className="size-4" aria-hidden="true" />
+              <Icon className="size-5" aria-hidden="true" />
             </button>
           );
         })}
+      </div>
+
+      <div className="t-micro mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-muted">
+        <span className="flex items-center gap-1.5"><span className="inline-block size-3 rounded-full border border-line bg-surface-2" />Free</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block size-3 rounded-full border border-signal bg-signal/20" />Yours</span>
+        <span className="flex items-center gap-1.5"><span className="inline-block size-3 rounded-full border border-line bg-surface-2 opacity-40" />Taken</span>
       </div>
 
       <p className="t-micro mt-2 text-center text-muted">
@@ -202,6 +221,9 @@ export interface SeatPickerProps {
   selectedSeatIds?: string[];
   /** Called on every toggle, and to clear the pick when the zone or quantity changes. */
   onSeatIdsChange?: (ids: string[]) => void;
+  /** Free baby chairs the buyer wants at the chosen table. */
+  babyChairs?: number;
+  onBabyChairsChange?: (n: number) => void;
 }
 
 type Phase = "loading" | "ready" | "error";
@@ -273,7 +295,11 @@ const STRUCTURAL_TONE: Record<string, string> = {
   entrance: "text-live",
   exit: "text-fault",
   bar: "text-muted",
+  restroom: "text-paper/80",
+  speaker: "text-gold",
 };
+
+const FACILITY_EMOJI: Record<string, string> = { restroom: "🚻", speaker: "🔊" };
 
 function fill(zone: VenueZone) {
   if (!zone.capacity) return 0;
@@ -309,18 +335,35 @@ function availability(zone: VenueZone, quantity: number) {
   };
 }
 
-export function SeatPicker({
-  eventId,
+export function SeatPicker({ eventId, refreshToken = 0, ...rest }: SeatPickerProps) {
+  const { phase, data, retry } = useVenueZones(eventId, refreshToken);
+  return <SeatPickerView phase={phase} data={data} retry={retry} {...rest} />;
+}
+
+export interface SeatPickerViewProps extends Omit<SeatPickerProps, "eventId" | "refreshToken"> {
+  phase: Phase;
+  data: ZonesResponse | null;
+  retry: () => void;
+}
+
+/**
+ * The buyer-facing picker, with data passed in. `SeatPicker` feeds it from the
+ * API; the host's "Preview as guest" feeds it the plan being drawn, so what a
+ * host previews is literally what a guest gets.
+ */
+export function SeatPickerView({
+  phase,
+  data,
+  retry,
   quantity,
   value,
   onChange,
   disabled = false,
-  refreshToken = 0,
   selectedSeatIds,
   onSeatIdsChange,
-}: SeatPickerProps) {
-  const { phase, data, retry } = useVenueZones(eventId, refreshToken);
-
+  babyChairs = 0,
+  onBabyChairsChange,
+}: SeatPickerViewProps) {
   const zones = data?.zones ?? [];
   const bookable = zones.filter((z) => z.bookable);
 
@@ -354,8 +397,16 @@ export function SeatPicker({
   // along to a table it no longer describes.
   useEffect(() => {
     setSeatIds([]);
+    onBabyChairsChange?.(0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value?.id, quantity]);
+
+  // One tap for the common case: the first free seats, which sit side by side.
+  const pickForMe = () => {
+    if (!value || disabled) return;
+    const free = value.seats.filter((st) => !st.taken).slice(0, quantity);
+    setSeatIds(free.map((st) => st.id));
+  };
 
   const toggleSeat = (seatId: string, taken: boolean) => {
     if (disabled || taken) return;
@@ -406,6 +457,7 @@ export function SeatPicker({
   if (!data?.has_layout || bookable.length === 0) return null;
 
   const soldOut = bookable.every((z) => z.available === 0);
+  const facts = summarizePlan(zones);
 
   return (
     <section className="mt-4 border border-line bg-surface">
@@ -430,6 +482,18 @@ export function SeatPicker({
           className="relative mt-4 w-full overflow-hidden border border-line bg-ink"
           style={{ aspectRatio: "4 / 3" }}
         >
+          {zones.filter((z) => z.type === "speaker").map((z) => (
+            <div
+              key={`ring-${z.id}`}
+              className="pointer-events-none absolute rounded-full border border-dashed border-gold/40 bg-gold/5"
+              style={{
+                left: `${z.x + z.w / 2 - SPEAKER_RADIUS}%`,
+                top: `${z.y + z.h / 2 - (SPEAKER_RADIUS * 4) / 3}%`,
+                width: `${SPEAKER_RADIUS * 2}%`,
+                height: `${(SPEAKER_RADIUS * 8) / 3}%`,
+              }}
+            />
+          ))}
           {zones.map((zone) => {
             const state = availability(zone, quantity);
             const selected = value?.id === zone.id;
@@ -459,23 +523,39 @@ export function SeatPicker({
                   height: `${zone.h}%`,
                 }}
               >
-                <span
-                  className={cn(
-                    "w-full truncate text-[clamp(7px,1.5vw,11px)] font-semibold",
-                    structural
-                      ? (STRUCTURAL_TONE[zone.type] ?? "text-muted")
-                      : selected
-                        ? "text-paper"
-                        : "text-paper/85",
-                  )}
-                >
-                  {zone.label}
-                </span>
+                {FACILITY_EMOJI[zone.type] ? (
+                  <>
+                    <span className="text-[clamp(10px,2.2vw,18px)] leading-none">{FACILITY_EMOJI[zone.type]}</span>
+                    {zone.type === "restroom" && zone.w > 6 && (
+                      <span className="text-[clamp(6px,1.1vw,10px)] text-paper/70">
+                        {zone.label}{zone.count > 1 ? ` ×${zone.count}` : ""}
+                      </span>
+                    )}
+                  </>
+                ) : (
+                  <span
+                    className={cn(
+                      "w-full truncate text-[clamp(7px,1.5vw,11px)] font-semibold",
+                      structural
+                        ? (STRUCTURAL_TONE[zone.type] ?? "text-muted")
+                        : selected
+                          ? "text-paper"
+                          : "text-paper/85",
+                    )}
+                  >
+                    {zone.label}
+                  </span>
+                )}
                 {zone.bookable && (
                   <span
                     className={cn("text-[clamp(6px,1.1vw,10px)]", selected ? "text-paper" : state.tone)}
                   >
                     {state.short}
+                  </span>
+                )}
+                {zone.baby_chairs_available > 0 && !FACILITY_EMOJI[zone.type] && (
+                  <span className="absolute bottom-0.5 right-1 text-[clamp(8px,1.4vw,12px)] leading-none" title="Baby chairs available">
+                    👶
                   </span>
                 )}
               </button>
@@ -484,6 +564,20 @@ export function SeatPicker({
         </div>
 
         <p className="t-micro mt-2 text-muted">Stage at the top · tap an area or use the list</p>
+
+        {(facts.restrooms > 0 || facts.speakers > 0 || facts.babyChairs > 0) && (
+          <ul className="t-small mt-3 flex flex-wrap gap-x-4 gap-y-1 text-muted" aria-label="Venue facilities">
+            {facts.restrooms > 0 && (
+              <li>🚻 {facts.restrooms} restroom{facts.restrooms === 1 ? "" : "s"} · {facts.cubicles} cubicle{facts.cubicles === 1 ? "" : "s"}</li>
+            )}
+            {facts.speakers > 0 && (
+              <li>🔊 {facts.speakers} speaker{facts.speakers === 1 ? "" : "s"} <span className="text-muted/70">(dashed rings are the loudest spots)</span></li>
+            )}
+            {facts.babyChairs > 0 && (
+              <li>👶 Baby chairs at {facts.tablesWithBabyChairs} table{facts.tablesWithBabyChairs === 1 ? "" : "s"}</li>
+            )}
+          </ul>
+        )}
 
         {/* ── The control ─────────────────────────────────────────────────
             A plain radio group: one tab stop, arrow keys between areas, and
@@ -544,6 +638,18 @@ export function SeatPicker({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14px]">{zone.label}</span>
                     <span className={cn("t-small block", state.tone)}>{state.full}</span>
+                    {isNearSpeaker(zone, zones) && (
+                      <span className="t-micro mt-0.5 flex items-center gap-1 text-gold">
+                        <Volume2 className="size-3" aria-hidden="true" />
+                        Close to a speaker — lively, louder
+                      </span>
+                    )}
+                    {zone.baby_chairs_available > 0 && (
+                      <span className="t-micro mt-0.5 flex items-center gap-1 text-muted">
+                        <Baby className="size-3" aria-hidden="true" />
+                        Baby chairs available
+                      </span>
+                    )}
                   </span>
                   <span className="t-mono shrink-0 text-[12px] text-muted">
                     {zone.capacity} seats
@@ -560,15 +666,52 @@ export function SeatPicker({
             quantity={quantity}
             seatIds={seatIds}
             onToggle={toggleSeat}
+            onPickForMe={pickForMe}
             disabled={disabled}
           />
+        )}
+
+        {value && value.baby_chairs_available > 0 && (
+          <div className="mt-4 flex items-center justify-between gap-3 border border-line px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="flex items-center gap-1.5 text-[14px]">
+                <Baby className="size-4 text-signal" aria-hidden="true" />
+                Bringing a little one?
+              </p>
+              <p className="t-small text-muted">
+                Add a baby chair at {value.label} — free, {value.baby_chairs_available} left.
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <button
+                type="button"
+                aria-label="One fewer baby chair"
+                disabled={disabled || babyChairs <= 0}
+                onClick={() => onBabyChairsChange?.(Math.max(0, babyChairs - 1))}
+                className="flex size-11 items-center justify-center border border-line disabled:opacity-40"
+              >
+                <Minus className="size-4" aria-hidden="true" />
+              </button>
+              <span className="t-mono w-5 text-center text-[15px]" aria-live="polite">{babyChairs}</span>
+              <button
+                type="button"
+                aria-label="One more baby chair"
+                disabled={disabled || babyChairs >= value.baby_chairs_available}
+                onClick={() => onBabyChairsChange?.(Math.min(value.baby_chairs_available, babyChairs + 1))}
+                className="flex size-11 items-center justify-center border border-line disabled:opacity-40"
+              >
+                <Plus className="size-4" aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         )}
 
         {value && (
           <p className="t-small mt-3 flex items-start gap-1.5 text-paper/90">
             <MapPin className="mt-0.5 size-3.5 shrink-0 text-signal" aria-hidden="true" />
             <span>
-              Holding {quantity === 1 ? "a place" : `${quantity} places`} at{" "}
+              Holding {quantity === 1 ? "a place" : `${quantity} places`}
+              {babyChairs > 0 ? ` and ${babyChairs} baby chair${babyChairs === 1 ? "" : "s"}` : ""} at{" "}
               <span className="font-semibold">{value.label}</span>. It's printed on your ticket, so
               the door knows where you're meant to be.
             </span>

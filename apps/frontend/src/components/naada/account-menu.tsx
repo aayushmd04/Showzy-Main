@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bookmark, LogOut, Settings as SettingsIcon, Ticket, UserRound } from "lucide-react";
+import { Bookmark, LogOut, ScanLine, Settings as SettingsIcon, Ticket, UserRound } from "lucide-react";
 import { useStore } from "@/store/app-store";
 import { logout as apiLogout } from "@/lib/api";
 
@@ -88,6 +88,10 @@ export function AccountMenu({ tone = "dark" }: { tone?: "dark" | "light" }) {
             <Link to="/tickets" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
               <Ticket className="size-4 shrink-0" aria-hidden="true" />
               My tickets
+            </Link>
+            <Link to="/gate" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+              <ScanLine className="size-4 shrink-0" aria-hidden="true" />
+              Gate duty
             </Link>
             <Link to="/saved" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
               <Bookmark className="size-4 shrink-0" aria-hidden="true" />

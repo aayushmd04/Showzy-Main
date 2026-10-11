@@ -42,6 +42,9 @@ class CreateOrderSerializer(serializers.Serializer):
     # when the zone itself has seats — see create_order's own validation.
     seat_ids = serializers.ListField(
         child=serializers.CharField(max_length=64), required=False, default=list)
+    # Optional free add-on: baby/high chairs at the picked table, for guests
+    # bringing a little one. Validated against the table's stock in create_order.
+    baby_chairs = serializers.IntegerField(required=False, min_value=0, max_value=8, default=0)
 
 
 class ZoneSerializer(serializers.Serializer):
@@ -62,12 +65,16 @@ class ZoneSerializer(serializers.Serializer):
     # frontend never has to branch on their absence.
     shape = serializers.CharField()
     seats = serializers.ListField(child=serializers.DictField(), default=list)
+    # Facilities + the baby-chair add-on, always present so the client never branches on absence.
+    count = serializers.IntegerField(default=0)
+    baby_chairs_total = serializers.IntegerField(default=0)
+    baby_chairs_available = serializers.IntegerField(default=0)
 
 
 class ZoneAllocationSerializer(serializers.ModelSerializer):
     class Meta:
         model = ZoneAllocation
-        fields = ["zone_id", "zone_label", "zone_type", "quantity", "status"]
+        fields = ["zone_id", "zone_label", "zone_type", "quantity", "baby_chairs", "status"]
 
 
 class OrderSerializer(serializers.ModelSerializer):

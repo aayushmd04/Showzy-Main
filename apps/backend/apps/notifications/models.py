@@ -26,6 +26,8 @@ class NotificationType(models.TextChoices):
     TICKET_TRANSFER_RECEIVED = "ticket_transfer_received", "Ticket Transfer Received"
     OTP_SENT = "otp_sent", "OTP Sent"
     WELCOME = "welcome", "Welcome"
+    GATE_INVITE = "gate_invite", "Gatekeeper Invitation"
+    GATE_RESPONSE = "gate_response", "Gatekeeper Response"
 
 
 class Channel(models.TextChoices):

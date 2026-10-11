@@ -12,6 +12,7 @@ import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion, useReducedMotion, type PanInfo } from "motion/react";
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
+import { usePageMeta } from "@/lib/use-meta";
 
 import { Wordmark } from "@/components/naada/wordmark";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
@@ -238,6 +239,10 @@ function HostButton() {
 }
 
 export function HeroCarousel() {
+  usePageMeta({
+    description:
+      "Live art in Mysuru and Bengaluru: music, theatre, dance, comedy and more, in small rooms near you.",
+  });
   const reduce = useReducedMotion();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);

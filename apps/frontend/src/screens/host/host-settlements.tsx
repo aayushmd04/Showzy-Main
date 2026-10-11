@@ -3,8 +3,8 @@ import { Info } from "lucide-react";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Modal } from "@/components/ui/modal";
 import { Pill } from "@/components/ui/pill";
-import { getMyOrders, getOrderLedger, orderOrganizerName } from "@/lib/api";
-import type { ApiOrder } from "@/lib/api";
+import { getEventPayoutSummary, getMyEvents, getMyOrders, getOrderLedger, orderOrganizerName } from "@/lib/api";
+import type { ApiOrder, ApiPayoutSummary } from "@/lib/api";
 import { dateCompact, money } from "@/lib/format";
 
 
@@ -22,6 +22,15 @@ export function HostSettlementsScreen() {
   const [loading, setLoading] = useState(true);
   const [openOrder, setOpenOrder] = useState<ApiOrder | null>(null);
   const [ledger, setLedger] = useState<Array<{ entry_type: string; amount: string; description: string }>>([]);
+
+  const [sales, setSales] = useState<Array<{ id: string; title: string; s: ApiPayoutSummary }>>([]);
+
+  useEffect(() => {
+    getMyEvents()
+      .then((r) => Promise.all(r.results.map((e) => getEventPayoutSummary(e.id).then((s) => ({ id: e.id, title: e.title, s })))))
+      .then((rows) => setSales(rows.filter((r) => parseFloat(r.s.collected) > 0)))
+      .catch(() => setSales([]));
+  }, []);
 
   useEffect(() => {
     getMyOrders()
@@ -43,7 +52,44 @@ export function HostSettlementsScreen() {
     <ConsoleShell nav={HOST_NAV} breadcrumb={["Settlements"]}>
       <h1 className="t-h1">Settlements</h1>
 
-      <div className="mt-6 overflow-x-auto glass-soft rounded-xl">
+      {sales.length > 0 && (
+        <section className="mt-6" aria-label="Ticket sales">
+          <h2 className="t-section">Ticket sales</h2>
+          <div className="mt-3 overflow-x-auto glass-soft rounded-xl">
+            <table className="w-full min-w-[620px] text-left">
+              <caption className="sr-only">Ticket money collected and owed per event</caption>
+              <thead>
+                <tr className="border-b border-line">
+                  <th scope="col" className="t-micro px-4 py-3">Event</th>
+                  <th scope="col" className="t-micro px-4 py-3 text-right">Collected</th>
+                  <th scope="col" className="t-micro px-4 py-3 text-right">Refunded</th>
+                  <th scope="col" className="t-micro px-4 py-3 text-right">Naada fee</th>
+                  <th scope="col" className="t-micro px-4 py-3 text-right">Paid to you</th>
+                  <th scope="col" className="t-micro px-4 py-3 text-right">Still owed</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sales.map(({ id, title, s }) => (
+                  <tr key={id} className="border-b border-line last:border-0">
+                    <th scope="row" className="px-4 py-3 text-left text-[15px] font-normal">{title}</th>
+                    <td className="t-mono px-4 py-3 text-right text-[14px]">{money(parseFloat(s.collected))}</td>
+                    <td className="t-mono px-4 py-3 text-right text-[14px] text-muted">{money(parseFloat(s.refunded))}</td>
+                    <td className="t-mono px-4 py-3 text-right text-[14px] text-muted">{money(parseFloat(s.naada_fee))}</td>
+                    <td className="t-mono px-4 py-3 text-right text-[14px]">{money(parseFloat(s.paid_out))}</td>
+                    <td className="t-mono px-4 py-3 text-right text-[14px]">{money(parseFloat(s.balance))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="mt-2 text-[13px] text-muted">
+            Naada collects ticket payments and transfers your share to you. "Still owed" is the part not yet transferred.
+          </p>
+        </section>
+      )}
+
+      <h2 className="t-section mt-8">Artist bookings</h2>
+      <div className="mt-3 overflow-x-auto glass-soft rounded-xl">
         <table className="w-full min-w-[620px] text-left">
           <caption className="sr-only">Artist booking settlements</caption>
           <thead>

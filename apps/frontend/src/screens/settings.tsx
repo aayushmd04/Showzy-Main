@@ -1,3 +1,4 @@
+import { KANNADA_ENABLED } from "@/lib/features";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Download, LogOut, ShieldCheck, Trash2 } from "lucide-react";
@@ -175,7 +176,7 @@ export function SettingsScreen() {
         </form>
 
         {/* ── Language ───────────────────────────────────────────── */}
-        <section className="mt-6 border border-line bg-surface p-5">
+        {KANNADA_ENABLED && <section className="mt-6 border border-line bg-surface p-5">
           <h2 className="t-h3">Language</h2>
           <div className="mt-3 flex gap-2">
             {(["en", "kn"] as const).map((l) => (
@@ -194,7 +195,7 @@ export function SettingsScreen() {
               </button>
             ))}
           </div>
-        </section>
+        </section>}
 
         {/* ── Notifications ──────────────────────────────────────── */}
         <section className="mt-6 border border-line bg-surface p-5">

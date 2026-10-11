@@ -1,3 +1,4 @@
+import { usePageMeta } from "@/lib/use-meta";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { AlertCircle, Loader2, Lock, ShieldCheck } from "lucide-react";
@@ -49,6 +50,7 @@ function loadRazorpay(): Promise<RazorpayCtor> {
 }
 
 export function CheckoutPayScreen() {
+  usePageMeta({ title: "Payment" });
   const navigate = useNavigate();
   const { checkout, eventById, currentUser, hydrateFromApi, clearCheckout, toast, role } =
     useStore();

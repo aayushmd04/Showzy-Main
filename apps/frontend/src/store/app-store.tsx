@@ -1,3 +1,4 @@
+import { KANNADA_ENABLED } from "@/lib/features";
 import {
   createContext,
   useCallback,
@@ -240,7 +241,7 @@ export function AppStoreProvider({
   });
   const [lang, setLang] = useState<Lang>(() => {
     try {
-      return readPref("naada_lang") === "kn" ? "kn" : "en";
+      return KANNADA_ENABLED && readPref("naada_lang") === "kn" ? "kn" : "en";
     } catch {
       return "en";
     }

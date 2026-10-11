@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { motion, useReducedMotion } from "motion/react";
 import { ArrowLeft, ShieldCheck, Star } from "lucide-react";
+import { usePageMeta } from "@/lib/use-meta";
 import { ConsoleShell, ADMIN_NAV, ARTIST_NAV, HOST_NAV } from "@/components/naada/console-shell";
 import { StateToggle } from "@/components/naada/state-toggle";
 import { Button } from "@/components/ui/button";
@@ -38,6 +39,7 @@ const STATES: BookingState[] = [
  */
 export function BookingThreadScreen() {
   const { id = "" } = useParams();
+  usePageMeta({ title: "Booking" });
   const navigate = useNavigate();
   const {
     bookingById,

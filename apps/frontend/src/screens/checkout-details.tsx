@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { useStore } from "@/store/app-store";
+import { ConsentCheck, PolicyLink } from "@/components/naada/consent-check";
+import { recordConsent } from "@/lib/api";
+import { LEGAL_VERSION } from "@/lib/legal";
 import { dateListing } from "@/lib/format";
 
 /** Section 7.5 — guest details. Consent is required; the CTA stays disabled until it is ticked. */
@@ -34,6 +37,8 @@ export function CheckoutDetailsScreen() {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     setGuestDetails({ name, phone, email }, true);
+    // Keep a record of this agreement when there's an account to attach it to.
+    if (currentUser) void recordConsent("ticket_contact", LEGAL_VERSION, "checkout");
     navigate("/checkout/pay");
   };
 
@@ -88,21 +93,11 @@ export function CheckoutDetailsScreen() {
             />
           </Field>
 
-          <label className="flex cursor-pointer items-start gap-3 border border-line p-4">
-            <input
-              type="checkbox"
-              checked={consent}
-              onChange={(e) => setConsent(e.target.checked)}
-              className="mt-0.5 size-4 shrink-0 accent-[#FF3D6E]"
-              required
-            />
-            <span className="t-small">
-              I agree to Naada storing these details to issue and verify my ticket.{" "}
-              <a href="/privacy" className="link-underline text-paper">
-                Privacy policy →
-              </a>
-            </span>
-          </label>
+          <ConsentCheck id="guest-consent" checked={consent} onChange={setConsent}>
+            I agree to Naada storing these details to issue and verify my ticket, and to sharing my name and
+            contact details with the organiser of {event.name} so they can admit me and reach me if the event
+            changes. See the <PolicyLink to="/privacy">Privacy Policy</PolicyLink>.
+          </ConsentCheck>
 
           <Button type="submit" variant="primary" full disabled={!consent}>
             Continue to payment

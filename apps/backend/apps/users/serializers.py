@@ -36,10 +36,18 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                   "website", "instagram", "preferred_language", "city"]
 
 
+#: Purposes the public (signed-out) endpoints may use. Deleting an account has
+#: its own authenticated endpoint, so that code can't be requested or redeemed
+#: here.
+PUBLIC_OTP_PURPOSES = [
+    c for c in OTPToken.Purpose.choices if c[0] != OTPToken.Purpose.DELETE_ACCOUNT
+]
+
+
 class OTPRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
     purpose = serializers.ChoiceField(
-        choices=OTPToken.Purpose.choices, default=OTPToken.Purpose.LOGIN
+        choices=PUBLIC_OTP_PURPOSES, default=OTPToken.Purpose.LOGIN
     )
 
 
@@ -47,7 +55,7 @@ class OTPVerifySerializer(serializers.Serializer):
     email = serializers.EmailField()
     otp = serializers.CharField(min_length=4, max_length=8)
     purpose = serializers.ChoiceField(
-        choices=OTPToken.Purpose.choices, default=OTPToken.Purpose.LOGIN
+        choices=PUBLIC_OTP_PURPOSES, default=OTPToken.Purpose.LOGIN
     )
     full_name = serializers.CharField(max_length=120, required=False)
 

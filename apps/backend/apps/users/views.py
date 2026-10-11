@@ -16,7 +16,8 @@ from rest_framework_simplejwt.token_blacklist.models import (
 )
 from datetime import timedelta
 
-from .models import OTPToken, UserDevice, UserRole
+from . import privacy
+from .models import ConsentRecord, OTPToken, UserDevice, UserRole
 
 logger = logging.getLogger(__name__)
 from .serializers import (
@@ -175,38 +176,127 @@ class MeView(generics.RetrieveUpdateDestroyAPIView):
     def destroy(self, request, *args, **kwargs):
         """Erasure request under the DPDP Act, 2023.
 
-        Soft delete rather than a hard one: ticket and payment rows must survive
-        for tax and dispute purposes. Identifying fields are scrubbed and the
-        email is released so the address can be reused, while the row that
-        financial records point at stays intact.
+        Irreversible, so it is gated three ways: nothing may be pending that
+        other people are relying on (see `privacy.deletion_report`), the person
+        must confirm they understand they will lose upcoming tickets, and they
+        must prove they still control the inbox with a fresh one-time code —
+        a stolen or left-open session alone can't wipe an account.
         """
         user = request.user
-        stamp = timezone.now().strftime("%Y%m%d%H%M%S")
+        report = privacy.deletion_report(user)
+        if report["blockers"]:
+            return Response(
+                {"detail": "Some things need finishing before this account can be deleted.", **report},
+                status=status.HTTP_409_CONFLICT,
+            )
+        if report["warnings"] and not request.data.get("acknowledge_losses"):
+            return Response(
+                {"detail": "Please confirm you understand what you will lose.",
+                 "needs_acknowledgement": True, **report},
+                status=status.HTTP_409_CONFLICT,
+            )
 
-        user.email = f"deleted+{user.pk}.{stamp}@naada.invalid"
-        user.phone = None
-        user.full_name = "Deleted user"
-        user.display_name = ""
-        user.bio = ""
-        user.website = ""
-        user.instagram = ""
-        user.avatar = None
-        user.is_active = False
-        user.save(update_fields=[
-            "email", "phone", "full_name", "display_name", "bio",
-            "website", "instagram", "avatar", "is_active",
-        ])
-        user.soft_delete()
+        code = str(request.data.get("code") or "").strip()
+        token = OTPToken.objects.filter(
+            email__iexact=user.email, purpose=OTPToken.Purpose.DELETE_ACCOUNT, is_used=False
+        ).order_by("-created_at").first()
+        if not code or not token or not token.verify(code):
+            return Response(
+                {"detail": "That code is wrong or has expired. Ask for a new one."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-        # Drop push targets and sign every device out.
-        UserDevice.objects.filter(user=user).delete()
-        for token in OutstandingToken.objects.filter(user=user):
-            BlacklistedToken.objects.get_or_create(token=token)
-
+        privacy.erase_account(user)
         return Response(
             {"detail": "Your account has been deleted."},
             status=status.HTTP_200_OK,
         )
+
+
+class DeletionCodeThrottle(OTPEmailThrottle):
+    """One code per hour-budget per signed-in account (keyed on the user)."""
+
+    def get_cache_key(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return None
+        return self.cache_format % {"scope": self.scope, "ident": f"del-{request.user.pk}"}
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def deletion_check(request):
+    """What deleting this account would erase and keep, and what blocks it."""
+    return Response(privacy.deletion_report(request.user))
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+@throttle_classes([DeletionCodeThrottle])
+def request_deletion_code(request):
+    """Email a fresh one-time code to the signed-in user, to confirm deletion."""
+    user = request.user
+    OTPToken.objects.filter(
+        email__iexact=user.email, purpose=OTPToken.Purpose.DELETE_ACCOUNT, is_used=False
+    ).update(is_used=True)
+    raw_otp = OTPToken.generate_otp()
+    expiry_minutes = getattr(django_settings, "OTP_EXPIRY_MINUTES", 10)
+    OTPToken.objects.create(
+        email=user.email.lower(),
+        otp_hash=OTPToken.hash_otp(raw_otp),
+        purpose=OTPToken.Purpose.DELETE_ACCOUNT,
+        expires_at=timezone.now() + timedelta(minutes=expiry_minutes),
+        ip_address=get_client_ip(request),
+    )
+    send_mail(
+        subject="Confirm deleting your Naada account",
+        message=f"""Hi,
+
+Someone asked to permanently delete your Naada account.
+
+To confirm, enter this code: {raw_otp}
+
+It expires in {expiry_minutes} minutes. If this wasn't you, ignore this email —
+nothing will be deleted — and consider who else has access to your inbox.
+
+— Naada Team""",
+        from_email=django_settings.DEFAULT_FROM_EMAIL,
+        recipient_list=[user.email],
+        fail_silently=False,
+    )
+    resp = {"detail": "We've emailed you a code."}
+    if getattr(django_settings, "OTP_DEBUG_RESPONSE", False):
+        resp["debug_otp"] = raw_otp
+    return Response(resp)
+
+
+@api_view(["GET", "POST"])
+@permission_classes([permissions.IsAuthenticated])
+def consents(request):
+    """The person's consent log. GET = current position per kind; POST appends.
+
+    Append-only: withdrawing consent is a new row with `granted=false`, never an
+    edit, so the history stays an honest record.
+    """
+    user = request.user
+    if request.method == "POST":
+        kind = request.data.get("kind")
+        version = str(request.data.get("version") or "")[:20]
+        if kind not in ConsentRecord.Kind.values or not version:
+            return Response({"detail": "kind and version are required."}, status=status.HTTP_400_BAD_REQUEST)
+        granted = bool(request.data.get("granted", True))
+        latest = user.consents.filter(kind=kind).first()
+        if not (latest and latest.version == version and latest.granted == granted):
+            ConsentRecord.objects.create(
+                user=user, kind=kind, version=version, granted=granted,
+                source=str(request.data.get("source") or "")[:30],
+            )
+    current = {}
+    for row in user.consents.all():  # newest first, so first seen per kind wins
+        current.setdefault(row.kind, {
+            "version": row.version, "granted": row.granted,
+            "source": row.source, "at": row.created_at,
+        })
+    return Response(current)
 
 
 @api_view(["POST"])
@@ -253,59 +343,11 @@ def set_role(request):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def export_my_data(request):
-    """Everything we hold on the requesting user, as JSON.
+    """Everything we hold on the requesting user, as a JSON download.
 
-    The access right under the DPDP Act, 2023. Deliberately assembled by hand
-    rather than dumped from the ORM so that adding a model does not silently
-    start leaking a new field.
+    The access right under the DPDP Act, 2023 — see `privacy.export_data`.
     """
-    user = request.user
-    data = {
-        "exported_at": timezone.now().isoformat(),
-        "account": UserProfileSerializer(user).data,
-        "tickets": [],
-        "ticket_orders": [],
-        "saved_events": [],
-    }
-
-    try:
-        from apps.tickets.models import Ticket, Order
-
-        data["tickets"] = [
-            {
-                "ticket_number": t.ticket_number,
-                "event": t.event.title,
-                "tier": t.tier.name if t.tier else None,
-                "status": t.status,
-                "checked_in_at": t.checked_in_at.isoformat() if t.checked_in_at else None,
-                "purchased_at": t.created_at.isoformat(),
-            }
-            for t in Ticket.objects.filter(user=user).select_related("event", "tier")
-        ]
-        data["ticket_orders"] = [
-            {
-                "id": str(o.id),
-                "event": o.event.title,
-                "status": o.status,
-                "total_amount": str(o.total_amount),
-                "created_at": o.created_at.isoformat(),
-            }
-            for o in Order.objects.filter(user=user).select_related("event")
-        ]
-    except Exception:  # pragma: no cover - export must never 500
-        logger.exception("Partial data export for user %s", user.pk)
-
-    try:
-        from apps.events.models import EventSave
-
-        data["saved_events"] = [
-            {"event": s.event.title, "saved_at": s.created_at.isoformat()}
-            for s in EventSave.objects.filter(user=user).select_related("event")
-        ]
-    except Exception:  # pragma: no cover
-        logger.exception("Saved-events export failed for user %s", user.pk)
-
-    response = Response(data)
+    response = Response(privacy.export_data(request.user))
     response["Content-Disposition"] = 'attachment; filename="naada-my-data.json"'
     return response
 

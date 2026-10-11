@@ -28,6 +28,7 @@ import {
   type Venue,
 } from "@/data/fixtures";
 import { detectContactInfo } from "@/lib/contact-filter";
+import { readPref, useConsent, writePref } from "@/lib/consent";
 
 import * as api from "@/lib/api";
 import type { ApiVenue } from "@/lib/api";
@@ -232,14 +233,14 @@ export function AppStoreProvider({
    */
   const [theme, setTheme] = useState<Theme>(() => {
     try {
-      return localStorage.getItem("naada_theme") === "light" ? "light" : "dark";
+      return readPref("naada_theme") === "light" ? "light" : "dark";
     } catch {
       return "dark";
     }
   });
   const [lang, setLang] = useState<Lang>(() => {
     try {
-      return localStorage.getItem("naada_lang") === "kn" ? "kn" : "en";
+      return readPref("naada_lang") === "kn" ? "kn" : "en";
     } catch {
       return "en";
     }
@@ -254,25 +255,21 @@ export function AppStoreProvider({
    * over. That is why switching theme appeared to work on the home page and
    * nowhere else.
    */
+  // Re-run when the cookie choice changes so saying yes remembers the current
+  // theme/language immediately, and saying no forgets what was remembered.
+  const consent = useConsent();
   useEffect(() => {
     const root = document.documentElement;
     root.classList.toggle("theme-light", theme === "light");
     root.style.colorScheme = theme;
-    try {
-      localStorage.setItem("naada_theme", theme);
-    } catch {
-      /* private mode — the choice just won't outlive the tab */
-    }
-  }, [theme]);
+    // Persists only if the visitor said yes to "preferences" (see lib/consent).
+    writePref("naada_theme", theme);
+  }, [theme, consent]);
 
   useEffect(() => {
     document.documentElement.lang = lang === "kn" ? "kn" : "en";
-    try {
-      localStorage.setItem("naada_lang", lang);
-    } catch {
-      /* as above */
-    }
-  }, [lang]);
+    writePref("naada_lang", lang);
+  }, [lang, consent]);
   /*
    * Every list starts empty and is filled from the API.
    *

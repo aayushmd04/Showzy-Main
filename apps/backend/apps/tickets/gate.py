@@ -248,7 +248,11 @@ def gate_revoke(request, event_id, assignment_id):
     if a.status in (GateAssignment.Status.PENDING, GateAssignment.Status.ACTIVE):
         a.status = GateAssignment.Status.REVOKED
         a.revoked_at = timezone.now()
-        a.save(update_fields=["status", "revoked_at", "updated_at"])
+        # The email/phone the host typed has done its job; don't keep a stranger's
+        # contact details around once the invitation is withdrawn.
+        a.invitee_email = ""
+        a.invitee_phone = ""
+        a.save(update_fields=["status", "revoked_at", "invitee_email", "invitee_phone", "updated_at"])
     return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -303,8 +307,10 @@ def _respond(request, assignment_id, accept):
     else:
         a.status = GateAssignment.Status.DECLINED
         a.user = request.user
+        a.invitee_email = ""
+        a.invitee_phone = ""
     a.responded_at = timezone.now()
-    a.save(update_fields=["status", "user", "responded_at", "updated_at"])
+    a.save(update_fields=["status", "user", "responded_at", "invitee_email", "invitee_phone", "updated_at"])
 
     if a.invited_by:
         record(

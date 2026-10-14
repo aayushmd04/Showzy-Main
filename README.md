@@ -52,6 +52,22 @@ npm run backend:check
 npm run backend:test
 ```
 
+## Dependency changes (read before touching `package-lock.json`)
+
+CI runs on Linux; many developers are on a Mac. Vite, Rollup, esbuild and Tailwind each ship a
+native binary per platform, and a lockfile generated on a Mac can end up listing only the Mac one.
+`npm ci` on the Linux runner then installs **no** native binary and every frontend step fails with
+`Cannot find module @rollup/rollup-linux-x64-gnu` (npm bug
+[#4828](https://github.com/npm/cli/issues/4828)).
+
+After adding or upgrading a dependency, check that the lockfile still carries the Linux builds:
+
+```bash
+grep -c 'rollup-linux-x64-gnu' package-lock.json   # must not be 0
+```
+
+If it is 0, regenerate the missing entries (or rebuild the lock with `rm -rf node_modules package-lock.json && npm install`) and commit the result.
+
 The frontend-specific documentation is in [apps/frontend/README.md](apps/frontend/README.md).# Naada — clickable prototype
 
 A front-end-only prototype of Naada, a web platform for grassroots live music in Bengaluru.

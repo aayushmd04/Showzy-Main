@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowLeft, Camera, CameraOff, Check, X } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/app-store";
-import { scanTicket, getEventAttendees, type ApiAttendee } from "@/lib/api";
+import { scanTicket, getEventAttendees, getMyGate, type ApiAttendee } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { NotFoundScreen } from "../not-found";
 
@@ -90,7 +90,7 @@ function buzz(ok: boolean) {
   }
 }
 
-export function HostDoorScannerScreen() {
+export function HostDoorScannerScreen({ variant = "host" }: { variant?: "host" | "gate" }) {
   const { id = "" } = useParams();
   const { eventById, capacityOf, toast } = useStore();
 
@@ -117,7 +117,27 @@ export function HostDoorScannerScreen() {
   const lastCodeRef = useRef<{ code: string; at: number } | null>(null);
   const reduce = useReducedMotion();
 
-  const event = eventById(id);
+  const isGate = variant === "gate";
+  // A gatekeeper's event may not be in the host-oriented store, so the title
+  // comes from their own assignment instead.
+  const [gateTitle, setGateTitle] = useState<string | null>(null);
+  useEffect(() => {
+    if (!isGate) return;
+    let alive = true;
+    getMyGate()
+      .then((g) => {
+        const a = g.assignments.find((x) => x.event.id === id);
+        if (alive) setGateTitle(a ? a.event.title : "");
+      })
+      .catch(() => alive && setGateTitle(""));
+    return () => { alive = false; };
+  }, [isGate, id]);
+  const storeEvent = eventById(id);
+  const event = isGate
+    ? gateTitle
+      ? { id, name: gateTitle, checkedIn: 0 }
+      : undefined
+    : storeEvent;
 
   useEffect(() => {
     if (!id) return;
@@ -317,9 +337,13 @@ export function HostDoorScannerScreen() {
     [],
   );
 
+  if (isGate && gateTitle === null) {
+    return <p className="t-small p-6 text-muted" role="status">Loading your door…</p>;
+  }
   if (!event) return <NotFoundScreen />;
 
-  const capacity = capacityOf(event);
+  // For a gatekeeper the numbers come from the door list itself.
+  const capacity = isGate || !storeEvent ? doorList.length : capacityOf(storeEvent);
   const query = search.trim().toLowerCase();
   const matches = query
     ? doorList
@@ -329,13 +353,15 @@ export function HostDoorScannerScreen() {
         .slice(0, 8)
     : [];
 
-  const checkedIn = (event.checkedIn ?? 0) + admitted;
+  const checkedIn = isGate
+    ? doorList.filter((a) => a.status === "used").length
+    : (event.checkedIn ?? 0) + admitted;
 
   return (
     <div className="relative min-h-dvh bg-ink">
       <div className="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
         <Link
-          to={`/host/events/${event.id}`}
+          to={isGate ? "/gate" : `/host/events/${event.id}`}
           className="flex min-h-11 items-center gap-2 text-[15px] text-muted transition-colors hover:text-paper"
         >
           <ArrowLeft className="size-5" aria-hidden="true" />

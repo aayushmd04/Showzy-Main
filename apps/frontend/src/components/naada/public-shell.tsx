@@ -6,6 +6,7 @@
  * sections on the second. On a phone the search drops to its own row and the
  * strip scrolls sideways.
  */
+import { openCookieSettings } from "@/lib/consent";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Search } from "lucide-react";
@@ -201,12 +202,20 @@ export function PublicShell({ children }: { children: ReactNode }) {
               { label: "Terms", path: "/terms" },
               { label: "Privacy", path: "/privacy" },
               { label: "Refunds", path: "/refunds" },
+              { label: "Cookies", path: "/cookies" },
               { label: "Contact", path: "/contact" },
             ].map(({ label, path }) => (
               <Link key={path} to={path} className="text-[13px] text-muted no-underline hover:text-paper">
                 {label}
               </Link>
             ))}
+            <button
+              type="button"
+              onClick={openCookieSettings}
+              className="text-[13px] text-muted hover:text-paper"
+            >
+              Cookie settings
+            </button>
           </div>
           <div className="flex items-center gap-4">
             <p className="text-[13px] text-muted">Live art · Mysuru &amp; Bengaluru</p>

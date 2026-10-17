@@ -12,12 +12,18 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@fontsource/anek-kannada": "^5.3.0",
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/jetbrains-mono": "^5.3.0",
+    "@fontsource/josefin-sans": "^5.3.0",
+    "@fontsource/manrope": "^5.3.0",
+    "@fontsource/megrim": "^5.3.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.469.0",
     "motion": "^11.15.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
+    "react-router-dom": "^7.18.4",
     "swr": "^2.5.1",
     "tailwind-merge": "^2.6.0"
   },

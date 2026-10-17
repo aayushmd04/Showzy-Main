@@ -9,6 +9,7 @@ import { ErrorBoundary } from "@/components/naada/error-boundary";
 import { NearbyLoader } from "@/components/naada/nearby-loader";
 import { RequireRole } from "@/components/naada/require-role";
 import { Toaster } from "@/components/ui/toaster";
+import { CookieConsent } from "@/components/naada/cookie-consent";
 import { useStore } from "@/store/app-store";
 import { getMe, tokens, AUTH_EXPIRED_EVENT } from "@/lib/api";
 
@@ -66,6 +67,8 @@ const HostArtistSearchScreen = lazyScreen(() => import("@/screens/host/host-arti
 const HostBookingsScreen = lazyScreen(() => import("@/screens/host/host-bookings"), "HostBookingsScreen");
 const HostSettlementsScreen = lazyScreen(() => import("@/screens/host/host-settlements"), "HostSettlementsScreen");
 const HostVenueBusinessScreen = lazyScreen(() => import("@/screens/host/host-venue-business"), "HostVenueBusinessScreen");
+const HostGateTeamScreen = lazyScreen(() => import("@/screens/host/host-gate-team"), "HostGateTeamScreen");
+const GateScreen = lazyScreen(() => import("@/screens/gate"), "GateScreen");
 const HostDoorScannerScreen = lazyScreen(() => import("@/screens/host/host-door-scanner"), "HostDoorScannerScreen");
 
 const ArtistHomeScreen = lazyScreen(() => import("@/screens/artist/artist-home"), "ArtistHomeScreen");
@@ -228,6 +231,7 @@ export default function App() {
                     <Route path="/terms" element={<LegalScreen doc="terms" />} />
                     <Route path="/privacy" element={<LegalScreen doc="privacy" />} />
                     <Route path="/refunds" element={<LegalScreen doc="refunds" />} />
+                    <Route path="/cookies" element={<LegalScreen doc="cookies" />} />
                     <Route path="/contact" element={<LegalScreen doc="contact" />} />
 
                     {/* Host console */}
@@ -239,6 +243,10 @@ export default function App() {
                     <Route path="/host/events/:id" element={host(<HostEventManagerScreen />)} />
                     <Route path="/host/events/:id/edit" element={host(<HostEventEditorScreen />)} />
                     <Route path="/host/events/:id/door" element={host(<HostDoorScannerScreen />)} />
+                    <Route path="/host/events/:id/gate" element={host(<HostGateTeamScreen />)} />
+                    {/* Gatekeepers are ordinary accounts: the server decides what each may scan. */}
+                    <Route path="/gate" element={<GateScreen />} />
+                    <Route path="/gate/:id/door" element={<HostDoorScannerScreen variant="gate" />} />
                     <Route path="/host/artists" element={host(<HostArtistSearchScreen />)} />
                     <Route path="/host/bookings" element={host(<HostBookingsScreen />)} />
                     <Route path="/host/settlements" element={host(<HostSettlementsScreen />)} />
@@ -280,6 +288,7 @@ export default function App() {
                 </Suspense>
 
                 <NearbyLoader />
+                <CookieConsent />
                 <Toaster />
               </BriefComposerProvider>
             </AuthSheetProvider>

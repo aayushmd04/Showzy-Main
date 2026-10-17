@@ -264,6 +264,8 @@ class ZoneAllocation(TimeStampedModel):
     seat_ids = models.JSONField(
         default=list, blank=True,
         help_text="Specific seats claimed, snapshotted as {id,label,furniture} at booking time")
+    baby_chairs = models.PositiveSmallIntegerField(
+        default=0, help_text="Free baby/high chairs reserved alongside the seats")
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.HELD)
     released_at = models.DateTimeField(null=True, blank=True)
 
@@ -295,3 +297,48 @@ class TicketTransfer(TimeStampedModel):
 
     def __str__(self):
         return f"Transfer of {self.ticket} from {self.from_user} → {self.to_user}"
+
+
+class GateAssignment(TimeStampedModel):
+    """A *Gatekeeper*: someone a host has trusted to check tickets at ONE event.
+
+    This is deliberately not a role on the user. A gatekeeper is an ordinary
+    account; what they may do — scan tickets and read the narrow door list for
+    this one event, inside a time window around it — lives entirely on this row.
+    Nothing here grants any access to the venue, its money, its other events or
+    the host console.
+
+    Lifecycle: the host invites by email or phone (``pending``); the person
+    signs in with their own account and accepts (``active``) or declines. The
+    host can revoke at any time, which takes effect on the very next scan.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Invited"
+        ACTIVE = "active", "Active"
+        DECLINED = "declined", "Declined"
+        REVOKED = "revoked", "Revoked"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    event = models.ForeignKey("events.Event", on_delete=models.CASCADE,
+                              related_name="gate_assignments")
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL,
+                                   null=True, related_name="gate_invites_sent")
+    # How the host named the person. The account that accepts is `user`.
+    invitee_email = models.EmailField(blank=True)
+    invitee_phone = models.CharField(max_length=15, blank=True)
+    label = models.CharField(max_length=60, blank=True, help_text="e.g. 'Main gate'")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             null=True, blank=True, related_name="gate_assignments")
+    status = models.CharField(max_length=10, choices=Status.choices,
+                              default=Status.PENDING, db_index=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["event", "status"]),
+                   models.Index(fields=["user", "status"])]
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.invitee_email or self.invitee_phone} @ {self.event_id} [{self.status}]"

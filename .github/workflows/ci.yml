@@ -8,10 +8,15 @@
 # backend tests run against a throwaway SQLite file, which is what makes this
 # workflow fast and, more importantly, not flaky.
 #
-# Both suites are green as of 10 Sep 2026: 82 frontend tests, 64 backend tests,
-# and a clean production build. Every gate below is a real gate — nothing is
-# skipped or allowed to fail, because a green tick that means nothing is worse
-# than no CI at all.
+# Every gate below is a real gate — nothing is skipped or allowed to fail,
+# because a green tick that means nothing is worse than no CI at all.
+#
+# Lockfile note: package-lock.json must list the native build of rollup,
+# esbuild and Tailwind for Linux (the runner), not just for the Mac it was
+# generated on, or `npm ci` installs no native binary and every frontend step
+# dies with "Cannot find module @rollup/rollup-linux-x64-gnu". After changing
+# dependencies on a Mac, check `git diff package-lock.json` still contains
+# linux-x64 entries (see the repo README, "Dependency changes").
 # =============================================================================
 
 name: CI
@@ -32,7 +37,7 @@ permissions:
 
 jobs:
   # ───────────────────────────────────────────────────────────────────────────
-  # Backend — Django 5.1 / DRF / Channels / Celery
+  # Backend — Django 5.2 / DRF / Channels / Celery
   # ───────────────────────────────────────────────────────────────────────────
   backend:
     name: Backend (Django)
@@ -160,11 +165,9 @@ jobs:
         run: npm ci
 
       - name: Type check
-        # Currently FAILS — see the KNOWN RED block at the top of this file.
         run: npm run typecheck
 
       - name: Unit tests
-        # Four tests currently fail — see the KNOWN RED block.
         run: npm test
 
       - name: Production build
@@ -200,6 +203,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Install PyYAML
+        # The validator below imports `yaml`, which is not in the standard
+        # library and is not preinstalled on the runner. Without this step the
+        # job dies with ModuleNotFoundError before it checks anything.
+        run: python -m pip install --disable-pip-version-check pyyaml
 
       - name: Validate YAML and JSON
         run: |

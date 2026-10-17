@@ -1034,3 +1034,54 @@ class DoorAccessTests(ZoneTestCase):
         second = self.as_(self.host).post(self.scan_url())
         self.assertEqual(second.status_code, 400, second.data)
         self.assertFalse(second.data["valid"])
+
+
+class FacilitiesAndBabyChairTests(ZoneTestCase):
+    """Restrooms and speakers describe the room; baby chairs are a free,
+    stock-limited add-on at a table."""
+
+    def setUp(self):
+        super().setUp()
+        self.venue.layout = {"version": 1, "elements": [
+            {"id": "r1", "type": "restroom", "x": 2, "y": 2, "w": 8, "h": 8,
+             "label": "Restrooms", "capacity": 0, "count": 4},
+            {"id": "sp1", "type": "speaker", "x": 20, "y": 2, "w": 4, "h": 4,
+             "label": "Speaker", "capacity": 50},
+            {"id": "t1", "type": "table", "x": 7, "y": 30, "w": 10, "h": 10,
+             "label": "Table A", "capacity": 4, "babyChairs": 2,
+             "seats": [{"id": f"a{i}", "t": i / 4, "furniture": "chair", "groupId": None}
+                       for i in range(4)]},
+        ]}
+        self.venue.save(update_fields=["layout"])
+
+    def test_restrooms_and_speakers_are_never_bookable(self):
+        self.assertFalse(self.zone("r1")["bookable"])
+        self.assertEqual(self.zone("r1")["count"], 4)
+        # Even with a typed-in capacity, a speaker is not something to sell.
+        self.assertFalse(self.zone("sp1")["bookable"])
+
+    def test_table_reports_baby_chair_stock(self):
+        z = self.zone("t1")
+        self.assertEqual(z["baby_chairs_total"], 2)
+        self.assertEqual(z["baby_chairs_available"], 2)
+
+    def _order_with_baby(self, n, seat="a0"):
+        body = {"event_id": str(self.event.id),
+                "items": [{"tier_id": str(self.tier.id), "quantity": 1}],
+                "zone_id": "t1", "seat_ids": [seat], "baby_chairs": n}
+        return self.client.post(reverse("orders-create"), body, format="json")
+
+    def test_baby_chairs_are_held_and_cannot_be_oversold(self):
+        resp = self._order_with_baby(1, "a0")
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["zone"]["baby_chairs"], 1)
+        self.assertEqual(self.zone("t1")["baby_chairs_available"], 1)
+
+        resp = self._order_with_baby(2, "a1")
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Only 1 baby chair left", str(resp.data["detail"]))
+
+    def test_baby_chairs_do_not_count_as_tickets_or_seats(self):
+        resp = self._order_with_baby(2, "a0")
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(self.zone("t1")["available"], 3)

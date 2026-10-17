@@ -1,0 +1,87 @@
+# Showzy backend on one VM (Oracle Cloud Always Free or any Ubuntu server).
+# The database is Supabase, so there is no Postgres container here.
+#
+#   cd ~/naada/apps/backend/deploy/oracle
+#   docker compose up -d --build
+#   docker compose logs -f backend
+
+x-backend: &backend
+  build:
+    context: ../..
+    dockerfile: Dockerfile
+  image: naada-backend:vps
+  env_file: .env
+  volumes:
+    - media:/app/media
+  restart: unless-stopped
+
+services:
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  migrate:
+    <<: *backend
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    restart: "no"
+
+  backend:
+    <<: *backend
+    command: ["sh", "-c", "exec daphne -b 0.0.0.0 -p 8000 --proxy-headers naada.asgi:application"]
+    expose:
+      - "8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *backend
+    command: ["python", "-m", "celery", "-A", "naada", "worker", "--loglevel=info", "--concurrency=2"]
+    healthcheck:
+      disable: true
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  beat:
+    <<: *backend
+    command: ["python", "-m", "celery", "-A", "naada", "beat", "--loglevel=info", "--schedule=/tmp/celerybeat-schedule"]
+    healthcheck:
+      disable: true
+    depends_on:
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  caddy:
+    image: caddy:2-alpine
+    env_file: .env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  media:
+  redisdata:
+  caddydata:
+  caddyconfig:

@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import { X } from "lucide-react";
+import { ConsentCheck, PolicyLink } from "@/components/naada/consent-check";
+import { LEGAL_VERSION } from "@/lib/legal";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label, Textarea } from "@/components/ui/input";
@@ -17,6 +19,7 @@ import { useStore } from "@/store/app-store";
 import {
   requestOtp, verifyOtp, updateMe, setUserRole, logout as apiLogout,
   getMyArtistProfile, updateArtist, createVenue, getCities, getGenres, post,
+  recordConsent,
 } from "@/lib/api";
 import type { ApiArtist, ApiCity, ApiGenre } from "@/lib/api";
 import type { Role } from "@/data/fixtures";
@@ -155,6 +158,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
         await updateArtist(artistId, {
           stage_name: data.stageName, bio: data.bio, city: data.city, genres: data.genres,
         });
+        void recordConsent("organiser_terms", LEGAL_VERSION, "onboarding");
       } catch {
         setStepError("Couldn't save your profile — check your connection and try again.");
         setLoading(false);
@@ -185,6 +189,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
         await createVenue({
           name: data.venueName, address_line1: data.address, city: data.city, capacity: data.capacity,
         });
+        void recordConsent("organiser_terms", LEGAL_VERSION, "onboarding");
       } catch {
         setStepError("Couldn't save your venue — check your connection and try again.");
         setLoading(false);
@@ -221,6 +226,9 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     setLoading(true);
     try {
       const { user } = await verifyOtp(email.trim(), otp);
+      // Keep a record of what they agreed to (the notice under the email box).
+      // The server ignores repeats, so this only adds a row when the wording changed.
+      void recordConsent("terms_privacy", LEGAL_VERSION, "signin");
       setCurrentUser({ id: user.id, email: user.email, full_name: user.full_name, role: user.role });
       const nextRole: Role = ROLE_MAP[user.role] ?? "listener";
       const preferred = optionsRef.current.preferRole;
@@ -294,6 +302,11 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
               placeholder="you@example.com"
               required
             />
+            <p className="t-micro mt-3 text-muted">
+              By continuing you agree to our <PolicyLink to="/terms">Terms</PolicyLink> and{" "}
+              <PolicyLink to="/privacy">Privacy Policy</PolicyLink>. We only use your email to sign you in
+              and send your tickets.
+            </p>
             <Button
               type="submit"
               variant="primary"
@@ -345,7 +358,7 @@ function RoleStep({
   return (
     <div>
       <p className="t-small text-muted mb-4">
-        Tell us how you'd like to use Showzy — you can change this later in settings.
+        Tell us how you'd like to use Showzy. To switch later, contact support.
       </p>
       {error && (
         <p className="t-small mb-4 text-fault" role="alert">{error}</p>
@@ -603,6 +616,7 @@ function ArtistRequiredStep({
   const [genres, setGenres] = useState<number[]>([]);
   const [genreToAdd, setGenreToAdd] = useState("");
   const [bio, setBio] = useState("");
+  const [agree, setAgree] = useState(false);
 
   const cities = useReferenceList<ApiCity>(getCities);
   const allGenres = useReferenceList<ApiGenre>(getGenres);
@@ -610,7 +624,7 @@ function ArtistRequiredStep({
   const genreName = (id: number) => allGenres.find((g) => g.id === id)?.name;
 
   const bioOk = bio.trim().length >= 10;
-  const canSubmit = name.trim() && stageName.trim() && city && genres.length > 0 && bioOk && !loading;
+  const canSubmit = name.trim() && stageName.trim() && city && genres.length > 0 && bioOk && agree && !loading;
 
   return (
     <form
@@ -696,6 +710,12 @@ function ArtistRequiredStep({
         />
       </Field>
 
+      <ConsentCheck id="ar-agree" checked={agree} onChange={setAgree} className="mt-4">
+        I agree to the <PolicyLink to="/terms">Terms</PolicyLink> for artists, including that Showzy holds
+        booking fees in escrow and checks my identity and bank details (KYC) before paying me, and that hosts
+        can see this profile.
+      </ConsentCheck>
+
       {error && <p className="t-small mt-3 text-fault" role="alert">{error}</p>}
 
       <Button type="submit" variant="primary" full className="mt-5" disabled={!canSubmit}>
@@ -724,13 +744,14 @@ function HostRequiredStep({
   const [address, setAddress] = useState("");
   const [city, setCity] = useState("");
   const [capacity, setCapacity] = useState("");
+  const [agree, setAgree] = useState(false);
 
   const cities = useReferenceList<ApiCity>(getCities);
 
   const capacityNum = Number(capacity);
   const canSubmit =
     name.trim() && venueName.trim() && address.trim() && city &&
-    capacity.trim() && capacityNum > 0 && !loading;
+    capacity.trim() && capacityNum > 0 && agree && !loading;
 
   return (
     <form
@@ -781,6 +802,12 @@ function HostRequiredStep({
           required
         />
       </Field>
+
+      <ConsentCheck id="hr-agree" checked={agree} onChange={setAgree} className="mt-4">
+        I confirm I'm authorised to list this venue and agree to the <PolicyLink to="/terms">Terms</PolicyLink>{" "}
+        for hosts: I'm responsible for my events, my floor plan and anyone I invite to check tickets, and Showzy
+        will verify my identity and bank details (KYC) before paying me.
+      </ConsentCheck>
 
       {error && <p className="t-small mt-3 text-fault" role="alert">{error}</p>}
 

@@ -4,6 +4,8 @@
  * All mutations return the parsed JSON body or throw an ApiError.
  */
 
+import { clearPersonalLocalData } from "@/lib/local-data";
+
 export const API_BASE =
   import.meta.env.VITE_API_BASE?.replace(/\/$/, "") ?? "http://localhost:8000/api/v1";
 
@@ -175,6 +177,8 @@ export const post = <T>(path: string, body?: unknown, auth = true) =>
 export const patch = <T>(path: string, body?: unknown) =>
   request<T>("PATCH", path, body);
 
+export const del = <T>(path: string) => request<T>("DELETE", path);
+
 // ─── SWR fetcher (authenticated GET) ─────────────────────────────────────────
 
 export function swrFetcher<T>(path: string): Promise<T> {
@@ -236,11 +240,65 @@ export async function setUserRole(role: "attendee" | "artist" | "venue_owner"): 
   return post<MeResponse>("/auth/set-role/", { role });
 }
 
-/** Erasure request under the DPDP Act. Irreversible. */
-export async function deleteMyAccount(): Promise<{ detail: string }> {
-  const res = await request<{ detail: string }>("DELETE", "/auth/me/");
+/** What deleting the account would erase and keep, and anything that blocks it. */
+export interface DeletionNote {
+  code: string;
+  title: string;
+  detail: string;
+  items?: string[];
+  action_url?: string;
+}
+export interface DeletionReport {
+  can_delete: boolean;
+  blockers: DeletionNote[];
+  warnings: DeletionNote[];
+  erase: string[];
+  keep: string[];
+}
+
+export function getDeletionCheck(): Promise<DeletionReport> {
+  return get<DeletionReport>("/auth/me/deletion-check/");
+}
+
+/** Emails a one-time code that must accompany the deletion request. */
+export function requestDeletionCode(): Promise<{ detail: string; debug_otp?: string }> {
+  return post("/auth/me/deletion-code/");
+}
+
+/** Erasure request under the DPDP Act. Irreversible; needs the emailed code. */
+export async function deleteMyAccount(body: {
+  code: string;
+  acknowledge_losses?: boolean;
+}): Promise<{ detail: string }> {
+  const res = await request<{ detail: string }>("DELETE", "/auth/me/", body);
   tokens.clear();
+  clearPersonalLocalData();
   return res;
+}
+
+// ─── Consent log (what the person agreed to, and when) ────────────────────────
+
+export interface ConsentPosition {
+  version: string;
+  granted: boolean;
+  source: string;
+  at: string;
+}
+
+export function getConsents(): Promise<Partial<Record<ConsentKind, ConsentPosition>>> {
+  return get("/auth/consents/");
+}
+
+export type ConsentKind = "terms_privacy" | "organiser_terms" | "marketing_email" | "ticket_contact";
+
+/** Append to the consent log. Safe to call repeatedly: the server ignores exact repeats. */
+export function recordConsent(
+  kind: ConsentKind,
+  version: string,
+  source: string,
+  granted = true,
+): Promise<unknown> {
+  return post("/auth/consents/", { kind, version, source, granted }).catch(() => undefined);
 }
 
 /** Access request under the DPDP Act — everything we hold, as JSON. */
@@ -256,6 +314,7 @@ export function exportMyData(): Promise<Record<string, unknown>> {
 export async function logout(): Promise<void> {
   const refresh = tokens.refresh;
   tokens.clear();
+  clearPersonalLocalData();
   if (!refresh) return;
   try {
     await post("/auth/logout/", { refresh }, false);
@@ -816,6 +875,8 @@ export function createTicketOrder(data: {
   zone_id?: string;
   /** Required, one per ticket, when the chosen zone has named seats. */
   seat_ids?: string[];
+  /** Optional free baby/high chairs at the chosen table. */
+  baby_chairs?: number;
 }): Promise<ApiTicketOrder> {
   return post<ApiTicketOrder>("/ticket-orders/", data);
 }
@@ -1008,6 +1069,76 @@ export function getEventAttendees(
 ): Promise<{ event: string; count: number; results: ApiAttendee[] }> {
   return get(`/events/${eventId}/attendees/`);
 }
+
+// ─── Gatekeepers: invited, event-scoped ticket checkers ──────────────────────
+
+export interface GateEventCard {
+  id: string;
+  title: string;
+  venue: string;
+  starts_at: string;
+  ends_at: string;
+}
+
+export type GateStatus = "pending" | "active" | "declined" | "revoked";
+
+export interface GateTeamMember {
+  id: string;
+  status: GateStatus;
+  /** The email or phone the host typed. */
+  invitee: string;
+  label: string;
+  /** Filled in once the person accepts with their own account. */
+  name: string;
+  email: string;
+  invited_at: string;
+  responded_at: string | null;
+  scan_count: number;
+  last_scan_at: string | null;
+}
+
+export interface GateScan {
+  ticket_number: string;
+  holder_name: string;
+  tier: string;
+  seat: string;
+  at: string;
+  by_id: string | null;
+  by_name: string;
+}
+
+export interface GateOverview {
+  event: GateEventCard;
+  window: { opens: string; closes: string; open_now: boolean };
+  totals: { admitted: number; tickets: number; by_organiser: number };
+  team: GateTeamMember[];
+  recent: GateScan[];
+  max_team: number;
+}
+
+export interface MyGate {
+  invitations: { id: string; event: GateEventCard; invited_by: string; label: string; invited_at: string }[];
+  assignments: {
+    id: string;
+    event: GateEventCard;
+    label: string;
+    open_now: boolean;
+    opens: string;
+    closes: string;
+    scanned: number;
+  }[];
+}
+
+export const getGateOverview = (eventId: string) => get<GateOverview>(`/events/${eventId}/gate/`);
+export const inviteGatekeeper = (
+  eventId: string,
+  body: { email?: string; phone?: string; label?: string },
+) => post<{ id: string; status: GateStatus; has_account: boolean }>(`/events/${eventId}/gate/invite/`, body);
+export const revokeGatekeeper = (eventId: string, assignmentId: string) =>
+  del<void>(`/events/${eventId}/gate/${assignmentId}/`);
+export const getMyGate = () => get<MyGate>("/gate/mine/");
+export const acceptGateInvite = (id: string) => post(`/gate/invitations/${id}/accept/`);
+export const declineGateInvite = (id: string) => post(`/gate/invitations/${id}/decline/`);
 
 // ─── Artists (own profile) ────────────────────────────────────────────────────
 

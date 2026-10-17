@@ -86,6 +86,9 @@ class OTPToken(models.Model):
         LOGIN = "login", "Login"
         VERIFY_EMAIL = "verify_email", "Verify Email"
         RESET = "reset", "Reset"
+        # Re-authentication for the one irreversible thing a signed-in user can
+        # do. Never accepted by the public sign-in endpoints.
+        DELETE_ACCOUNT = "delete_account", "Delete account"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(db_index=True)
@@ -164,3 +167,37 @@ class UserDevice(TimeStampedModel):
     class Meta:
         unique_together = [("user", "device_token")]
         ordering = ["-last_seen"]
+
+
+class ConsentRecord(models.Model):
+    """An append-only log of what a person agreed to, and when.
+
+    The Digital Personal Data Protection Act, 2023 requires us to be able to
+    show that consent was asked for and given (and to honour its withdrawal).
+    Rows are never edited: a change of mind is a new row, and the latest row
+    per `kind` is the person's current position. The user row is kept (soft
+    deleted) after an erasure so this proof survives; it carries no contact
+    details by then.
+    """
+
+    class Kind(models.TextChoices):
+        TERMS_PRIVACY = "terms_privacy", "Terms of Service and Privacy Policy"
+        ORGANISER_TERMS = "organiser_terms", "Terms for hosts and artists"
+        MARKETING_EMAIL = "marketing_email", "Marketing email"
+        TICKET_CONTACT = "ticket_contact", "Share ticket details with the organiser"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey("users.User", on_delete=models.SET_NULL, null=True, blank=True,
+                             related_name="consents")
+    kind = models.CharField(max_length=30, choices=Kind.choices, db_index=True)
+    version = models.CharField(max_length=20, help_text="Date of the document version, e.g. 2026-10-11")
+    granted = models.BooleanField(default=True)
+    source = models.CharField(max_length=30, blank=True, help_text="signin, checkout, onboarding, settings…")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [models.Index(fields=["user", "kind", "-created_at"])]
+
+    def __str__(self):
+        return f"{self.kind}@{self.version} {'granted' if self.granted else 'withdrawn'}"

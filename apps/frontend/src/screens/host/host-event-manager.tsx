@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { ExternalLink, Pencil, ScanLine } from "lucide-react";
+import { ExternalLink, Pencil, ScanLine, Users } from "lucide-react";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { StatTile } from "@/components/naada/stat-tile";
 import { Button } from "@/components/ui/button";
@@ -166,6 +166,10 @@ export function HostEventManagerScreen() {
         <Link to={`/host/events/${event.id}/door`} className="btn btn-secondary">
           <ScanLine className="size-4" aria-hidden="true" />
           Open door scanner
+        </Link>
+        <Link to={`/host/events/${event.id}/gate`} className="btn btn-secondary">
+          <Users className="size-4" aria-hidden="true" />
+          Gate team
         </Link>
       </div>
 

@@ -82,6 +82,8 @@ export function CheckoutPayScreen() {
    * ever describes seats that make sense for the current selection.
    */
   const [seatIds, setSeatIds] = useState<string[]>([]);
+  // Optional free add-on for guests bringing a little one.
+  const [babyChairs, setBabyChairs] = useState(0);
   const cancelled = useRef(false);
 
   // Reset on mount, not just set on unmount: StrictMode's dev-only
@@ -120,8 +122,15 @@ export function CheckoutPayScreen() {
     ? Number(placed.total_amount)
     : Math.max(0, ticketTotal - discount + estimatedFee);
 
+  // Set once payment has succeeded and we're on our way to the ticket. Clearing
+  // the checkout draft empties `event`, and the "nothing to pay for → go home"
+  // guard below would otherwise race the redirect to the ticket (React Router 7
+  // runs navigations in a transition, so the later one doesn't reliably win).
+  const leaving = useRef(false);
+
   const finish = useCallback(
     async (eventId: string) => {
+      leaving.current = true;
       await hydrateFromApi().catch(() => {});
       clearCheckout();
       // The server issues the ticket number; find the newest one for this event.
@@ -216,6 +225,7 @@ export function CheckoutPayScreen() {
         promo_code: promoState?.valid ? promo.trim() : undefined,
         ...(zone ? { zone_id: zone.id } : {}),
         ...(zone && zone.seats.length > 0 ? { seat_ids: seatIds } : {}),
+        ...(zone && babyChairs > 0 ? { baby_chairs: babyChairs } : {}),
       };
       const order = await api.createTicketOrder(orderPayload);
 
@@ -280,6 +290,7 @@ export function CheckoutPayScreen() {
       if (zone) {
         setZoneRefresh((n) => n + 1);
         setSeatIds([]);
+        setBabyChairs(0);
       }
     }
   };
@@ -320,7 +331,7 @@ export function CheckoutPayScreen() {
     }
   };
 
-  if (!event || !tier) return <Navigate to="/" replace />;
+  if (!event || !tier) return leaving.current ? null : <Navigate to="/" replace />;
 
   const busy = phase === "reserving" || phase === "verifying";
   // A zone with named seats needs exactly one seat per ticket before paying —
@@ -342,7 +353,10 @@ export function CheckoutPayScreen() {
               {dateListing(event.date)} · {tier.name} × {qty}
             </p>
             {zone && (
-              <p className="t-small mt-1 text-paper/90">Seated at {zone.label}</p>
+              <p className="t-small mt-1 text-paper/90">
+                Seated at {zone.label}
+                {babyChairs > 0 ? ` · ${babyChairs} baby chair${babyChairs === 1 ? "" : "s"}` : ""}
+              </p>
             )}
 
             <dl className="mt-4 space-y-1.5 border-t border-line pt-4">
@@ -392,6 +406,8 @@ export function CheckoutPayScreen() {
           refreshToken={zoneRefresh}
           selectedSeatIds={seatIds}
           onSeatIdsChange={setSeatIds}
+          babyChairs={babyChairs}
+          onBabyChairsChange={setBabyChairs}
         />
 
         {zone && zone.seats.length > 0 && seatIds.length < qty && (
@@ -482,6 +498,11 @@ export function CheckoutPayScreen() {
             <p className="t-small mt-4 flex items-center justify-center gap-1.5 text-muted">
               <Lock className="size-3.5" aria-hidden="true" />
               Payment is processed securely. Showzy never sees your card details.
+            </p>
+            <p className="t-micro mt-2 text-center text-muted">
+              By paying you agree to the <a href="/terms" target="_blank" rel="noopener noreferrer" className="link-underline text-paper">Terms</a> and{" "}
+              <a href="/refunds" target="_blank" rel="noopener noreferrer" className="link-underline text-paper">Refund policy</a>. The organiser
+              sees your name and ticket details so they can admit you.
             </p>
           </section>
         )}

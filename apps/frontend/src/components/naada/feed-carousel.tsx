@@ -47,7 +47,7 @@ export function FeedCarousel({ slides, label }: { slides: FeedSlide[]; label: st
     <section
       aria-roledescription="carousel"
       aria-label={label}
-      className="relative overflow-x-clip"
+      className="relative"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
       onFocus={() => setPaused(true)}
@@ -57,6 +57,7 @@ export function FeedCarousel({ slides, label }: { slides: FeedSlide[]; label: st
         if (e.key === "ArrowLeft") prev();
       }}
     >
+      <div className="banner-ticket">
       <motion.div
         drag="x"
         dragConstraints={{ left: 0, right: 0 }}
@@ -91,7 +92,7 @@ export function FeedCarousel({ slides, label }: { slides: FeedSlide[]; label: st
                 <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent" />
               </div>
 
-              <div className="relative flex h-full max-w-2xl [text-shadow:0_1px_14px_rgba(0,0,0,.5)] flex-col items-start justify-center gap-2 px-[var(--page-pad)] md:gap-3 2xl:max-w-3xl">
+              <div className="relative flex h-full max-w-2xl [text-shadow:0_1px_14px_rgba(0,0,0,.5)] flex-col items-start justify-center gap-2 px-7 md:gap-3 md:px-12 2xl:max-w-3xl">
                 {s.badge && (
                   <span className="rounded bg-signal px-2 py-0.5 text-[12px] font-bold uppercase tracking-wider text-white">
                     {s.badge}
@@ -114,6 +115,10 @@ export function FeedCarousel({ slides, label }: { slides: FeedSlide[]; label: st
           );
         })}
       </motion.div>
+      </div>
+      {/* The notch edges, redrawn outside the mask so the cut has an outline like the logo */}
+      <span aria-hidden className="banner-notch banner-notch-l" />
+      <span aria-hidden className="banner-notch banner-notch-r" />
 
       {n > 1 && (
         <>
@@ -125,8 +130,8 @@ export function FeedCarousel({ slides, label }: { slides: FeedSlide[]; label: st
                 type="button"
                 onClick={dir === "prev" ? prev : next}
                 aria-label={dir === "prev" ? "Previous banner" : "Next banner"}
-                className={`absolute top-1/2 hidden size-11 -translate-y-1/2 place-items-center rounded-full bg-black/45 text-white transition-colors hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-white md:grid ${
-                  dir === "prev" ? "left-3" : "right-3"
+                className={`absolute top-1/2 z-10 hidden size-10 -translate-y-1/2 place-items-center rounded-full bg-black/55 text-white transition-colors hover:bg-signal focus-visible:outline-2 focus-visible:outline-white md:grid ${
+                  dir === "prev" ? "-left-5" : "-right-5"
                 }`}
               >
                 <Icon className="size-6" aria-hidden />

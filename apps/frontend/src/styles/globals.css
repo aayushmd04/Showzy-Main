@@ -420,14 +420,44 @@
 /* The home banner is a plain, full-width block: flush under the header, with a
    straight edge at the bottom and no fade. */
 .banner-wrap {
-  margin-top: -20px; /* cancels the page's top padding so the banner meets the header */
-  margin-bottom: 32px; /* room before the category icons (replaces the page's own row gap) */
+  margin-bottom: 28px; /* room before the category icons (replaces the page's own row gap) */
 }
 @media (min-width: 720px) {
   .banner-wrap {
-    margin-top: -24px;
-    margin-bottom: 40px;
+    margin-bottom: 36px;
   }
+}
+
+/* The banner as a ticket: rounded, outlined, a half-circle bitten out of each side.
+   The bites are a mask; .banner-notch redraws their edges so they read as part of the outline. */
+.banner-ticket {
+  --bite: 20px;
+  position: relative;
+  overflow: hidden;
+  border: 2px solid color-mix(in srgb, var(--color-paper) 75%, transparent);
+  border-radius: 28px;
+  -webkit-mask:
+    radial-gradient(circle var(--bite) at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--bite) at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--bite) at 0 50%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--bite) at 100% 50%, #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.banner-notch {
+  position: absolute;
+  top: 50%;
+  z-index: 5;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  border: 2px solid color-mix(in srgb, var(--color-paper) 75%, transparent);
+  border-radius: 999px;
+  pointer-events: none;
+}
+.banner-notch-l { left: -20px; clip-path: inset(0 0 0 50%); }
+.banner-notch-r { right: -20px; clip-path: inset(0 50% 0 0); }
+@media (min-width: 720px) {
+  .banner-ticket { border-radius: 36px; }
 }
 .banner-fade {
   inset-block: 0;
@@ -647,4 +677,146 @@ html.theme-fading *::after {
   ::view-transition-new(root) {
     animation-duration: 0.001ms;
   }
+}
+
+/* ============================================================
+   SHOWZY LOOK (trial). Takes its shapes from the logo: a ticket
+   with notches and a dashed tear line, friendly lowercase
+   Manrope ExtraBold, and one red "live" dot. Everything here is
+   additive; delete this block (and the .ticket-* classes in
+   home-feed.tsx) to go back to the previous look.
+   ============================================================ */
+
+/* Titles: the logo's lowercase Manrope 800, replacing Megrim capitals. */
+.t-h1,
+.t-display,
+.t-section,
+.font-megrim {
+  font-family: var(--font-display) !important;
+  font-weight: 800 !important;
+  text-transform: lowercase !important;
+  letter-spacing: -0.025em !important;
+  -webkit-text-stroke: 0 !important;
+}
+.t-h1,
+.t-display { line-height: 1.02; }
+
+/* The live dot from the logo, as a section marker. */
+.t-section::before,
+.live-mark::before {
+  content: "";
+  display: inline-block;
+  width: 0.42em;
+  height: 0.42em;
+  margin-right: 0.45em;
+  border-radius: 999px;
+  background: var(--color-signal);
+  box-shadow: 0 0 0 0.16em color-mix(in srgb, var(--color-signal) 28%, transparent);
+  vertical-align: 0.08em;
+}
+
+/* A ticket in two halves: poster above, details below, torn along a dashed line. */
+.ticket-top,
+.ticket-bottom {
+  --notch: 9px;
+}
+.ticket-top {
+  border-radius: 16px 16px 0 0;
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at 0 100%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at 100% 100%, #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at 0 100%, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at 100% 100%, #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.ticket-bottom {
+  position: relative;
+  border-radius: 0 0 16px 16px;
+  border: 0;
+  background: var(--glass-bg);
+  -webkit-mask:
+    radial-gradient(circle var(--notch) at 0 0, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at 100% 0, #0000 97%, #000) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--notch) at 0 0, #0000 97%, #000) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--notch) at 100% 0, #0000 97%, #000) right / 51% 100% no-repeat;
+}
+.ticket-bottom::before {
+  content: "";
+  position: absolute;
+  inset: 0 calc(var(--notch) + 6px) auto;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--glass-border) 0 7px, transparent 7px 13px);
+}
+.ticket-card:hover .ticket-bottom { background: var(--glass-bg-soft); }
+
+/* A dashed tear line to separate sections instead of a plain rule. */
+.perf {
+  height: 2px;
+  border: 0;
+  background: repeating-linear-gradient(90deg, var(--glass-border) 0 8px, transparent 8px 15px);
+}
+
+/* ---- Louder: stickers, big type, pressable buttons ---- */
+
+/* Small stuck-on labels: gold by default, a hair off-level. */
+.sticker {
+  display: inline-block;
+  padding: 3px 9px;
+  border-radius: 8px;
+  background: var(--color-gold);
+  color: #120E0B;
+  font-size: 12.5px;
+  font-weight: 800;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
+  transform: rotate(-3deg);
+  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+.sticker-ink { background: #F3E9D6; transform: rotate(2deg); font-size: 14px; }
+.sticker-red { background: var(--color-signal); color: #F3E9D6; transform: rotate(3deg); }
+
+/* Cards tilt and pop when you reach for them. */
+.ticket-card { transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1); }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .ticket-card:hover { transform: translateY(-6px) rotate(-1.2deg) !important; }
+  .ticket-card:nth-child(even):hover { transform: translateY(-6px) rotate(1.2deg) !important; }
+}
+
+/* Bigger, tighter titles. */
+.t-h1 { font-size: clamp(36px, 7vw, 64px) !important; line-height: 0.98 !important; letter-spacing: -0.035em !important; }
+.t-display { font-size: clamp(40px, 9vw, 84px) !important; line-height: 0.95 !important; letter-spacing: -0.04em !important; }
+.t-section { font-size: clamp(26px, 3.6vw, 40px) !important; }
+.font-megrim { font-size: clamp(26px, 3.6vw, 40px) !important; line-height: 1 !important; }
+
+/* Hero and banner headlines: same lettering, heavy. */
+.font-hero {
+  font-family: var(--font-display) !important;
+  font-weight: 800 !important;
+  text-transform: lowercase !important;
+  letter-spacing: -0.035em !important;
+  line-height: 0.98 !important;
+}
+
+/* Buttons press down like real ones. */
+.btn { font-weight: 800; letter-spacing: -0.01em; transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease; }
+@media (prefers-reduced-motion: no-preference) {
+  .btn-primary:hover:not(:disabled) { transform: translate(-2px, -2px); box-shadow: 3px 3px 0 #F3E9D6; opacity: 1; }
+  .btn-primary:active:not(:disabled) { transform: translate(0, 0); box-shadow: none; }
+}
+
+/* "Tonight" gets the logo's live dot, pulsing. */
+.sticker-live::before {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 5px;
+  border-radius: 999px;
+  background: #F3E9D6;
+  vertical-align: 1px;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sticker-live::before { animation: naada-pulse 1.4s ease-in-out infinite; }
 }

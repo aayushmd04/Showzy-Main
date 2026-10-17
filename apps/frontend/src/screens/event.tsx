@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Check, Share2 } from "lucide-react";
+import { TicketFrame } from "@/components/naada/ticket-frame";
 import { PublicShell } from "@/components/naada/public-shell";
 import { Poster } from "@/components/naada/poster";
 import { Button } from "@/components/ui/button";
@@ -156,6 +157,7 @@ export function EventScreen() {
       <div className="mx-auto w-full max-w-[1760px] px-[var(--page-pad)] pb-32 pt-6 md:pb-16 md:pt-10 lg:grid lg:grid-cols-[1fr_360px] lg:gap-10">
         {/* Left column */}
         <div className="min-w-0">
+          <TicketFrame className="p-6 md:p-8">
           <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
             <div className="w-full shrink-0 sm:w-[300px] lg:w-[340px]">
               <Poster event={event} />
@@ -196,6 +198,7 @@ export function EventScreen() {
               </div>
             </div>
           </div>
+          </TicketFrame>
 
           {event.lineup.length > 0 && (
           <section className="mt-10 border-t border-line pt-6">

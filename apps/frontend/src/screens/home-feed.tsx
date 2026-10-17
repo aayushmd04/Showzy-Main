@@ -102,6 +102,7 @@ function Rail<T>({
           </button>
         )}
       </div>
+      <div aria-hidden className="perf mb-4" />
 
       {all ? (
         <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
@@ -158,9 +159,9 @@ function PosterCard({ event, index, venue }: { event: NaadaEvent; index: number;
   return (
     <Link
       to={`/e/${event.id}`}
-      className="glass-soft block overflow-hidden rounded-xl text-paper no-underline transition-transform duration-300 hover:-translate-y-1"
+      className="ticket-card block text-paper no-underline transition-transform duration-300 hover:-translate-y-1"
     >
-      <div className="relative aspect-[3/4] overflow-hidden bg-surface-2">
+      <div className="ticket-top relative aspect-[3/4] overflow-hidden bg-surface-2">
         <img
           src={photoOf(event, index)}
           alt=""
@@ -168,20 +169,23 @@ function PosterCard({ event, index, venue }: { event: NaadaEvent; index: number;
           className="absolute inset-0 size-full object-cover transition-transform duration-500 hover:scale-105"
         />
         <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+        {event.date === today() && !soldOut(event) && (
+          <span className="sticker sticker-red sticker-live absolute right-2.5 top-2.5">tonight</span>
+        )}
         {event.genres[0] && (
-          <span className="absolute left-2 top-2 rounded-md bg-black/55 px-2 py-0.5 text-[12px] font-semibold text-white backdrop-blur-sm">
+          <span className="sticker absolute left-2.5 top-2.5">
             {event.genres[0]}
           </span>
         )}
         <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 px-2.5 pb-2 text-white">
-          <span className="text-[14px] font-bold">{price}</span>
+          <span className="sticker sticker-ink">{price}</span>
           {fewLeft(event) && !soldOut(event) && (
-            <span className="rounded bg-signal px-1.5 py-0.5 text-[11px] font-bold">Few left</span>
+            <span className="sticker sticker-red">few left</span>
           )}
         </div>
       </div>
-      <div className="px-3 pb-3 pt-2.5">
-        <h3 className="line-clamp-2 text-[16px] font-semibold leading-snug">{event.name}</h3>
+      <div className="ticket-bottom px-3.5 pb-3.5 pt-4">
+        <h3 className="line-clamp-2 text-[16px] font-extrabold leading-snug tracking-tight">{event.name}</h3>
         <p className="mt-0.5 truncate text-[14px] text-muted">
           {dateListing(event.date)}
           {venue ? ` · ${venue.name}` : ""}
@@ -445,7 +449,7 @@ export function HomeFeed() {
     <PublicShell>
       <div ref={top} className="w-full space-y-10 px-[var(--page-pad)] pb-6 pt-5 md:space-y-12 md:pb-8 md:pt-6">
         {/* Banner flush under the header */}
-        <div className="banner-wrap relative z-0 -mx-[var(--page-pad)]">
+        <div className="banner-wrap relative z-0">
           <FeedCarousel slides={slides} label={t("Highlights", "ಮುಖ್ಯಾಂಶಗಳು")} />
         </div>
 

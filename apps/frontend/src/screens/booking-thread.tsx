@@ -237,7 +237,7 @@ export function BookingThreadScreen() {
         </div>
         <div className="flex justify-between gap-4 py-1">
           <dt className="t-small text-muted">
-            Naada fee ({Math.round(PLATFORM_FEE_RATE * 100)}%, paid by the venue)
+            Showzy fee ({Math.round(PLATFORM_FEE_RATE * 100)}%, paid by the venue)
           </dt>
           <dd className="t-mono text-[15px]">{money(platformFee)}</dd>
         </div>
@@ -390,7 +390,7 @@ export function BookingThreadScreen() {
 
         <p className="t-small mt-4 flex items-center gap-2 text-muted">
           <ShieldCheck className="size-4 shrink-0" aria-hidden="true" />
-          Keep it on Naada. Payment is only protected for bookings arranged here.
+          Keep it on Showzy. Payment is only protected for bookings arranged here.
         </p>
       </div>
 
@@ -460,7 +460,7 @@ export function BookingThreadScreen() {
         <p className="t-body text-paper/90">
           {money(standing + platformFee)} goes into escrow now. {artist?.name} receives{" "}
           {money(standing - tds)} (their fee less {Math.round(TDS_RATE * 100)}% TDS) 72 hours after the
-          gig; Naada keeps its {money(platformFee)} fee. You can cancel until the event starts.
+          gig; Showzy keeps its {money(platformFee)} fee. You can cancel until the event starts.
         </p>
         <dl className="mt-5 border border-line bg-ink p-4">
           <div className="flex justify-between gap-4 py-1">
@@ -469,7 +469,7 @@ export function BookingThreadScreen() {
           </div>
           <div className="flex justify-between gap-4 py-1">
             <dt className="t-small text-muted">
-              Naada fee ({Math.round(PLATFORM_FEE_RATE * 100)}%)
+              Showzy fee ({Math.round(PLATFORM_FEE_RATE * 100)}%)
             </dt>
             <dd className="t-mono text-[14px]">{money(platformFee)}</dd>
           </div>
@@ -587,7 +587,7 @@ function ActionBar({
   if (state === "disputed") {
     return (
       <p className="t-body text-fault">
-        Disputed. Naada support is reviewing — funds stay in escrow until it's resolved.
+        Disputed. Showzy support is reviewing — funds stay in escrow until it's resolved.
       </p>
     );
   }

@@ -342,8 +342,8 @@ export function HomeFeed() {
 
   const showAllEvents = () => rails.current?.scrollIntoView({ behavior: "smooth" });
   const signedIn = role !== "out" && currentUser !== null;
-  const startHosting = () => openAuth("Host your event on Naada", { preferRole: "host" });
-  const joinArtists = () => openAuth("Join Naada as an artist", { preferRole: "artist" });
+  const startHosting = () => openAuth("Host your event on Showzy", { preferRole: "host" });
+  const joinArtists = () => openAuth("Join Showzy as an artist", { preferRole: "artist" });
 
   // The first slide is a placeholder for the week's trending event. It is not a
   // real listing; swap it for the best-selling upcoming event once there is one.

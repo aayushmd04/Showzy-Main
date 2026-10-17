@@ -104,7 +104,7 @@ export function EventScreen() {
   usePageMeta({
     title: event ? `${event.name} · ${dateListingFull(event.date)}` : undefined,
     description: event
-      ? `${dateListingFull(event.date)} at ${metaVenue?.name ?? "a Naada venue"}${
+      ? `${dateListingFull(event.date)} at ${metaVenue?.name ?? "a Showzy venue"}${
           metaVenue?.area ? `, ${metaVenue.area}` : ""
         }. ${event.description ?? ""}`.trim()
       : undefined,

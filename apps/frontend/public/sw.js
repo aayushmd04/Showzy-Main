@@ -1,5 +1,5 @@
 /*
- * Naada service worker.
+ * Showzy service worker.
  *
  * One job that matters: a ticket has to open at a venue door, indoors, on
  * congested signal. Everything else here is in service of that.
@@ -19,7 +19,7 @@
 // evicts the previous worker's entries — without it, browsers that already
 // installed v1 would keep serving the stale `/` it had precached, which is
 // the exact problem the navigation handler below was changed to fix.
-const VERSION = "naada-v2";
+const VERSION = "showzy-v1";
 const SHELL = `${VERSION}-shell`;
 const TICKETS = `${VERSION}-tickets`;
 const KEEP = [SHELL, TICKETS];

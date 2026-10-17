@@ -1,4 +1,4 @@
-# Naada backend process manifest.
+# Showzy backend process manifest.
 #
 # Works on any Procfile-aware host (Heroku, Dokku, Railway's Procfile support,
 # Porter, CapRover). Render and Railway config-as-code are in render.yaml and

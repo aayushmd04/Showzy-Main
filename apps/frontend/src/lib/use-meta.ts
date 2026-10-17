@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-const SITE = "Naada";
+const SITE = "Showzy";
 const DEFAULT_DESCRIPTION =
   "Grassroots live music in Mysuru and Bengaluru. Open mics, jam nights, pub gigs and classical evenings.";
 

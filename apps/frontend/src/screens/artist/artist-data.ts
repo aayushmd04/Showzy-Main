@@ -158,18 +158,18 @@ export function apiMessage(err: unknown, fallback: string): string {
       return "This profile belongs to another account. Sign in as its owner to change it.";
     }
     if (err.status === 404) {
-      return "That profile is no longer on Naada.";
+      return "That profile is no longer on Showzy.";
     }
     if (err.status === 413) {
       return "That file is too large for the server. Try an image under 5 MB.";
     }
     if (err.status >= 500) {
-      return "Naada's server couldn't complete that. Wait a moment and try again.";
+      return "Showzy's server couldn't complete that. Wait a moment and try again.";
     }
     return err.detail;
   }
   if (err instanceof TypeError) {
-    return "Couldn't reach Naada. Check your connection and try again.";
+    return "Couldn't reach Showzy. Check your connection and try again.";
   }
   return fallback;
 }

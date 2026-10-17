@@ -195,7 +195,7 @@ export function adaptOrder(
     hostId: typeof order.organizer === "string" ? order.organizer : (order.organizer?.id ?? ""),
     state: ORDER_STATUS_MAP[order.status] ?? "accepted",
     // The fee both sides agreed. `gross_amount` is what the venue pays, which
-    // now includes Naada's fee on top.
+    // now includes Showzy's fee on top.
     agreedFee: orderAgreed(order),
     message: "",
     quotes: [

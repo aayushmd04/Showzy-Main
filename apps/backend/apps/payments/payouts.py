@@ -1,14 +1,14 @@
-"""What Naada owes an event's organiser for ticket sales.
+"""What Showzy owes an event's organiser for ticket sales.
 
-Every ticket payment lands in Naada's own gateway account, so the organiser's
+Every ticket payment lands in Showzy's own gateway account, so the organiser's
 share has to be worked out here and paid out by hand.
 
     collected   successful payments for the event
   − refunded    refunds the gateway has completed
-  − Naada fee   the booking fee on orders that were not refunded in full
+  − Showzy fee   the booking fee on orders that were not refunded in full
   = owed        ticket money belonging to the organiser
 
-`taxes` is reported but not deducted: the tax on Naada's fee is Naada's to
+`taxes` is reported but not deducted: the tax on Showzy's fee is Showzy's to
 remit, the tax on admission is the organiser's, and the order stores one
 combined figure. Until GST is configured it is zero; once it is, split it
 before paying anyone.

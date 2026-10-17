@@ -145,12 +145,13 @@ describe("pluralise", () => {
 });
 
 describe("ticketCode", () => {
-  it("matches the NAADA-XXXX-XXXX shape", () => {
-    expect(ticketCode()).toMatch(/^NAADA-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
+  it("matches the SHOWZY-XXXX-XXXX shape", () => {
+    expect(ticketCode()).toMatch(/^SHOWZY-[A-Z0-9]{4}-[A-Z0-9]{4}$/);
   });
 
   it("avoids visually ambiguous characters (0/O, 1/I/L)", () => {
-    const code = ticketCode();
+    // Only the random blocks matter; the SHOWZY prefix is fixed text.
+    const code = ticketCode().replace(/^SHOWZY-/, "");
     expect(code).not.toMatch(/[01IO]/);
   });
 });

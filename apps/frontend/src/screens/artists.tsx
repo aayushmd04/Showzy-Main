@@ -164,7 +164,7 @@ export function ArtistsScreen() {
         <div style={{ marginTop: 64, textAlign: "center", padding: "40px 24px", border: `1px solid ${tok.cardBorder}`, borderRadius: 8, background: tok.surface }}>
           <h2 style={{ fontSize: 22, fontWeight: 800, color: tok.paper, margin: 0 }}>Are you an artist?</h2>
           <p style={{ fontSize: 15, color: tok.muted, marginTop: 8, maxWidth: 480, margin: "8px auto 0" }}>
-            Join Naada to get booked for gigs, manage your calendar, and receive payments directly.
+            Join Showzy to get booked for gigs, manage your calendar, and receive payments directly.
           </p>
           <button
             onClick={() => openAuth("Join as an artist")}

@@ -123,7 +123,7 @@ class NotificationsTestCase(TestCase):
             unit_price=tier.price, total_price=tier.price)
         return Ticket.objects.create(
             order=order, order_item=item, user=user, event=self.event, tier=tier,
-            ticket_number=f"NAADA{uuid.uuid4().hex[:8].upper()}")
+            ticket_number=f"SHOWZY{uuid.uuid4().hex[:8].upper()}")
 
 
 class OfferNotificationTests(NotificationsTestCase):

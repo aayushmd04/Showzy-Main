@@ -1,6 +1,6 @@
-# Naada frontend
+# Showzy frontend
 
-The Vite + React frontend for Naada, a web platform for grassroots live music in Bengaluru.
+The Vite + React frontend for Showzy, a web platform for grassroots live music in Bengaluru.
 
 From this directory:
 

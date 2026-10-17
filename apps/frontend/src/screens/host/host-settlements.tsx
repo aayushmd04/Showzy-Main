@@ -63,7 +63,7 @@ export function HostSettlementsScreen() {
                   <th scope="col" className="t-micro px-4 py-3">Event</th>
                   <th scope="col" className="t-micro px-4 py-3 text-right">Collected</th>
                   <th scope="col" className="t-micro px-4 py-3 text-right">Refunded</th>
-                  <th scope="col" className="t-micro px-4 py-3 text-right">Naada fee</th>
+                  <th scope="col" className="t-micro px-4 py-3 text-right">Showzy fee</th>
                   <th scope="col" className="t-micro px-4 py-3 text-right">Paid to you</th>
                   <th scope="col" className="t-micro px-4 py-3 text-right">Still owed</th>
                 </tr>
@@ -83,7 +83,7 @@ export function HostSettlementsScreen() {
             </table>
           </div>
           <p className="mt-2 text-[13px] text-muted">
-            Naada collects ticket payments and transfers your share to you. "Still owed" is the part not yet transferred.
+            Showzy collects ticket payments and transfers your share to you. "Still owed" is the part not yet transferred.
           </p>
         </section>
       )}
@@ -97,7 +97,7 @@ export function HostSettlementsScreen() {
               <th scope="col" className="t-micro px-4 py-3">Artist · Date</th>
               <th scope="col" className="t-micro px-4 py-3 text-right">You pay</th>
               <th scope="col" className="t-micro px-4 py-3 text-right">
-                Naada fee
+                Showzy fee
               </th>
               <th scope="col" className="t-micro px-4 py-3 text-right">Artist payout</th>
               <th scope="col" className="t-micro px-4 py-3 text-right">Status</th>

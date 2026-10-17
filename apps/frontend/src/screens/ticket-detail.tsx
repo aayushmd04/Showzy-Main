@@ -412,7 +412,7 @@ export function TicketDetailScreen() {
           title="Transfer this ticket"
         >
           <p className="t-body text-paper/90">
-            The recipient needs a Naada account already — they'll be able to sign in and see this
+            The recipient needs a Showzy account already — they'll be able to sign in and see this
             ticket under their own "My tickets" the moment you send it.
           </p>
           <label htmlFor="transfer-email" className="t-micro mb-2 mt-5 block">

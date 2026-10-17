@@ -174,7 +174,7 @@ class MockGateway(PaymentGateway):
             "amount_refunded": 0,
             "refund_status": None,
             "captured": captured,
-            "description": f"Naada order {str(row.order_id)[:8]}",
+            "description": f"Showzy order {str(row.order_id)[:8]}",
             "email": row.order.user.email,
             "contact": row.order.user.phone or "",
             "notes": {"order_id": str(row.order_id)},

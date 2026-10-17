@@ -99,7 +99,7 @@ export function CheckoutDetailsScreen() {
               required
             />
             <span className="t-small">
-              I agree to Naada storing these details to issue and verify my ticket.{" "}
+              I agree to Showzy storing these details to issue and verify my ticket.{" "}
               <a href="/privacy" className="link-underline text-paper">
                 Privacy policy →
               </a>

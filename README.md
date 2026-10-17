@@ -1,6 +1,6 @@
-# Naada
+# Showzy
 
-Naada is a monorepo for the live-music marketplace frontend and API.
+Showzy is a monorepo for the live-music marketplace frontend and API.
 
 ## Structure
 
@@ -52,9 +52,9 @@ npm run backend:check
 npm run backend:test
 ```
 
-The frontend-specific documentation is in [apps/frontend/README.md](apps/frontend/README.md).# Naada — clickable prototype
+The frontend-specific documentation is in [apps/frontend/README.md](apps/frontend/README.md).# Showzy — clickable prototype
 
-A front-end-only prototype of Naada, a web platform for grassroots live music in Bengaluru.
+A front-end-only prototype of Showzy, a web platform for grassroots live music in Bengaluru.
 Built from `naada-prototype-brief.md`.
 
 **No backend, no database, no payment SDK, no real auth.** All state lives in React memory —
@@ -167,7 +167,7 @@ Posters are typeset from the event name — no stock photography anywhere.
   show Deepa's and Kabir's bookings — so this is what reproduces Section 7.16–7.18 exactly.
 - **`vintage-keyboard.tsx`** was added to `components/ui` as requested. Its inlined base64
   audio sample was replaced with an equivalent synthesised keypress (Web Audio), which keeps
-  the bundle small and behaves identically. It is not part of the Naada product surface and
+  the bundle small and behaves identically. It is not part of the Showzy product surface and
   lives on `/lab/keyboard`.
 
 ## UI/UX skill

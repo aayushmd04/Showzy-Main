@@ -246,7 +246,7 @@ export function CheckoutPayScreen() {
         order_id: intent.gateway_order_id,
         amount: intent.amount,
         currency: intent.currency ?? "INR",
-        name: "Naada",
+        name: "Showzy",
         description: `${event.name} · ${tier.name}`,
         prefill: {
           name: currentUser?.full_name ?? checkout.guest.name,
@@ -481,7 +481,7 @@ export function CheckoutPayScreen() {
 
             <p className="t-small mt-4 flex items-center justify-center gap-1.5 text-muted">
               <Lock className="size-3.5" aria-hidden="true" />
-              Payment is processed securely. Naada never sees your card details.
+              Payment is processed securely. Showzy never sees your card details.
             </p>
           </section>
         )}
@@ -501,7 +501,7 @@ export function CheckoutPayScreen() {
               <h2 id="mock-pay-title" className="t-h3">Test payment</h2>
             </div>
             <p className="t-small mt-3 text-muted">
-              Naada isn't connected to a live payment provider yet, so this stands in for
+              Showzy isn't connected to a live payment provider yet, so this stands in for
               the real sheet. Everything either side of it is real — the order, the
               signature check, and the ticket you get at the end.
             </p>

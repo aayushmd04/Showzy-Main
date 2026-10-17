@@ -243,7 +243,7 @@ export function HostEventManagerScreen() {
                 await navigator.clipboard.writeText(shareLink);
                 toast("Link copied");
               } catch {
-                toast("This browser wouldn't let Naada copy — select the link above", "fault");
+                toast("This browser wouldn't let Showzy copy — select the link above", "fault");
               }
             }}
           >

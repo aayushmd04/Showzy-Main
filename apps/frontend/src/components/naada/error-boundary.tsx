@@ -47,7 +47,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <p className="t-micro text-fault">Something broke</p>
           <h1 className="t-h2 mt-2">This screen didn't load</h1>
           <p className="t-body mt-3 text-paper/80">
-            The rest of Naada is still working. Try again, or head back to what's on
+            The rest of Showzy is still working. Try again, or head back to what's on
             — if it keeps happening, the details below help us fix it.
           </p>
 

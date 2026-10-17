@@ -93,7 +93,7 @@ def site_config(request):
     that they are not ready to publish.
     """
     entity = {
-        "name": getattr(settings, "SITE_NAME", "Naada"),
+        "name": getattr(settings, "SITE_NAME", "Showzy"),
         "legal_name": getattr(settings, "LEGAL_ENTITY_NAME", ""),
         "address": getattr(settings, "LEGAL_ENTITY_ADDRESS", ""),
         "email": getattr(settings, "SUPPORT_EMAIL", ""),

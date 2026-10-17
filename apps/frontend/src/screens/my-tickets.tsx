@@ -11,7 +11,7 @@ import { usePageMeta } from "@/lib/use-meta";
 
 /** Section 7.8 — My tickets. Compact stub variant as the row. */
 export function MyTicketsScreen() {
-  usePageMeta({ title: "My tickets", description: "Your Naada tickets and QR codes." });
+  usePageMeta({ title: "My tickets", description: "Your Showzy tickets and QR codes." });
   const navigate = useNavigate();
   const { tickets, eventById, venueOf, emptyLists } = useStore();
   const [tab, setTab] = useState<"upcoming" | "past">("upcoming");

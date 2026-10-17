@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { Component as VintageKeyboard } from "@/components/ui/vintage-keyboard";
 
 /**
- * Component lab route. Not part of the Naada product surface — it hosts the
+ * Component lab route. Not part of the Showzy product surface — it hosts the
  * shadcn-style component in `components/ui` so it can be exercised in isolation.
  */
 export function KeyboardLabScreen() {
@@ -16,7 +16,7 @@ export function KeyboardLabScreen() {
           to="/"
           className="border border-[#e4e4e7] bg-white px-3 py-2 text-[13px] text-[#3f3f46] hover:bg-[#f4f4f5]"
         >
-          Back to Naada
+          Back to Showzy
         </Link>
       </div>
       <VintageKeyboard />

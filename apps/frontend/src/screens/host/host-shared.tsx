@@ -32,13 +32,13 @@ export function friendlyError(err: unknown, fallback: string): string {
     if (err.status === 429)
       return "Too many requests in a row. Wait a few seconds, then try again.";
     if (err.status >= 500)
-      return "Naada's server had a problem, so nothing was saved. Try again in a moment.";
+      return "Showzy's server had a problem, so nothing was saved. Try again in a moment.";
     if (err.status === 400 && err.detail) return err.detail;
     return fallback;
   }
   // fetch() rejects with a TypeError when the network is unreachable.
   if (err instanceof TypeError)
-    return "Can't reach Naada — check the wifi. Your changes are still on this screen.";
+    return "Can't reach Showzy — check the wifi. Your changes are still on this screen.";
   return fallback;
 }
 

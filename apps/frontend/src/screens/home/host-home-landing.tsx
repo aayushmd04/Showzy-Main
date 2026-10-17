@@ -1,7 +1,7 @@
 /**
  * The home page a venue/host lands on at `/` once they sign in.
  *
- * It answers what a host opens Naada to answer: who can I book, how are my
+ * It answers what a host opens Showzy to answer: who can I book, how are my
  * nights selling, and what needs a decision from me. Every number is read from
  * the API — sold counts come from the event's own ticket tiers, never from an
  * estimate.
@@ -206,7 +206,7 @@ export function HostHomeLandingScreen() {
             empty={
               <EmptyBlock
                 headline="No nights coming up"
-                body="Put a date, a venue and your tiers in, and Naada handles the tickets and the door."
+                body="Put a date, a venue and your tiers in, and Showzy handles the tickets and the door."
                 to="/host/events/new"
                 actionLabel="Create an event"
               />
@@ -405,7 +405,7 @@ export function HostHomeLandingScreen() {
         {/* ── Artists ───────────────────────────────────────────────────── */}
         <Section
           title="Artists to book"
-          hint="Everyone with a live profile on Naada. Fees are the range they've published."
+          hint="Everyone with a live profile on Showzy. Fees are the range they've published."
           action={{ to: "/host/artists", label: "Search artists" }}
         >
           <AsyncSection
@@ -415,7 +415,7 @@ export function HostHomeLandingScreen() {
             empty={
               <EmptyBlock
                 headline="No artist profiles yet"
-                body="Nobody has published a profile on Naada yet. Your events can still sell tickets in the meantime."
+                body="Nobody has published a profile on Showzy yet. Your events can still sell tickets in the meantime."
                 to="/host/events/new"
                 actionLabel="Create an event"
               />
@@ -452,7 +452,7 @@ export function HostHomeLandingScreen() {
 
         {/* ── What's on ─────────────────────────────────────────────────── */}
         <Section
-          title="What's on across Naada"
+          title="What's on across Showzy"
           hint="What other rooms in Mysuru and Bengaluru have on — useful when you're picking a date."
           action={{ to: "/whats-on", label: "See everything on" }}
         >

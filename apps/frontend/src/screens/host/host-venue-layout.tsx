@@ -894,7 +894,7 @@ export function HostVenueLayoutScreen() {
         <p className="t-micro mb-2">Layout tips</p>
         <ul className="t-small space-y-1 text-muted">
           <li>· Put the <strong className="text-paper/80">Stage</strong> at the top — audience orientation is automatic</li>
-          <li>· Add a <strong className="text-paper/80">capacity</strong> to each zone — Naada will use this to cap ticket sales per section</li>
+          <li>· Add a <strong className="text-paper/80">capacity</strong> to each zone — Showzy will use this to cap ticket sales per section</li>
           <li>· Separate <strong className="text-paper/80">VIP</strong> areas map to premium ticket tiers in your event settings</li>
           <li>· Layout auto-saves every time you make a change</li>
         </ul>

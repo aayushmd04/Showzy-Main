@@ -20,7 +20,7 @@ const PREF_ROWS: { key: keyof api.NotificationPreferences; label: string; hint: 
 ];
 
 export function SettingsScreen() {
-  usePageMeta({ title: "Settings", description: "Manage your Naada account, notifications and data." });
+  usePageMeta({ title: "Settings", description: "Manage your Showzy account, notifications and data." });
   const navigate = useNavigate();
   const { currentUser, setCurrentUser, role, setRole, lang, setLang, toast } = useStore();
   const { open: openAuth } = useAuthSheet();
@@ -129,7 +129,7 @@ export function SettingsScreen() {
         <div className="mx-auto w-full max-w-[560px] px-4 py-16 text-center">
           <h1 className="t-h1">Settings</h1>
           <p className="t-body mt-3 text-muted">Sign in to manage your account.</p>
-          <Button variant="primary" className="mt-6" onClick={() => openAuth("Sign in to Naada")}>
+          <Button variant="primary" className="mt-6" onClick={() => openAuth("Sign in to Showzy")}>
             Sign in
           </Button>
         </div>

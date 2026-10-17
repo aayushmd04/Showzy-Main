@@ -145,7 +145,7 @@ the email. There's no need to print anything.
 See your tickets: {settings.FRONTEND_URL}/tickets
 
 Enjoy the show.
-— Naada
+— Showzy
 """
     send_email(
         user,
@@ -179,7 +179,7 @@ def order_refunded(order, amount):
 
 We'll email again if anything changes.
 
-— Naada
+— Showzy
 """,
         notification_type="refund_processed",
     )
@@ -285,7 +285,7 @@ def offer_made(offer, actor):
 
 {note_block}Reply, counter or accept here: {settings.FRONTEND_URL}{action_url}
 
-— Naada
+— Showzy
 """,
             notification_type="booking_offer",
         )
@@ -360,7 +360,7 @@ def offer_answered(offer, actor):
 
 See the thread: {settings.FRONTEND_URL}{action_url}
 
-— Naada
+— Showzy
 """,
             notification_type="booking_offer_response",
         )
@@ -422,7 +422,7 @@ def gig_application_reviewed(application):
 
 {settings.FRONTEND_URL}{action_url}
 
-— Naada
+— Showzy
 """,
             notification_type="gig_application_reviewed",
         )
@@ -480,7 +480,7 @@ def event_cancelled(event):
 Your tickets: {settings.FRONTEND_URL}/tickets
 
 Sorry about this one.
-— Naada
+— Showzy
 """,
             notification_type="event_cancelled",
         )
@@ -526,7 +526,7 @@ def event_changed(event, *, time_changed=False, venue_changed=False):
 
 Your tickets: {settings.FRONTEND_URL}/tickets
 
-— Naada
+— Showzy
 """,
             notification_type="event_updated",
         )

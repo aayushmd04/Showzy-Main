@@ -1,7 +1,7 @@
 /**
  * The home page an artist lands on at `/` once they sign in.
  *
- * It answers the two questions an artist opens Naada to answer: what can I
+ * It answers the two questions an artist opens Showzy to answer: what can I
  * play, and what is waiting on me. Everything on it is read from the API —
  * where there is no data the section says what to do next rather than
  * inventing a number.
@@ -259,7 +259,7 @@ export function ArtistHomeLandingScreen() {
             empty={
               <EmptyBlock
                 headline="No open slots right now"
-                body="Nothing on Naada is seeking artists today. Keep your profile sharp — hosts also reach out directly."
+                body="Nothing on Showzy is seeking artists today. Keep your profile sharp — hosts also reach out directly."
                 to="/artist/profile"
                 actionLabel="Go to your profile"
               />
@@ -408,7 +408,7 @@ export function ArtistHomeLandingScreen() {
         {/* ── Confirmed gigs ────────────────────────────────────────────── */}
         <Section
           title="Confirmed gigs"
-          hint={`Bookings with agreed terms. The venue pays Naada's ${Math.round(PLATFORM_FEE_RATE * 100)}% fee on top; you receive your fee less ${Math.round(TDS_RATE * 100)}% TDS.`}
+          hint={`Bookings with agreed terms. The venue pays Showzy's ${Math.round(PLATFORM_FEE_RATE * 100)}% fee on top; you receive your fee less ${Math.round(TDS_RATE * 100)}% TDS.`}
           action={{ to: "/artist/gigs", label: "All gigs" }}
         >
           <AsyncSection
@@ -458,7 +458,7 @@ export function ArtistHomeLandingScreen() {
         {/* ── What's on ─────────────────────────────────────────────────── */}
         <Section
           title="What's on"
-          hint="You keep full access to everything on Naada — it just isn't the first thing you see any more."
+          hint="You keep full access to everything on Showzy — it just isn't the first thing you see any more."
           action={{ to: "/whats-on", label: "See everything on" }}
         >
           {events.loading ? (

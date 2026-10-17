@@ -113,7 +113,7 @@ export function ArtistEarningsScreen() {
         <p className="t-body flex gap-2">
           <Info className="mt-1 size-4 shrink-0 text-live" aria-hidden="true" />
           <span>
-            <span className="text-live">You are not charged a Naada fee.</span> The venue pays our{" "}
+            <span className="text-live">You are not charged a Showzy fee.</span> The venue pays our{" "}
             {Math.round(PLATFORM_FEE_RATE * 100)}% fee on top of your agreed fee. You receive your fee
             less {Math.round(TDS_RATE * 100)}% TDS, a statutory deduction.
           </span>

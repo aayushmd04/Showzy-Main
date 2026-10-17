@@ -20,7 +20,7 @@ import { getSiteConfig, type SiteConfig } from "@/lib/api";
  * names the wrong company is worse than one that says it is unfinished.
  */
 const PLACEHOLDER: SiteConfig = {
-  name: "Naada",
+  name: "Showzy",
   legal_name: "[your registered company name]",
   address: "[your registered office address]",
   email: "[support email]",
@@ -47,7 +47,7 @@ type Doc = "terms" | "privacy" | "refunds" | "contact";
 const TITLES: Record<Doc, { title: string; blurb: string }> = {
   terms: {
     title: "Terms of Service",
-    blurb: "The agreement between you and Naada when you use this site.",
+    blurb: "The agreement between you and Showzy when you use this site.",
   },
   privacy: {
     title: "Privacy Policy",
@@ -59,7 +59,7 @@ const TITLES: Record<Doc, { title: string; blurb: string }> = {
   },
   contact: {
     title: "Contact Us",
-    blurb: "How to reach a person at Naada.",
+    blurb: "How to reach a person at Showzy.",
   },
 };
 
@@ -144,13 +144,13 @@ export function LegalScreen({ doc }: { doc: Doc }) {
           <>
             <S heading="1. Who we are">
               <p>
-                Naada is a marketplace for grassroots live music. We connect people
+                Showzy is a marketplace for grassroots live music. We connect people
                 who want to attend gigs with the venues that host them and the
                 artists who play them. These terms are between you and{" "}
                 {LEGAL_ENTITY.legalName}, operating as {LEGAL_ENTITY.name}.
               </p>
             </S>
-            <S heading="2. What Naada does and does not do">
+            <S heading="2. What Showzy does and does not do">
               <p>
                 We sell tickets on behalf of event organisers and handle payment
                 between organisers and artists. We are not the organiser of the
@@ -188,7 +188,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
               </p>
               <p>
                 Do not resell tickets above face value or through channels outside
-                Naada. We may cancel tickets we reasonably believe have been resold
+                Showzy. We may cancel tickets we reasonably believe have been resold
                 for profit or obtained fraudulently, and we will refund the original
                 purchaser where we do.
               </p>
@@ -201,8 +201,8 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 the accepted offer.
               </p>
               <p>
-                Artist fees are held by Naada and released after the performance
-                under the terms of the accepted offer. Naada charges the organiser
+                Artist fees are held by Showzy and released after the performance
+                under the terms of the accepted offer. Showzy charges the organiser
                 a platform fee of 5% of the agreed fee, on top of that fee; artists
                 are not charged it. Tax deducted at source (1%) is deducted from the
                 artist's fee. Both are shown on the order before you accept it.
@@ -210,14 +210,14 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             </S>
             <S heading="6. Behaviour">
               <p>
-                Do not use Naada to harass anyone, to advertise unrelated goods or
+                Do not use Showzy to harass anyone, to advertise unrelated goods or
                 services, or to move a booking conversation off the platform in order
                 to avoid fees. We may suspend accounts that do.
               </p>
             </S>
             <S heading="7. When things go wrong">
               <p>
-                We work hard to keep Naada running, but we do not promise it will be
+                We work hard to keep Showzy running, but we do not promise it will be
                 uninterrupted or error-free. Where we are liable to you, our
                 liability is limited to the amount you paid for the affected ticket
                 or booking. Nothing here limits liability that cannot be limited
@@ -256,14 +256,14 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 artists also give us the details of their venue or act.
               </p>
               <p>
-                <strong>We record as you use Naada:</strong> the events you view and
+                <strong>We record as you use Showzy:</strong> the events you view and
                 book, the tickets you hold, messages you send through booking
                 conversations, and technical information such as your IP address and
                 browser, which we use for security and fraud prevention.
               </p>
               <p>
                 <strong>We do not collect card details.</strong> Payments are handled
-                by our payment gateway. Your card number never reaches Naada's
+                by our payment gateway. Your card number never reaches Showzy's
                 servers.
               </p>
             </S>
@@ -408,7 +408,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             </S>
             <S heading="For venues and artists">
               <p>
-                If you run a venue or perform and want to list on Naada, write to{" "}
+                If you run a venue or perform and want to list on Showzy, write to{" "}
                 {LEGAL_ENTITY.email} and tell us where you are and what you do.
               </p>
             </S>

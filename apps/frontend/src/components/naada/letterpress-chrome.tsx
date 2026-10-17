@@ -20,8 +20,8 @@ export function ConsoleShellFree({ host }: { host: (typeof Users)["host"] }) {
   return (
     <header className="lp-top">
       <div className="lp-wrap lp-top-inner">
-        <Link to="/" className="lp-wordmark" aria-label="Naada home">
-          Naada
+        <Link to="/" className="lp-wordmark" aria-label="Showzy home">
+          Showzy
         </Link>
 
         <nav className="lp-nav" aria-label="Host">

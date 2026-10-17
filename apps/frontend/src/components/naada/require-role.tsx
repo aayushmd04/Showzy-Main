@@ -61,7 +61,7 @@ export function RequireRole({
 
       <div className="mt-6 flex flex-wrap justify-center gap-2">
         {signedOut && (
-          <Button variant="primary" onClick={() => openAuth("Sign in to Naada")}>
+          <Button variant="primary" onClick={() => openAuth("Sign in to Showzy")}>
             Sign in
           </Button>
         )}

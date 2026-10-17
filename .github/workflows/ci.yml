@@ -1,5 +1,5 @@
 # =============================================================================
-# Naada — continuous integration.
+# Showzy — continuous integration.
 #
 # Runs on every push and every pull request. Two independent jobs so a broken
 # frontend does not hide a broken backend (and the other way round).

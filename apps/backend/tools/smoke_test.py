@@ -1,4 +1,4 @@
-"""End-to-end smoke test against a running Naada API.
+"""End-to-end smoke test against a running Showzy API.
 
 Walks the buyer's whole journey the way the browser does — sign in with a
 one-time code, browse, order, pay, collect the ticket, pull the invoice, cancel

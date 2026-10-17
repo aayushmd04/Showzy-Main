@@ -1,7 +1,7 @@
 """Deployment checks that `manage.py check --deploy` will surface.
 
 Django's own deploy checks cover the framework's settings. These cover the
-handful of Naada-specific ways a deploy can look healthy and quietly not be.
+handful of Showzy-specific ways a deploy can look healthy and quietly not be.
 """
 
 from django.conf import settings

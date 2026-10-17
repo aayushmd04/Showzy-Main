@@ -394,7 +394,7 @@ def cancel_ticket(request, pk):
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def transfer_ticket(request, pk):
-    """Give this ticket to someone else who already has a Naada account.
+    """Give this ticket to someone else who already has a Showzy account.
 
     Reassigns the same row — same QR, same ticket number — rather than
     issuing a new one, so the door's check-in flow (which only ever cares
@@ -416,7 +416,7 @@ def transfer_ticket(request, pk):
     recipient = User.objects.filter(email__iexact=d["recipient_email"]).first()
     if not recipient:
         return Response(
-            {"detail": "No Naada account with that email — they'll need to sign up first."},
+            {"detail": "No Showzy account with that email — they'll need to sign up first."},
             status=404,
         )
     if recipient.id == request.user.id:
@@ -580,10 +580,10 @@ def order_invoice(request, pk):
     half = (taxes / 2).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
 
     return Response({
-        "invoice_number": f"NAADA-{str(order.id)[:8].upper()}",
+        "invoice_number": f"SHOWZY-{str(order.id)[:8].upper()}",
         "issued_at": (order.confirmed_at or order.created_at).isoformat(),
         "seller": {
-            "name": getattr(django_settings, "INVOICE_SELLER_NAME", "Naada"),
+            "name": getattr(django_settings, "INVOICE_SELLER_NAME", "Showzy"),
             "address": getattr(django_settings, "INVOICE_SELLER_ADDRESS", ""),
             "gstin": getattr(django_settings, "GSTIN", ""),
         },
@@ -621,7 +621,7 @@ def order_invoice(request, pk):
 @api_view(["GET"])
 @permission_classes([permissions.IsAuthenticated])
 def event_payout_summary_view(request, event_id):
-    """Ticket money collected for an event and what Naada still owes its organiser."""
+    """Ticket money collected for an event and what Showzy still owes its organiser."""
     from apps.payments.payouts import event_payout_summary
     event = generics.get_object_or_404(Event, pk=event_id)
     if not works_the_door(request.user, event):

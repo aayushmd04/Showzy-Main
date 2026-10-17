@@ -554,7 +554,7 @@ export function HostEventEditorScreen() {
               <Poster event={previewEvent} />
             </div>
             <p className="t-small mt-2 text-muted">
-              Naada typesets the poster from the event name and date.
+              Showzy typesets the poster from the event name and date.
             </p>
           </section>
 

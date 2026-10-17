@@ -68,7 +68,7 @@ export function buildIcs(event: CalendarEvent): string {
   const lines = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//Naada//Tickets//EN",
+    "PRODID:-//Showzy//Tickets//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
     "BEGIN:VEVENT",

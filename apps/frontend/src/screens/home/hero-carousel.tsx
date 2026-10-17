@@ -1,5 +1,5 @@
 /**
- * The signed-out front door: a three-slide hero carousel that says what Naada
+ * The signed-out front door: a three-slide hero carousel that says what Showzy
  * is, then hands over to the discover feed below it.
  *
  * Photography first, copy second, in the manner of a ticketing-site banner:
@@ -106,7 +106,7 @@ const SLIDES: Slide[] = [
         <p className="mt-4 text-[17px] font-medium leading-relaxed text-white md:text-[20px]">
           A café. A studio. A pub. A theatre. A courtyard.
         </p>
-        <p className={`mt-4 ${BODY}`}>Naada helps you find them, create them and be part of them.</p>
+        <p className={`mt-4 ${BODY}`}>Showzy helps you find them, create them and be part of them.</p>
       </>
     ),
   },
@@ -125,7 +125,7 @@ const PROMPT_COPY: Record<WhyPrompt, string> = {
 /**
  * One button. It asks the browser for the visitor's location (Chrome answers
  * from the device GPS or Google's location service), maps it to the nearest
- * city Naada lists, filters the feed to it and scrolls there. If the visitor
+ * city Showzy lists, filters the feed to it and scrolls there. If the visitor
  * says no, or the location is unusable, they choose a city by hand instead.
  */
 function Actions() {
@@ -229,7 +229,7 @@ function HostButton() {
   return (
     <button
       type="button"
-      onClick={() => open("Host your event on Naada", { preferRole: "host" })}
+      onClick={() => open("Host your event on Showzy", { preferRole: "host" })}
       className="min-h-11 whitespace-nowrap rounded-md bg-white px-4 text-[14px] font-semibold text-[#14100D] transition-colors hover:bg-white/85 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white md:px-5 md:text-[15px]"
     >
       <span className="md:hidden">Host for free</span>
@@ -279,7 +279,7 @@ export function HeroCarousel() {
   return (
     <section
       aria-roledescription="carousel"
-      aria-label="Why Naada"
+      aria-label="Why Showzy"
       className={`theme-dark relative h-dvh min-h-[600px] w-full overflow-hidden bg-ink font-support transition-opacity duration-[450ms] ease-in ${
         leaving ? "opacity-0" : "opacity-100"
       }`}
@@ -350,7 +350,7 @@ export function HeroCarousel() {
 
       {/* Top bar */}
       <header className="absolute inset-x-0 top-0 z-20 flex w-full items-center justify-between px-4 py-4 md:px-[max(96px,var(--page-pad))] md:py-5">
-        <Wordmark className="text-[17px] md:text-[22px]" />
+        <Wordmark />
         <div className="flex items-center gap-2 md:gap-6">
           <CityPicker onPhoto />
           <Link

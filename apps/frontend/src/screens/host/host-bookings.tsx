@@ -4,6 +4,7 @@ import { Pill, statusLabel } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
 import { useStore } from "@/store/app-store";
 import { dateCompact, money } from "@/lib/format";
+import { PLATFORM_FEE_RATE } from "@/data/fixtures";
 
 /** Host-side list of every booking thread. */
 export function HostBookingsScreen() {
@@ -15,7 +16,7 @@ export function HostBookingsScreen() {
     <ConsoleShell nav={HOST_NAV} breadcrumb={["Bookings"]}>
       <h1 className="t-h1">Bookings</h1>
       <p className="t-body mt-2 max-w-[52ch] text-muted">
-        Artists receive their full quoted fee. Naada's 7% is charged to you on top.
+        Artists aren't charged a Showzy fee. Our {Math.round(PLATFORM_FEE_RATE * 100)}% is added on top of the agreed fee, and you pay it.
       </p>
 
       {rows.length > 0 ? (

@@ -19,7 +19,7 @@ import { usePageMeta } from "@/lib/use-meta";
 export function SavedScreen() {
   usePageMeta({
     title: "Saved gigs",
-    description: "The nights you bookmarked on Naada.",
+    description: "The nights you bookmarked on Showzy.",
   });
 
   const navigate = useNavigate();

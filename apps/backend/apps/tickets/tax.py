@@ -8,7 +8,7 @@ becomes a config change rather than a development task.
 
 The two components are taxed separately because they usually are:
 
-  * the **booking fee** is a service Naada supplies, and
+  * the **booking fee** is a service Showzy supplies, and
   * the **ticket face value** is the organiser's supply, which for admission to
     entertainment events is commonly exempt below a per-ticket threshold.
 
@@ -18,7 +18,7 @@ as the platform does today.
 
 Place of supply: this computes an intra-state split (CGST + SGST, half each),
 which is the ordinary case for a Karnataka seller with Karnataka buyers. An
-inter-state sale is IGST at the full rate on a single line — if Naada starts
+inter-state sale is IGST at the full rate on a single line — if Showzy starts
 selling meaningfully outside Karnataka, that distinction has to be made from
 the buyer's state, and this is the one place to make it.
 """
@@ -47,7 +47,7 @@ def compute_gst(*, ticket_subtotal: Decimal, booking_fee: Decimal, ticket_count:
     """Return the GST breakdown for one order.
 
     `ticket_subtotal` is the face value of all paid tickets before discount;
-    `booking_fee` is Naada's own fee. Returns zeros when no rate is configured,
+    `booking_fee` is Showzy's own fee. Returns zeros when no rate is configured,
     which is the shipped default.
     """
     fee_rate = _rate("GST_RATE_FEE")

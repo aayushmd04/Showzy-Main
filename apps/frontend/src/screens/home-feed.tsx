@@ -24,6 +24,9 @@ import { usePageMeta } from "@/lib/use-meta";
 /* ── Helpers ────────────────────────────────────────────────────────────── */
 
 /** Poster width: a phone shows two and a bit, a big screen shows a full row. */
+/** How many cards a row shows before "See all". */
+const PREVIEW = 6;
+
 const POSTER_W = "w-[44vw] max-w-[190px] sm:w-[200px] lg:w-[220px] lg:max-w-none 2xl:w-[250px]";
 
 /** Card width in a row with only a few items: one fifth of the row, one sixth on very large screens. */
@@ -77,11 +80,23 @@ function Rail<T>({
   fill?: ReactNode;
 }) {
   const [all, setAll] = useState(false);
+  // A row opens with its first few cards. "See all", the end card, or the next arrow shows the rest.
+  const [more, setMore] = useState(false);
+  const preview = items.length > PREVIEW && !more && !all;
+  const visible = preview ? items.slice(0, PREVIEW) : items;
   // Fewer than a row's worth: share the width evenly (5 across, 6 on very large screens).
   const sparse = items.length < 5;
   const row = useRef<HTMLDivElement>(null);
   const scroll = (dir: 1 | -1) =>
     row.current?.scrollBy({ left: dir * Math.max(240, row.current.clientWidth * 0.8), behavior: "smooth" });
+  const next = () => {
+    if (preview) {
+      setMore(true);
+      requestAnimationFrame(() => scroll(1));
+    } else {
+      scroll(1);
+    }
+  };
 
   return (
     <section aria-label={title} className="relative z-10">
@@ -92,7 +107,7 @@ function Rail<T>({
           </h2>
           {subtitle && <p className="mt-0.5 text-[14px] text-muted">{subtitle}</p>}
         </div>
-        {items.length > 3 && (
+        {items.length > PREVIEW && (
           <button
             type="button"
             onClick={() => setAll((v) => !v)}
@@ -116,11 +131,23 @@ function Rail<T>({
             ref={row}
             className="-mx-[var(--page-pad)] flex snap-x scroll-px-[var(--page-pad)] gap-3 overflow-x-auto px-[var(--page-pad)] pb-2 [scrollbar-width:none] md:gap-4 [&::-webkit-scrollbar]:hidden"
           >
-            {items.map((it, i) => (
+            {visible.map((it, i) => (
               <div key={itemKey(it)} className={`${sparse ? SPARSE_W : cardWidth} shrink-0 snap-start`}>
                 {render(it, i)}
               </div>
             ))}
+            {preview && (
+              <div className={`${cardWidth} shrink-0 snap-start`}>
+                <button
+                  type="button"
+                  onClick={() => setAll(true)}
+                  className="glass-soft flex h-full min-h-[200px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border-dashed p-4 text-center text-paper transition-transform hover:-translate-y-1"
+                >
+                  <span className="text-[32px] font-extrabold leading-none tracking-tight">+{items.length - PREVIEW}</span>
+                  <span className="text-[15px] font-bold text-signal">{seeAllLabel} ›</span>
+                </button>
+              </div>
+            )}
             {sparse && fill && (
               <div className="w-[44vw] max-w-[190px] shrink-0 snap-start sm:w-[200px] lg:w-auto lg:max-w-none lg:min-w-[220px] lg:flex-1">
                 {fill}
@@ -140,7 +167,7 @@ function Rail<T>({
               <button
                 type="button"
                 aria-label="Scroll right"
-                onClick={() => scroll(1)}
+                onClick={next}
                 className="absolute -right-3 top-[34%] hidden size-10 place-items-center rounded-full bg-black/70 text-white opacity-0 transition-opacity hover:bg-black group-hover/rail:opacity-100 lg:grid"
               >
                 <ChevronRight className="size-5" aria-hidden />
@@ -153,6 +180,46 @@ function Rail<T>({
   );
 }
 
+/** Colour blocks for events that have no photo, all from the site's own palette. */
+const TYPESET = [
+  { bg: "#C4472E", fg: "#F3E9D6" },
+  { bg: "#E8B85C", fg: "#120E0B" },
+  { bg: "#F3E9D6", fg: "#120E0B" },
+  { bg: "#2A211B", fg: "#E8B85C" },
+];
+
+function hashOf(input: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+/**
+ * The poster for an event with no photo: its name set large on a colour block.
+ * Nothing here can be the wrong picture, and a host's real photo replaces it the
+ * moment one is uploaded.
+ */
+function TypesetArt({ event }: { event: NaadaEvent }) {
+  const look = TYPESET[hashOf(event.id) % TYPESET.length];
+  return (
+    <div
+      aria-hidden
+      className="absolute inset-0 flex flex-col justify-end p-4 pb-14"
+      style={{
+        background: `repeating-linear-gradient(135deg, transparent 0 14px, color-mix(in srgb, ${look.fg} 7%, transparent) 14px 16px), ${look.bg}`,
+        color: look.fg,
+      }}
+    >
+      <span className="line-clamp-6 break-words text-[clamp(26px,9vw,34px)] font-extrabold leading-[0.98] tracking-tight">
+        {event.name}
+      </span>
+    </div>
+  );
+}
+
 function PosterCard({ event, index, venue }: { event: NaadaEvent; index: number; venue?: Venue }) {
   const low = lowest(event);
   const price = soldOut(event) ? "Sold out" : low === null ? "Details soon" : low === 0 ? "Free entry" : `From ${money(low)}`;
@@ -162,13 +229,19 @@ function PosterCard({ event, index, venue }: { event: NaadaEvent; index: number;
       className="ticket-card block text-paper no-underline transition-transform duration-300 hover:-translate-y-1"
     >
       <div className="ticket-top relative aspect-[3/4] overflow-hidden bg-surface-2">
-        <img
-          src={photoOf(event, index)}
-          alt=""
-          loading="lazy"
-          className="absolute inset-0 size-full object-cover transition-transform duration-500 hover:scale-105"
-        />
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+        {(event as NaadaEvent & Photoed)._posterImage ? (
+          <>
+            <img
+              src={photoOf(event, index)}
+              alt=""
+              loading="lazy"
+              className="absolute inset-0 size-full object-cover transition-transform duration-500 hover:scale-105"
+            />
+            <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/20" />
+          </>
+        ) : (
+          <TypesetArt event={event} />
+        )}
         {event.date === today() && !soldOut(event) && (
           <span className="sticker sticker-red sticker-live absolute right-2.5 top-2.5">tonight</span>
         )}
@@ -349,19 +422,25 @@ export function HomeFeed() {
   const startHosting = () => openAuth("Host your event on Showzy", { preferRole: "host" });
   const joinArtists = () => openAuth("Join Showzy as an artist", { preferRole: "artist" });
 
-  // The first slide is a placeholder for the week's trending event. It is not a
-  // real listing; swap it for the best-selling upcoming event once there is one.
+  // Mysuru gets its own opening banner. It shows for Mysuru and for "all cities".
+  const mysuruFirst = city === "all" || city.toLowerCase() === "mysuru";
   const slides: FeedSlide[] = [
-    {
-      id: "trending",
-      image: "/media/events/band-on-stage-energetic.jpg",
-      position: "50% 40%",
-      badge: t("Trending", "ಟ್ರೆಂಡಿಂಗ್"),
-      title: t("Friday Night Live", "ಶುಕ್ರವಾರ ರಾತ್ರಿ ಲೈವ್"),
-      body: t("The room everyone is talking about this week. Come early for a good seat.", "ಈ ವಾರ ಎಲ್ಲರೂ ಮಾತನಾಡುತ್ತಿರುವ ಕಾರ್ಯಕ್ರಮ. ಒಳ್ಳೆಯ ಸೀಟಿಗಾಗಿ ಬೇಗ ಬನ್ನಿ."),
-      cta: t("See what's on", "ಏನಿದೆ ನೋಡಿ"),
-      onClick: () => rails.current?.scrollIntoView({ behavior: "smooth" }),
-    },
+    ...(mysuruFirst
+      ? [
+          {
+            id: "mysuru",
+            image: "/media/banners/mysuru-main-desktop.jpg",
+            imageWebp: "/media/banners/mysuru-main-desktop.webp",
+            mobileImage: "/media/banners/mysuru-main-mobile.jpg",
+            mobileImageWebp: "/media/banners/mysuru-main-mobile.webp",
+            position: "100% 50%",
+            title: "Your city. Your scene.",
+            body: "From live gigs to hidden gems, discover what's happening around Mysuru.",
+            cta: "Explore events →",
+            onClick: () => rails.current?.scrollIntoView({ behavior: "smooth" }),
+          },
+        ]
+      : []),
     // Anyone signed in has already chosen what they are here for, so the two
     // sell-side banners go to people who have not: signed-out visitors, who
     // could be hosts or artists. Everyone else sees the audience's own pair.
@@ -389,7 +468,10 @@ export function HomeFeed() {
       : [
           {
             id: "host",
-            image: "/media/venues/curtained-stage-mic.jpg",
+            image: "/media/banners/host-your-event-desktop.jpg",
+            imageWebp: "/media/banners/host-your-event-desktop.webp",
+            mobileImage: "/media/banners/host-your-event-mobile.jpg",
+            mobileImageWebp: "/media/banners/host-your-event-mobile.webp",
             position: "50% 50%",
             title: t("Host your event for free", "ನಿಮ್ಮ ಕಾರ್ಯಕ್ರಮ ಉಚಿತವಾಗಿ ಆಯೋಜಿಸಿ"),
             body: t("Have a café, studio, pub or courtyard? Bring an audience to it.", "ಕೆಫೆ, ಸ್ಟುಡಿಯೋ, ಪಬ್ ಅಥವಾ ಅಂಗಳ ಇದೆಯೇ? ಪ್ರೇಕ್ಷಕರನ್ನು ಕರೆತನ್ನಿ."),
@@ -449,7 +531,7 @@ export function HomeFeed() {
     <PublicShell>
       <div ref={top} className="w-full space-y-10 px-[var(--page-pad)] pb-6 pt-5 md:space-y-12 md:pb-8 md:pt-6">
         {/* Banner flush under the header */}
-        <div className="banner-wrap relative z-0 -mx-[var(--page-pad)]">
+        <div className="banner-wrap relative z-0 -mx-[var(--page-pad)] min-[1440px]:mx-0 min-[1440px]:overflow-hidden min-[1440px]:rounded-3xl">
           <FeedCarousel slides={slides} label={t("Highlights", "ಮುಖ್ಯಾಂಶಗಳು")} />
         </div>
 

@@ -11,6 +11,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 export interface FeedSlide {
   id: string;
   image: string;
+  /** A WebP of `image`, offered first to browsers that can show it. */
+  imageWebp?: string;
+  /** A phone-shaped picture (about 1.2:1), used below 720px wide in place of `image`. */
+  mobileImage?: string;
+  mobileImageWebp?: string;
   /** CSS object-position, so the subject stays in frame when cropped. */
   position?: string;
   /** Small label above the title, e.g. "Trending". */
@@ -80,18 +85,23 @@ export function FeedCarousel({ slides, label }: { slides: FeedSlide[]; label: st
               {/* The photo melts into the page at the top and the bottom, so the category
                   icons above and the rows below blend with it instead of meeting a hard edge. */}
               <div className="banner-fade absolute inset-x-0">
-                <img
-                  src={s.image}
-                  alt=""
-                  draggable={false}
-                  style={{ objectPosition: s.position ?? "50% 50%" }}
-                  className="absolute inset-0 size-full object-cover"
-                />
+                <picture>
+                  {s.mobileImageWebp && <source media="(max-width: 719px)" srcSet={s.mobileImageWebp} type="image/webp" />}
+                  {s.mobileImage && <source media="(max-width: 719px)" srcSet={s.mobileImage} />}
+                  {s.imageWebp && <source srcSet={s.imageWebp} type="image/webp" />}
+                  <img
+                    src={s.image}
+                    alt=""
+                    draggable={false}
+                    style={{ objectPosition: s.position ?? "50% 50%" }}
+                    className="absolute inset-0 size-full object-cover"
+                  />
+                </picture>
                 <div aria-hidden className="absolute inset-0 bg-black/25 md:bg-transparent" />
                 <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent" />
               </div>
 
-              <div className="relative flex h-full max-w-2xl [text-shadow:0_1px_14px_rgba(0,0,0,.5)] flex-col items-start justify-center gap-2 px-[var(--page-pad)] md:gap-3 2xl:max-w-3xl">
+              <div className="relative flex h-full max-w-2xl [text-shadow:0_1px_14px_rgba(0,0,0,.5)] flex-col items-start justify-center gap-2 px-[var(--page-pad)] md:gap-3 min-[1440px]:px-14 2xl:max-w-3xl">
                 {s.badge && (
                   <span className="rounded bg-signal px-2 py-0.5 text-[12px] font-bold uppercase tracking-wider text-white">
                     {s.badge}

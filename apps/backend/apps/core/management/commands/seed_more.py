@@ -15,6 +15,53 @@ from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 
+# Which picture goes with which demo row. A picture is used only where it truly fits (a
+# Bharatanatyam night shows a dancer, a jazz night a jazz band). `None` means "no photo":
+# the site then draws a typeset poster from the event name, or an initial for an artist.
+# Paths are relative to the shared media folder.
+EVENT_IMAGES = {
+    "Late Bloom Improv: Tonight's Show": "venues/mic-in-light-beam.jpg",
+    "Poetry Open Circle": None,
+    "Stand-up Night with Ishaan M": "venues/bar-stage-microphone.jpg",
+    "Bharatanatyam Evening: Anaya Rao": "events/classical-dancer-stage.jpg",
+    "The Paper Boats: Acoustic Night": "events/acoustic-band-bar-night.jpg",
+    "Rangamanch Presents: A New Play": "venues/theatre-seats-lit-stage.jpg",
+    "Kathak Morning with Sahana Kulkarni": None,
+    "Weekend Painting Workshop": "restaurants/art-filled-coffee-house.jpg",
+    "Noor & The Strings: Jazz Evening": "events/jazz-quartet-dim-club.jpg",
+    "Open Mic: All Art Forms": "events/singer-guitarist-indoor-gig.jpg",
+    "Hindustani Evening: Vikram Hegde": "events/indian-classical-spotlight.jpg",
+    "Storytelling Night: Tara D": "venues/four-chairs-blue-stage.jpg",
+    "Contemporary Dance Showcase": None,
+    "Street Play Festival: Day 1": None,
+    "Comedy Double Bill": "venues/curtained-stage-mic.jpg",
+    "Folk & Indie Sessions": "events/music-cafe-guitarist.jpg",
+    # the original seed events
+    "Tuesday Open Mic — Gokulam": "events/cafe-acoustic-performance.jpg",
+    "Rahul & The Mysore Blues — Live": "events/band-cozy-bar-ambiance.jpg",
+    "Jazz Nights — Rangashankara": "events/jazz-band-club-stage.jpg",
+    "Carnatic Folk Evening — VV Mohalla": None,
+}
+
+ARTIST_IMAGES = {
+    "Anaya Rao": "events/classical-dancer-stage.jpg",
+    "Ishaan M": None,
+    "The Paper Boats": "events/acoustic-band-bar-night.jpg",
+    "Sahana Kulkarni": None,
+    "Rangamanch Mysuru": "venues/theatre-seats-lit-stage.jpg",
+    "Tara D": None,
+    "Vikram Hegde": "events/indian-classical-spotlight.jpg",
+    "Late Bloom Improv": None,
+    "Noor & The Strings": "events/jazz-duo-guitar-piano.jpg",
+    "Kiran Shetty": None,
+    # the original seed artists
+    "Rahul & The Mysore Blues": "artists/guitarist-stage-light.jpg",
+    "Meghana K": "artists/singer-songwriter-glasses.jpg",
+    "Krishna Rao Quartet": "artists/saxophonist-warm-light.jpg",
+    "Divya Nair": "artists/tanpura-vocalist.jpg",
+}
+
+
 class Command(BaseCommand):
     help = "Add demo venues, artists and events (local development only)"
 
@@ -189,6 +236,45 @@ class Command(BaseCommand):
                 EventPhoto.objects.get_or_create(event=e, image=poster, defaults=dict(
                     caption=alt, is_primary=True, sort_order=0, uploaded_by=owner))
 
+        self._apply_images(EventPhoto, ArtistPhoto)
+
         self.stdout.write(self.style.SUCCESS(
             f"Demo content: {len(venues)} venues, {len(artists)} artists, {created} new events "
             "(all invented, for local development only)."))
+
+    def _apply_images(self, EventPhoto, ArtistPhoto):
+        """Point every demo (and original seed) row at a picture that matches it. Idempotent."""
+        from apps.artists.models import Artist
+        from apps.events.models import Event
+
+        fixed = 0
+        for event in Event.objects.filter(title__in=EVENT_IMAGES):
+            path = EVENT_IMAGES[event.title]
+            if path is None:
+                if event.poster_image or event.banner_image or EventPhoto.objects.filter(event=event).exists():
+                    event.poster_image = ""
+                    event.banner_image = ""
+                    event.save(update_fields=["poster_image", "banner_image"])
+                    EventPhoto.objects.filter(event=event).delete()
+                    fixed += 1
+                continue
+            if event.poster_image != path or event.banner_image != path:
+                event.poster_image = path
+                event.banner_image = path
+                event.save(update_fields=["poster_image", "banner_image"])
+                fixed += 1
+            EventPhoto.objects.filter(event=event, is_primary=True).exclude(image=path).update(is_primary=False)
+            EventPhoto.objects.get_or_create(event=event, image=path, defaults=dict(
+                caption=event.title, is_primary=True, sort_order=0, uploaded_by=event.organizer))
+            EventPhoto.objects.filter(event=event, image=path).update(is_primary=True)
+        for artist in Artist.objects.filter(stage_name__in=ARTIST_IMAGES):
+            path = ARTIST_IMAGES[artist.stage_name]
+            if path is None:
+                fixed += ArtistPhoto.objects.filter(artist=artist).delete()[0]
+                continue
+            ArtistPhoto.objects.filter(artist=artist, is_primary=True).exclude(image=path).update(is_primary=False)
+            _, made = ArtistPhoto.objects.get_or_create(artist=artist, image=path, defaults=dict(
+                caption=artist.stage_name, is_primary=True, sort_order=0))
+            ArtistPhoto.objects.filter(artist=artist, image=path).update(is_primary=True)
+            fixed += int(made)
+        self.stdout.write(f"  matched pictures: {fixed} updated")

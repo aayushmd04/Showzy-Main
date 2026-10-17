@@ -420,11 +420,13 @@
 /* The home banner is a plain, full-width block: flush under the header, with a
    straight edge at the bottom and no fade. */
 .banner-wrap {
-  margin-bottom: 28px; /* room before the category icons (replaces the page's own row gap) */
+  margin-top: -20px; /* cancels the page's top padding so the banner meets the header */
+  margin-bottom: 32px; /* room before the category icons (replaces the page's own row gap) */
 }
 @media (min-width: 720px) {
   .banner-wrap {
-    margin-bottom: 36px;
+    margin-top: -24px;
+    margin-bottom: 40px;
   }
 }
 
@@ -692,7 +694,7 @@ html.theme-fading *::after {
 .t-display,
 .t-section,
 .font-megrim {
-  font-family: var(--font-display) !important;
+  font-family: var(--font-title) !important;
   font-weight: 800 !important;
   text-transform: lowercase !important;
   letter-spacing: -0.025em !important;
@@ -792,7 +794,7 @@ html.theme-fading *::after {
 
 /* Hero and banner headlines: same lettering, heavy. */
 .font-hero {
-  font-family: var(--font-display) !important;
+  font-family: var(--font-title) !important;
   font-weight: 800 !important;
   text-transform: lowercase !important;
   letter-spacing: -0.035em !important;
@@ -820,3 +822,6 @@ html.theme-fading *::after {
 @media (prefers-reduced-motion: no-preference) {
   .sticker-live::before { animation: naada-pulse 1.4s ease-in-out infinite; }
 }
+
+/* Title face. One place to change it. */
+:root { --font-title: "Manrope", "Anek Kannada", system-ui, sans-serif; }

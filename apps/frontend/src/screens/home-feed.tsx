@@ -449,7 +449,7 @@ export function HomeFeed() {
     <PublicShell>
       <div ref={top} className="w-full space-y-10 px-[var(--page-pad)] pb-6 pt-5 md:space-y-12 md:pb-8 md:pt-6">
         {/* Banner flush under the header */}
-        <div className="banner-wrap relative z-0">
+        <div className="banner-wrap relative z-0 -mx-[var(--page-pad)]">
           <FeedCarousel slides={slides} label={t("Highlights", "ಮುಖ್ಯಾಂಶಗಳು")} />
         </div>
 

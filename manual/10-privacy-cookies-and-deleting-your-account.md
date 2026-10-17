@@ -1,6 +1,6 @@
 # 10 · Privacy, cookies, consent and deleting your account
 
-**Who:** everyone. What Naada asks you to agree to, how to change your mind, how to get a copy of your data, and how to delete your account.
+**Who:** everyone. What Showzy asks you to agree to, how to change your mind, how to get a copy of your data, and how to delete your account.
 
 The full legal documents are always one click away in the page footer: **Terms · Privacy · Refunds · Cookies · Contact**.
 
@@ -31,7 +31,7 @@ You can ignore the notice and keep browsing: nothing optional is stored until yo
 | 4 | **Reject optional** |
 | 5 | **Save choices** |
 
-The box above number 2 lists what is **always on** and why (sign-in session, door-scan queue, unsaved floor-plan draft, your cookie choice). These can't be switched off in Naada, because the site wouldn't work without them.
+The box above number 2 lists what is **always on** and why (sign-in session, door-scan queue, unsaved floor-plan draft, your cookie choice). These can't be switched off in Showzy, because the site wouldn't work without them.
 
 > **Change your mind any time:** page footer → **Cookie settings** (or Settings → Privacy & consent → **Change**). Choosing *Reject optional* later removes the remembered language and theme.
 
@@ -39,7 +39,7 @@ The box above number 2 lists what is **always on** and why (sign-in session, doo
 
 ![Cookie policy](assets/privacy-08-cookie-policy.jpg)
 
-It lists every item Naada stores — name, where, purpose, category and how long it lasts — and explains the only third-party code (the payment window, loaded only when you press **Pay**). Fonts and images are served by Naada itself, so visiting doesn't send your address to a font provider.
+It lists every item Showzy stores — name, where, purpose, category and how long it lasts — and explains the only third-party code (the payment window, loaded only when you press **Pay**). Fonts and images are served by Showzy itself, so visiting doesn't send your address to a font provider.
 
 > The red **"Not ready to publish"** bar you may see at the top of the legal pages in a test build means the company name, address and grievance officer haven't been set yet. It disappears once the operator fills them in ([compliance/README.md](../compliance/README.md)).
 
@@ -53,11 +53,11 @@ Under the email box: *"By continuing you agree to our Terms and Privacy Policy. 
 
 ![Host agreement](assets/privacy-03-host-terms-checkbox.jpg)
 
-When you choose **I host events** (or **I'm an artist**), a **required, unticked** box asks you to confirm you're authorised to list the venue and to accept the hosts' (or artists') terms — including that Naada checks your identity and bank details before paying you. **Finish setting up** stays disabled until you tick it.
+When you choose **I host events** (or **I'm an artist**), a **required, unticked** box asks you to confirm you're authorised to list the venue and to accept the hosts' (or artists') terms — including that Showzy checks your identity and bank details before paying you. **Finish setting up** stays disabled until you tick it.
 
 ### Buying a ticket
 
-- **Guest checkout** asks you to agree that Naada stores your details to issue your ticket **and shares your name and contact details with the organiser** so they can admit you and reach you if the event changes.
+- **Guest checkout** asks you to agree that Showzy stores your details to issue your ticket **and shares your name and contact details with the organiser** so they can admit you and reach you if the event changes.
 - **Signed-in buyers** see a line on the payment page: paying means you agree to the Terms and Refund policy, and the organiser sees your name and ticket details.
 
 ### When someone else types your details

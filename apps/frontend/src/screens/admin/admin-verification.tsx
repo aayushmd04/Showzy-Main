@@ -54,7 +54,7 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 /**
- * KYC review across every entity that can actually receive money on Naada:
+ * KYC review across every entity that can actually receive money on Showzy:
  * `Organizer` (the host↔artist booking-escrow side), and now `Artist` and
  * `Venue` too — both gained real GST/PAN/bank-details/KYC fields where
  * previously there were none at all, so this is also the first place any of

@@ -28,7 +28,7 @@ type Outcome = "authed" | "guest";
 
 interface AuthOptions {
   allowGuest?: boolean;
-  /** For a brand-new account, skip "How are you using Naada?" and use this role. */
+  /** For a brand-new account, skip "How are you using Showzy?" and use this role. */
   preferRole?: "listener" | "artist" | "host";
   onDone?: (outcome: Outcome, role: Role) => void;
 }
@@ -50,7 +50,7 @@ const ROLE_MAP: Record<string, Role> = {
 export function AuthSheetProvider({ children }: { children: ReactNode }) {
   const { setRole, role, toast, hydrateFromApi, setCurrentUser } = useStore();
   const [open, setOpen] = useState(false);
-  const [title, setTitle] = useState("Sign in to Naada");
+  const [title, setTitle] = useState("Sign in to Showzy");
   const [step, setStep] = useState<
     "email" | "code" | "role" | "profile" | "artistRequired" | "hostRequired"
   >("email");
@@ -265,7 +265,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
   const modalTitle =
     step === "email" ? title
     : step === "code" ? "Enter your code"
-    : step === "role" ? "How are you using Naada?"
+    : step === "role" ? "How are you using Showzy?"
     : step === "artistRequired" ? "Set up your artist profile"
     : step === "hostRequired" ? "Add your venue"
     : "Set up your profile";
@@ -346,7 +346,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
 
 const ROLE_OPTIONS: { role: Role; label: string; description: string; emoji: string }[] = [
   { role: "listener", label: "I'm here to watch",   description: "Browse events and book tickets near you",             emoji: "🎵" },
-  { role: "artist",   label: "I'm an artist",        description: "Get booked for gigs and receive payments via Naada", emoji: "🎸" },
+  { role: "artist",   label: "I'm an artist",        description: "Get booked for gigs and receive payments via Showzy", emoji: "🎸" },
   { role: "host",     label: "I host events",         description: "Create events, hire artists, sell tickets",         emoji: "🎪" },
 ];
 
@@ -358,7 +358,7 @@ function RoleStep({
   return (
     <div>
       <p className="t-small text-muted mb-4">
-        Tell us how you'd like to use Naada. To switch later, contact support.
+        Tell us how you'd like to use Showzy. To switch later, contact support.
       </p>
       {error && (
         <p className="t-small mb-4 text-fault" role="alert">{error}</p>
@@ -711,7 +711,7 @@ function ArtistRequiredStep({
       </Field>
 
       <ConsentCheck id="ar-agree" checked={agree} onChange={setAgree} className="mt-4">
-        I agree to the <PolicyLink to="/terms">Terms</PolicyLink> for artists, including that Naada holds
+        I agree to the <PolicyLink to="/terms">Terms</PolicyLink> for artists, including that Showzy holds
         booking fees in escrow and checks my identity and bank details (KYC) before paying me, and that hosts
         can see this profile.
       </ConsentCheck>
@@ -805,7 +805,7 @@ function HostRequiredStep({
 
       <ConsentCheck id="hr-agree" checked={agree} onChange={setAgree} className="mt-4">
         I confirm I'm authorised to list this venue and agree to the <PolicyLink to="/terms">Terms</PolicyLink>{" "}
-        for hosts: I'm responsible for my events, my floor plan and anyone I invite to check tickets, and Naada
+        for hosts: I'm responsible for my events, my floor plan and anyone I invite to check tickets, and Showzy
         will verify my identity and bank details (KYC) before paying me.
       </ConsentCheck>
 

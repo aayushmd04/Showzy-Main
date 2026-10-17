@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Naada backend — Django 5.1 + DRF + Channels (ASGI) + Celery.
+# Showzy backend — Django 5.1 + DRF + Channels (ASGI) + Celery.
 #
 # Build context is apps/backend/ :
 #     docker build -t naada-backend apps/backend

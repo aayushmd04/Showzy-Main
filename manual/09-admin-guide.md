@@ -1,6 +1,6 @@
 # 09 · Admin: verification and operations
 
-**Who:** Naada staff with an admin account (`/admin`).
+**Who:** Showzy staff with an admin account (`/admin`).
 
 ## Overview
 

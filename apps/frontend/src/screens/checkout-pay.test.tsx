@@ -80,7 +80,7 @@ function apiEvent(over: Partial<ApiEvent> = {}): ApiEvent {
 const ISSUED_TICKET: ApiTicket = {
   id: "tk-1",
   order: "order-1",
-  ticket_number: "NAADA-0001",
+  ticket_number: "SHOWZY-0001",
   qr_data: "qr",
   qr_image_url: "/qr.png",
   event: "ev-live-1",

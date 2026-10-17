@@ -1,4 +1,4 @@
-# Data map — what personal data Naada holds, why, who sees it, and what happens on deletion
+# Data map — what personal data Showzy holds, why, who sees it, and what happens on deletion
 
 *Built from the Django models and the browser code, 11 Oct 2026. Keep it updated whenever a model or a storage key is added; the Privacy Policy and Cookie Policy must say the same thing.*
 

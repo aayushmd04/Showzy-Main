@@ -1,4 +1,4 @@
-"""Pluggable payment gateways for Naada.
+"""Pluggable payment gateways for Showzy.
 
     from .gateways import get_gateway
     gateway = get_gateway()          # MockGateway today, RazorpayGateway when live

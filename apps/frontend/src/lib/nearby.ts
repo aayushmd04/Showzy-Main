@@ -1,6 +1,6 @@
 /**
  * "Events in your area": ask the browser for a location, map it to the
- * nearest city Naada lists, and hand that to the discover feed.
+ * nearest city Showzy lists, and hand that to the discover feed.
  *
  * Nothing leaves the device: coordinates are compared against the city
  * centres below and then dropped; only the resulting city name is kept (for

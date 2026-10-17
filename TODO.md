@@ -1,4 +1,4 @@
-# Naada to-do
+# Showzy to-do
 
 Target: working product by the first week of December 2026, tested on New Year events.
 
@@ -10,7 +10,7 @@ Target: working product by the first week of December 2026, tested on New Year e
   4. Can a split be held 72 hours, released later, or reversed on dispute?
   5. How do refunds work against a vendor's share?
 - [ ] Ask PayU and Easebuzz for written quotes (backup)
-- [ ] Fallback if both say no: venues collect ticket money directly (Naada only collects its fee); artist booking waits
+- [ ] Fallback if both say no: venues collect ticket money directly (Showzy only collects its fee); artist booking waits
 - [ ] Razorpay Route is out for now (₹40 lakh turnover gate). Revisit once turnover allows.
 - [ ] Do not use the "collect in our account, pay out by hand" model beyond a short pilot without accountant and lawyer sign-off
 

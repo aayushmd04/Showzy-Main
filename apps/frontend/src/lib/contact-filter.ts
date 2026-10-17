@@ -1,6 +1,6 @@
 /**
  * Disintermediation guard for chat (mind map §12 / technical discovery Q20).
- * A host and an artist who meet on Naada and settle over WhatsApp cost the
+ * A host and an artist who meet on Showzy and settle over WhatsApp cost the
  * platform the whole transaction, so every message is screened for the kind
  * of thing that lets a deal jump off-platform: phone numbers, email
  * addresses, UPI IDs, @handles and named apps.

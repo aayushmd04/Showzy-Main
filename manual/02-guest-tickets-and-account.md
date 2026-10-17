@@ -14,7 +14,7 @@ Open **My tickets** from the top bar or account menu.
 | 2 | **Past** — events you've been to. |
 | 3 | **A ticket** — name, venue, tier, ticket number, date and a green **VALID** pill. Click it to open the QR. |
 
-> ⚠ **Heads-up:** *Upcoming* decides by the event's **status**, not its date. Events whose date has gone can still show as upcoming and valid until Naada marks them completed (UX-AUDIT **H10**). Check the date on the row.
+> ⚠ **Heads-up:** *Upcoming* decides by the event's **status**, not its date. Events whose date has gone can still show as upcoming and valid until Showzy marks them completed (UX-AUDIT **H10**). Check the date on the row.
 
 ## Transfer a ticket to a friend
 
@@ -25,7 +25,7 @@ Open the ticket → **Transfer**.
 | # | What you're looking at |
 |---|---|
 | 1 | **Transfer this ticket** |
-| 2 | **Their email address** — they must *already have a Naada account*. The ticket appears under their *My tickets* immediately. |
+| 2 | **Their email address** — they must *already have a Showzy account*. The ticket appears under their *My tickets* immediately. |
 | 3 | **Send ticket** — enabled once the email is filled in. |
 | 4 | **Cancel** — close without sending. |
 

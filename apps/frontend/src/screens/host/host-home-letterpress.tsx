@@ -36,7 +36,7 @@ export function HostHomeLetterpressScreen() {
    * The store holds the public catalogue: every published event on the
    * platform. This screen once read straight from it, so a host in Mysuru saw
    * a Bengaluru venue's nights among their own, and "Revenue (est.)" was the
-   * sum of every ticket Naada had ever sold, presented as theirs. The Events
+   * sum of every ticket Showzy had ever sold, presented as theirs. The Events
    * screen has always called the scoped endpoint.
    */
   const [events, setEvents] = useState<NaadaEvent[]>([]);

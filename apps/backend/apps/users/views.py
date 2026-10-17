@@ -39,7 +39,7 @@ class OTPEmailThrottle(SimpleRateThrottle):
 
     The IP throttle above protects us from one attacker; this protects a user
     from many. Anyone willing to rotate IPs — a phone toggling airplane mode is
-    enough — could otherwise pour unlimited "your Naada code is…" mail into
+    enough — could otherwise pour unlimited "your Showzy code is…" mail into
     somebody's inbox, and burn the sending quota on the free email tier while
     they were at it.
 
@@ -92,16 +92,16 @@ def request_otp(request):
     # previews and are retained in mail-relay logs far more widely than bodies.
     expiry_minutes = getattr(django_settings, "OTP_EXPIRY_MINUTES", 10)
     send_mail(
-        subject="Your Naada sign-in code",
+        subject="Your Showzy sign-in code",
         message=f"""Hi,
 
-Your Naada one-time password is: {raw_otp}
+Your Showzy one-time password is: {raw_otp}
 
 It expires in {expiry_minutes} minutes. Do not share this with anyone.
 
 If you didn't ask to sign in, you can ignore this email.
 
-— Naada Team""",
+— Showzy Team""",
         from_email=django_settings.DEFAULT_FROM_EMAIL,
         recipient_list=[email],
         fail_silently=False,
@@ -248,17 +248,17 @@ def request_deletion_code(request):
         ip_address=get_client_ip(request),
     )
     send_mail(
-        subject="Confirm deleting your Naada account",
+        subject="Confirm deleting your Showzy account",
         message=f"""Hi,
 
-Someone asked to permanently delete your Naada account.
+Someone asked to permanently delete your Showzy account.
 
 To confirm, enter this code: {raw_otp}
 
 It expires in {expiry_minutes} minutes. If this wasn't you, ignore this email —
 nothing will be deleted — and consider who else has access to your inbox.
 
-— Naada Team""",
+— Showzy Team""",
         from_email=django_settings.DEFAULT_FROM_EMAIL,
         recipient_list=[user.email],
         fail_silently=False,

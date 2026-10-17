@@ -7,7 +7,7 @@ import { onOpenCookieSettings, setConsent, useConsent } from "@/lib/consent";
 /**
  * Cookie notice and preferences.
  *
- * Honest by construction: the only optional thing Naada stores is the
+ * Honest by construction: the only optional thing Showzy stores is the
  * language/theme preference, there is no tracking, and "Reject optional" is a
  * button of exactly the same size and weight as "Accept all" — no dark
  * patterns. Necessary storage is listed, not hidden behind a toggle that does
@@ -103,7 +103,7 @@ export function CookieConsent() {
         </label>
 
         <p className="t-micro mt-3 text-muted">
-          Naada does not use advertising, analytics or social-media cookies.{" "}
+          Showzy does not use advertising, analytics or social-media cookies.{" "}
           <Link to="/cookies" className="link-underline text-paper" onClick={() => setPanel(false)}>
             Read the cookie policy
           </Link>

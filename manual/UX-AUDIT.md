@@ -1,4 +1,4 @@
-# Naada UX audit — end-to-end, signed-in flows
+# Showzy UX audit — end-to-end, signed-in flows
 
 *Walked through on 11 Oct 2026 against the local build, as a signed-out visitor, guest, host (new account), artist, admin and gatekeeper. Every finding below was reproduced on screen; code locations are given so a developer can go straight to it.*
 
@@ -71,7 +71,7 @@ What's genuinely good, so you don't undo it: the ticket purchase flow itself (cl
 | **H4** | **Admin approves KYC without seeing evidence**, and hosts/artists are never nudged to submit it. Rows show a name and PENDING only. KYC doesn't gate selling either, so nothing prompts a host to complete it. | `/admin/verification`; host dashboard has no checklist | Expand each row: PAN, GSTIN, bank last-4 + holder name, documents, submitted date. Add a *Get paid* checklist item to host/artist dashboards. |
 | **H5** | **Host events list shows wrong numbers** (*0/49 · ₹0*) where the event page correctly shows *1/50 · ₹250*. | `/host/events` vs `/host/events/:id` | Use the same source and "sold/total" definition on both. |
 | **H6** | **Events page has no "New event" button.** The only entry points are the dashboard cards. | `/host/events` | Add a primary **New event** button to the page header. |
-| **H7** | **Fees are described inconsistently.** Host *Bookings*: "Naada's **7%** is charged to you". Artist *Overview/Earnings*: "venue pays **5%**". Guest sees *Convenience fee* (event page) vs *Booking fee* (checkout, ticket). | `host-bookings.tsx:18`; `artist-*`; `event.tsx:363` vs `checkout-pay.tsx:368` | Pick one rate and one name; drive all copy from the same setting. |
+| **H7** | **Fees are described inconsistently.** Host *Bookings*: "Showzy's **7%** is charged to you". Artist *Overview/Earnings*: "venue pays **5%**". Guest sees *Convenience fee* (event page) vs *Booking fee* (checkout, ticket). | `host-bookings.tsx:18`; `artist-*`; `event.tsx:363` vs `checkout-pay.tsx:368` | Pick one rate and one name; drive all copy from the same setting. |
 | **H8** | **"We've sent the ticket to your phone."** There is no phone capture at checkout and no SMS. | `ticket-detail.tsx:247` | "Your ticket is in **My tickets** and we've emailed it." (Then make sure the email goes.) |
 | **H9** | **Role promise is false:** *"you can change this later in settings."* No such setting. | `auth-sheet.tsx` | ✅ **Copy fixed** (now "To switch later, contact support."). Still open: a real *Settings → Switch role*. |
 | **H10** | **"Upcoming" shows past events** (Sep dates in October, still VALID). | `my-tickets.tsx:26` classifies by `status`, not date | Also treat `end_datetime < now` as past; auto-complete events via a scheduled job. |
@@ -95,7 +95,7 @@ What's genuinely good, so you don't undo it: the ticket purchase flow itself (cl
 | **M10** | **"Doors" is really the start time.** The event form has no doors time; the page prints *Doors 19:00*. | Add *Doors open* to the form, or label it *Starts*. |
 | **M11** | **"Free entry" wording** says you still need a tier — but tiers can't be added (see B1). | Free toggle should create the ₹0 tier. |
 | **M12** | **Idle save label reads "Saved · Everything here is live"** on Business and Artist Profile before anything is saved, which implies unsaved or incomplete data is public. | Idle: "No changes". After save: "Saved 18:22". Keep "live" for publish actions only. |
-| **M13** | **Any host can pick any venue** for an event — the list shows every venue on Naada, with no owner approval. | Decide the policy: own venues only, or request/approve. |
+| **M13** | **Any host can pick any venue** for an event — the list shows every venue on Showzy, with no owner approval. | Decide the policy: own venues only, or request/approve. |
 
 ---
 

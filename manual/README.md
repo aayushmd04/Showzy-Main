@@ -1,6 +1,6 @@
-# Naada User Manual
+# Showzy User Manual
 
-Step-by-step guides for every core flow in Naada, captured from the running app.
+Step-by-step guides for every core flow in Showzy, captured from the running app.
 Every screenshot has **pink numbered marks** — the numbers match the "What you're looking at" tables under each picture.
 
 > Captured 11 Oct 2026 against the local build (dev mode: one-time codes are shown on screen, payments use the **Test payment** sheet).
@@ -19,7 +19,7 @@ Every screenshot has **pink numbered marks** — the numbers match the "What you
 | **A host** running the door | [06 · Host: gate team and live check-in](06-host-gate-team-and-live-check-in.md) |
 | **A gatekeeper** (invited to check tickets) | [07 · Gatekeeper: accept an invite and check tickets](07-gatekeeper-guide.md) |
 | **An artist** | [08 · Artist: profile, gig board, offers](08-artist-guide.md) |
-| **A Naada admin** | [09 · Admin: verification and operations](09-admin-guide.md) |
+| **A Showzy admin** | [09 · Admin: verification and operations](09-admin-guide.md) |
 | **Anyone** — privacy, cookies, consent, deleting your account | [10 · Privacy, cookies and deleting your account](10-privacy-cookies-and-deleting-your-account.md) |
 | **Product / design / QA** | [UX-AUDIT.md](UX-AUDIT.md) — what feels off, why, and how to fix it |
 

@@ -22,7 +22,7 @@ import { openCookieSettings } from "@/lib/consent";
  * names the wrong company is worse than one that says it is unfinished.
  */
 const PLACEHOLDER: SiteConfig = {
-  name: "Naada",
+  name: "Showzy",
   legal_name: "[your registered company name]",
   address: "[your registered office address]",
   email: "[support email]",
@@ -49,7 +49,7 @@ type Doc = "terms" | "privacy" | "cookies" | "refunds" | "contact";
 const TITLES: Record<Doc, { title: string; blurb: string }> = {
   terms: {
     title: "Terms of Service",
-    blurb: "The agreement between you and Naada when you use this site.",
+    blurb: "The agreement between you and Showzy when you use this site.",
   },
   privacy: {
     title: "Privacy Policy",
@@ -57,7 +57,7 @@ const TITLES: Record<Doc, { title: string; blurb: string }> = {
   },
   cookies: {
     title: "Cookie Policy",
-    blurb: "Exactly what Naada stores in your browser, why, and how to change it.",
+    blurb: "Exactly what Showzy stores in your browser, why, and how to change it.",
   },
   refunds: {
     title: "Refunds & Cancellations",
@@ -65,7 +65,7 @@ const TITLES: Record<Doc, { title: string; blurb: string }> = {
   },
   contact: {
     title: "Contact Us",
-    blurb: "How to reach a person at Naada.",
+    blurb: "How to reach a person at Showzy.",
   },
 };
 
@@ -177,16 +177,16 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             <p className="t-body mt-6 text-paper/85">
               By signing in or buying a ticket you agree to these terms and to our{" "}
               <Link to="/privacy" className="link-underline text-paper">Privacy Policy</Link>. If you
-              don't agree, please don't use Naada.
+              don't agree, please don't use Showzy.
             </p>
             <S heading="1. Who we are">
               <p>
-                Naada is a marketplace for grassroots live music. We connect people who want to attend
+                Showzy is a marketplace for grassroots live music. We connect people who want to attend
                 gigs with the venues that host them and the artists who play them. These terms are
                 between you and {LEGAL_ENTITY.legalName}, operating as {LEGAL_ENTITY.name}.
               </p>
             </S>
-            <S heading="2. What Naada does and does not do">
+            <S heading="2. What Showzy does and does not do">
               <p>
                 We sell tickets on behalf of event organisers and handle payment between organisers and
                 artists. We are not the organiser of the events listed here. The organiser is
@@ -238,8 +238,8 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 has made available, and are not a guarantee of any particular arrangement.
               </p>
               <p>
-                You can transfer a ticket to another Naada account from the ticket page. Do not resell
-                tickets above face value or through channels outside Naada. We may cancel tickets we
+                You can transfer a ticket to another Showzy account from the ticket page. Do not resell
+                tickets above face value or through channels outside Showzy. We may cancel tickets we
                 reasonably believe have been resold for profit or obtained fraudulently, and we will
                 refund the original purchaser where we do.
               </p>
@@ -252,8 +252,8 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 described in the accepted offer.
               </p>
               <p>
-                Artist fees are held by Naada and released after the performance under the terms of the
-                accepted offer. Naada charges the organiser a platform fee of 5% of the agreed fee, on top
+                Artist fees are held by Showzy and released after the performance under the terms of the
+                accepted offer. Showzy charges the organiser a platform fee of 5% of the agreed fee, on top
                 of that fee; artists are not charged it. Tax deducted at source (1%) is deducted from the
                 artist's fee. Both are shown on the order before you accept it. Before you can be paid we
                 must verify your identity and bank details (KYC); payouts are paused until we have.
@@ -274,20 +274,20 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             </S>
             <S heading="7. Behaviour and content">
               <p>
-                Do not use Naada to harass anyone, to advertise unrelated goods or services, or to move a
+                Do not use Showzy to harass anyone, to advertise unrelated goods or services, or to move a
                 booking conversation off the platform in order to avoid fees. Messages are screened for
                 phone numbers, emails, payment handles and similar details; flagged messages are still
                 delivered but may be reviewed by us. We may suspend accounts that break these rules.
               </p>
               <p>
                 You keep ownership of photos, text and other material you upload. You give us a
-                non-exclusive licence to host and display it on Naada for as long as it is there, and you
+                non-exclusive licence to host and display it on Showzy for as long as it is there, and you
                 promise you have the right to share it.
               </p>
             </S>
             <S heading="8. When things go wrong">
               <p>
-                We work hard to keep Naada running, but we do not promise it will be uninterrupted or
+                We work hard to keep Showzy running, but we do not promise it will be uninterrupted or
                 error-free. Where we are liable to you, our liability is limited to the amount you paid for
                 the affected ticket or booking. Nothing here limits liability that cannot be limited under
                 Indian law, including for death or personal injury caused by negligence, or for fraud, or
@@ -339,7 +339,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 GSTIN and bank account, used only for tax and paying you.
               </p>
               <p>
-                <strong>About how you use Naada:</strong> events you view, save and book; your ticket
+                <strong>About how you use Showzy:</strong> events you view, save and book; your ticket
                 tier and the table, seat or area you chose, and how many baby chairs you asked for (a
                 number — nothing about any child); tickets you transfer or cancel; messages in booking
                 conversations and event chats; reviews; gate-team invitations and, for gatekeepers, which
@@ -358,7 +358,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
               </p>
               <p>
                 <strong>We do not collect card or UPI details.</strong> Payment is handled by our payment
-                gateway; your card number never reaches Naada's servers.
+                gateway; your card number never reaches Showzy's servers.
               </p>
             </S>
             <S heading="4. Why we use it">
@@ -367,7 +367,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 rows={[
                   ["Issue and check tickets, seat you, send receipts", "Account, ticket and order details", "Your consent when you book, and legitimate use to give you what you asked for"],
                   ["Pay artists and venues; keep tax records", "Business, KYC and payment records", "Legal obligations; contract"],
-                  ["Keep Naada secure and prevent fraud", "IP address, browser, sign-in and scan logs", "Legitimate use (security)"],
+                  ["Keep Showzy secure and prevent fraud", "IP address, browser, sign-in and scan logs", "Legitimate use (security)"],
                   ["Tell you about events", "Email, city, preferences", "Your consent — off by default, withdraw any time in Settings"],
                   ["Resolve disputes and complaints", "Booking messages, orders, scan logs", "Legitimate use; legal claims"],
                 ]}
@@ -385,7 +385,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                   ["Artists and organisers in a conversation", "The messages and offers exchanged", "To agree and run a booking"],
                   ["Payment gateway (e.g. Razorpay)", "Amount, order reference, the payer's payment details on their own page", "To take and refund payments"],
                   ["Email delivery provider", "Your email address and the message", "To send sign-in codes, tickets and notices"],
-                  ["Hosting, database and file-storage providers", "Everything we store, encrypted in transit", "To run Naada"],
+                  ["Hosting, database and file-storage providers", "Everything we store, encrypted in transit", "To run Showzy"],
                   ["Error-monitoring service (when enabled)", "Technical error details; we aim to keep personal data out", "To find and fix faults"],
                   ["Authorities", "Only what the law requires", "Legal process, tax, court orders"],
                 ]}
@@ -397,7 +397,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             </S>
             <S heading="6. Children">
               <p>
-                Naada is for people aged 18 and over, and we do not knowingly collect personal data about
+                Showzy is for people aged 18 and over, and we do not knowingly collect personal data about
                 children. Asking for a baby chair records a number, not a child. If you believe a child's
                 data has reached us, write to us and we will remove it.
               </p>
@@ -459,7 +459,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
           <>
             <S heading="The short version">
               <p>
-                Naada uses <strong>no advertising, analytics or tracking cookies</strong> and loads no
+                Showzy uses <strong>no advertising, analytics or tracking cookies</strong> and loads no
                 third-party scripts when you browse. We keep a handful of items in your browser so the site
                 works, and — only if you say yes — your language and theme.
               </p>
@@ -495,7 +495,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
               <ul className="list-disc space-y-1 pl-5">
                 <li>Use <strong>Cookie settings</strong> in the footer at any time to change your choice.</li>
                 <li>Declining <em>Preferences</em> removes the saved language and theme; they last only until you close the tab.</li>
-                <li>Strictly necessary items can't be switched off in Naada — blocking them in your browser will stop sign-in and tickets working.</li>
+                <li>Strictly necessary items can't be switched off in Showzy — blocking them in your browser will stop sign-in and tickets working.</li>
                 <li>You can clear all of this from your browser's settings at any time.</li>
               </ul>
             </S>
@@ -614,7 +614,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             </S>
             <S heading="For venues and artists">
               <p>
-                If you run a venue or perform and want to list on Naada, write to {LEGAL_ENTITY.email} and
+                If you run a venue or perform and want to list on Showzy, write to {LEGAL_ENTITY.email} and
                 tell us where you are and what you do.
               </p>
             </S>

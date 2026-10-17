@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Naada frontend — Vite production build served by nginx.
+# Showzy frontend — Vite production build served by nginx.
 #
 # IMPORTANT: the build context is the REPOSITORY ROOT, not apps/frontend.
 # package-lock.json lives at the root (this is an npm workspaces monorepo) and

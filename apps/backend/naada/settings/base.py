@@ -27,7 +27,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "channels",
     "drf_spectacular",
-    # Naada apps
+    # Showzy apps
     "apps.core",
     "apps.users",
     "apps.venues",
@@ -180,7 +180,7 @@ REST_FRAMEWORK = {
 
 # ── API schema / docs (drf-spectacular) ───────────────────────────────────────
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Naada API",
+    "TITLE": "Showzy API",
     "DESCRIPTION": "Live-music events, ticketing and artist bookings for Mysuru & Bengaluru.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
@@ -232,7 +232,7 @@ EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Naada <noreply@naada.live>")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Showzy <noreply@naada.live>")
 _smtp_configured = bool(EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
 EMAIL_BACKEND = config(
     "EMAIL_BACKEND",
@@ -254,7 +254,7 @@ RAZORPAY_KEY_SECRET = config("RAZORPAY_KEY_SECRET", default="placeholder_secret"
 CONVENIENCE_FEE = config("CONVENIENCE_FEE", default=19, cast=int)
 
 # ── Booking economics ────────────────────────────────────────────────────────
-# Naada's fee on an artist booking, as a fraction of the agreed fee (0.05 = 5%).
+# Showzy's fee on an artist booking, as a fraction of the agreed fee (0.05 = 5%).
 # The venue pays it ON TOP of the agreed fee, so the artist is never charged:
 # they receive the agreed fee less TDS. The frontend shows the same number
 # (PLATFORM_FEE_RATE in src/data/fixtures.ts); change both together.
@@ -264,7 +264,7 @@ PLATFORM_FEE_PCT = config("PLATFORM_FEE_PCT", default="0.05")
 # Blank by default. Until these are filled in, the policy pages say so plainly,
 # because a payment gateway rejects an application whose policies still read
 # "[Company]". Set them here rather than editing the frontend source.
-SITE_NAME = config("SITE_NAME", default="Naada")
+SITE_NAME = config("SITE_NAME", default="Showzy")
 LEGAL_ENTITY_NAME = config("LEGAL_ENTITY_NAME", default="")
 LEGAL_ENTITY_ADDRESS = config("LEGAL_ENTITY_ADDRESS", default="")
 SUPPORT_EMAIL = config("SUPPORT_EMAIL", default="")
@@ -277,7 +277,7 @@ POLICIES_UPDATED = config("POLICIES_UPDATED", default="")
 # correct rate and treatment for event ticketing in India is a question for a
 # CA; see apps/tickets/tax.py for what each of these does.
 #
-#   GST_RATE_FEE          — % on Naada's booking fee (a service we supply)
+#   GST_RATE_FEE          — % on Showzy's booking fee (a service we supply)
 #   GST_RATE_TICKET       — % on ticket face value (the organiser's supply)
 #   GST_TICKET_EXEMPT_BELOW — per-ticket price under which tickets are exempt
 GST_RATE_FEE = config("GST_RATE_FEE", default=0, cast=float)

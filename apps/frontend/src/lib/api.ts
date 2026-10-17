@@ -1,5 +1,5 @@
 /**
- * Naada API client — thin wrapper over fetch.
+ * Showzy API client — thin wrapper over fetch.
  * JWT tokens are stored in localStorage and attached to every authenticated request.
  * All mutations return the parsed JSON body or throw an ApiError.
  */
@@ -536,7 +536,7 @@ export function cancelTicketApi(ticketId: string, reason?: string): Promise<ApiT
   return post(`/tickets/${ticketId}/cancel/`, reason ? { reason } : {});
 }
 
-/** The recipient must already have a Naada account — found by email. */
+/** The recipient must already have a Showzy account — found by email. */
 export function transferTicketApi(
   ticketId: string,
   recipientEmail: string,
@@ -632,7 +632,7 @@ export interface ApiOrder {
   /** The API sends the organiser's id with its name beside it; older shapes nested the whole object. */
   organizer: string | ApiOrganizer;
   organizer_name?: string;
-  /** What the venue and artist agreed (the venue pays this plus the Naada fee). */
+  /** What the venue and artist agreed (the venue pays this plus the Showzy fee). */
   agreed_amount?: string;
   artist: string;
   artist_name?: string;
@@ -643,7 +643,7 @@ export interface ApiOrder {
   created_at: string;
 }
 
-/** The fee the venue and artist agreed, before Naada's fee and TDS. */
+/** The fee the venue and artist agreed, before Showzy's fee and TDS. */
 export function orderAgreed(order: ApiOrder): number {
   if (order.agreed_amount !== undefined) return parseFloat(order.agreed_amount);
   return parseFloat(order.gross_amount) - parseFloat(order.platform_fee);
@@ -922,7 +922,7 @@ export function verifyPayment(data: {
 }
 
 /**
- * Stands in for the browser half of a real gateway while Naada has no merchant
+ * Stands in for the browser half of a real gateway while Showzy has no merchant
  * account. The backend mints a payment id and signs it with the same HMAC the
  * live gateway uses, so the caller then goes through the ordinary
  * `verifyPayment` path — the signature check is genuinely exercised rather

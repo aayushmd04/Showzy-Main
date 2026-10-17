@@ -19,7 +19,7 @@ import { usePageMeta } from "@/lib/use-meta";
 type Tab = "all" | "unread";
 
 export function NotificationsScreen() {
-  usePageMeta({ title: "Notifications", description: "Everything that has happened on your Naada account." });
+  usePageMeta({ title: "Notifications", description: "Everything that has happened on your Showzy account." });
   const navigate = useNavigate();
   const { open: openAuth } = useAuthSheet();
   const { signedIn, items, unread, markRead, markAllRead, error, isLoading, mutate } =
@@ -89,7 +89,7 @@ export function NotificationsScreen() {
               headline="Sign in to see your notifications"
               body="Offers, replies and changes to gigs you have tickets for all land here, tied to your account."
               actionLabel="Sign in"
-              onAction={() => openAuth("Sign in to Naada")}
+              onAction={() => openAuth("Sign in to Showzy")}
             />
           ) : isLoading && items.length === 0 ? (
             <ul className="divide-y divide-line border border-line bg-surface" aria-hidden="true">

@@ -1,5 +1,5 @@
 # =============================================================================
-# Naada — full local stack, production-parity.
+# Showzy — full local stack, production-parity.
 #
 #   docker compose up --build          start everything
 #   docker compose down                stop, keep the data

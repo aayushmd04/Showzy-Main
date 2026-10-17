@@ -8,9 +8,9 @@
 
 Four tiles: **Open offers**, **Confirmed gigs**, **In escrow** (money held for you until the gig is confirmed), **Paid this month**. Below: a shortcut to the **Gig board** and your **Upcoming gigs**.
 
-The footer note explains fees: *you are not charged a Naada fee — the venue pays 5% on top of your agreed fee; you receive your fee less 1% TDS.*
+The footer note explains fees: *you are not charged a Showzy fee — the venue pays 5% on top of your agreed fee; you receive your fee less 1% TDS.*
 
-> ⚠ The host's Bookings page says Naada's fee is **7%**, not 5% (UX-AUDIT **H7**). Confirm which is right before quoting it to anyone.
+> ⚠ The host's Bookings page says Showzy's fee is **7%**, not 5% (UX-AUDIT **H7**). Confirm which is right before quoting it to anyone.
 >
 > ⚠ A new artist sees four zeroes and no "what to do next" (profile is 14% complete but that's only shown on the Profile page — UX-AUDIT **M2**).
 
@@ -58,4 +58,4 @@ Money flow in one line: host funds the booking → held in **escrow** → releas
 
 ## Chat safety
 
-Messages are screened for phone numbers, emails, UPI IDs and handles. Flagged messages are still delivered, but a Naada admin can review them ([09](09-admin-guide.md)). Keep bookings and payments on Naada so escrow protects you.
+Messages are screened for phone numbers, emails, UPI IDs and handles. Flagged messages are still delivered, but a Showzy admin can review them ([09](09-admin-guide.md)). Keep bookings and payments on Showzy so escrow protects you.

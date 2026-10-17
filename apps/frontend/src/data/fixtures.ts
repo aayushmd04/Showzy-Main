@@ -172,7 +172,7 @@ export interface Settlement {
 
 /** Platform economics — Section 1. */
 /**
- * Naada's fee on an artist booking: 5% of the agreed fee, added on top and paid
+ * Showzy's fee on an artist booking: 5% of the agreed fee, added on top and paid
  * by the venue. Must equal PLATFORM_FEE_PCT in the backend settings.
  */
 export const PLATFORM_FEE_RATE = 0.05;
@@ -540,7 +540,7 @@ export const messages: ChatMessage[] = [
 export const tickets: Ticket[] = [
   {
     id: "t1",
-    code: "NAADA-7K2M-QX91",
+    code: "SHOWZY-7K2M-QX91",
     eventId: "e2",
     tier: "General",
     price: 499,
@@ -550,7 +550,7 @@ export const tickets: Ticket[] = [
   },
   {
     id: "t2",
-    code: "NAADA-3P8L-VB40",
+    code: "SHOWZY-3P8L-VB40",
     eventId: "e1",
     tier: "Free entry",
     price: 0,
@@ -560,7 +560,7 @@ export const tickets: Ticket[] = [
   },
   {
     id: "t3",
-    code: "NAADA-9D1F-RT27",
+    code: "SHOWZY-9D1F-RT27",
     eventId: "e5",
     tier: "General",
     price: 599,

@@ -141,7 +141,7 @@ export function HostGateTeamScreen() {
           <section className="mt-8 border border-line bg-surface p-4">
             <h2 className="t-micro">Invite a gatekeeper</h2>
             <p className="t-small mt-1 text-muted">
-              They need a Naada account (signing up takes a minute). Use the email or phone number on it —
+              They need a Showzy account (signing up takes a minute). Use the email or phone number on it —
               they accept on their side before they can scan anything.
             </p>
             <form onSubmit={invite} className="mt-3 flex flex-col gap-3 md:flex-row md:items-end">
@@ -185,7 +185,7 @@ export function HostGateTeamScreen() {
               </Button>
             </form>
             <p className="t-micro mt-3 text-muted">
-              Only invite people who know you're asking. Naada uses the email or number you enter just to
+              Only invite people who know you're asking. Showzy uses the email or number you enter just to
               match the invitation to their account, and it is deleted if they decline or you cancel.
             </p>
             {formError && <p className="t-small mt-2 text-fault" role="alert">{formError}</p>}

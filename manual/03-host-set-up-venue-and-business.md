@@ -34,7 +34,7 @@ Sidebar → **Business**.
 
 What's on the page:
 
-- **KYC status** pill — starts at **PENDING**. Saving GST, PAN or bank details sends the venue for review by a Naada admin ([09](09-admin-guide.md)). Nothing is paid out until it's verified.
+- **KYC status** pill — starts at **PENDING**. Saving GST, PAN or bank details sends the venue for review by a Showzy admin ([09](09-admin-guide.md)). Nothing is paid out until it's verified.
 - **GSTIN** (optional — only if GST-registered) and **PAN** (needed for TDS on payouts).
 - **Payout bank account** — holder name, bank name, account number, IFSC. The account number is write-only: after saving, only the last 4 digits are ever shown again.
 - **Save changes**.

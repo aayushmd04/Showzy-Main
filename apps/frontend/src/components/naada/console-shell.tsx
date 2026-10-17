@@ -107,7 +107,7 @@ export function ConsoleShell({
       {/* Desktop sidebar / tablet icon rail */}
       <aside className="glass-soft sticky top-0 hidden h-dvh shrink-0 rounded-none border-y-0 border-l-0 bg-[var(--glass-bar)] md:block md:w-[72px] lg:w-[240px]">
         <div className="flex h-16 items-center border-b border-line px-4 lg:px-6">
-          <Link to="/" aria-label="Naada home" className="flex items-center">
+          <Link to="/" aria-label="Showzy home" className="flex items-center">
             <Wordmark className="hidden lg:inline" />
             <span
               className="font-display text-[20px] font-extrabold text-signal lg:hidden"

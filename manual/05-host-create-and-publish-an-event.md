@@ -2,7 +2,7 @@
 
 **Who:** hosts. **Time:** 5 minutes (once tiers are set — see the blocker below).
 
-> 🛑 **Blocker today:** the app has **no screen or button to add ticket tiers** (General, VIP…). An event cannot be published without at least one. Until tier management ships, tiers have to be added by Naada staff (UX-AUDIT **B1**). Everything else in this chapter works as shown.
+> 🛑 **Blocker today:** the app has **no screen or button to add ticket tiers** (General, VIP…). An event cannot be published without at least one. Until tier management ships, tiers have to be added by Showzy staff (UX-AUDIT **B1**). Everything else in this chapter works as shown.
 
 ## Step 1 — Start a new event
 
@@ -16,7 +16,7 @@ Dashboard → **Publish an event** (or sidebar **Events** → open an existing o
 | 2 | **Starts** | Date and time. This is also what guests see as "Doors". |
 | 3 | **Ends** | Gatekeeper access runs until 4 hours after this. |
 | 4 | **City** | Narrows the venue list. |
-| 5 | **Venue** | Choose yours. The list currently includes every venue on Naada. |
+| 5 | **Venue** | Choose yours. The list currently includes every venue on Showzy. |
 | 6 | **Description** | Shown on the public page — say what the night actually is. |
 
 > ⚠ **Heads-up:** choosing a **City** can empty the Venue list ("No venues in this city yet"), even when venues exist. Leave City on **All cities** and pick the venue directly (UX-AUDIT **B3**).
@@ -72,4 +72,4 @@ Click **Publish event**. A confirmation appears with the public link.
 
 ## There's no "cancel event" or refund-all button yet
 
-If you must cancel a night, contact Naada support so guests can be refunded and notified.
+If you must cancel a night, contact Showzy support so guests can be refunded and notified.

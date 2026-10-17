@@ -203,7 +203,7 @@ export function ArtistProfileScreen() {
               {artist.is_verified && (
                 <CheckCircle2
                   className="ml-2 inline size-5 align-middle text-live"
-                  aria-label="Verified by Naada"
+                  aria-label="Verified by Showzy"
                 />
               )}
             </h1>
@@ -214,7 +214,7 @@ export function ArtistProfileScreen() {
             <p className="t-small mt-2 flex flex-wrap items-center gap-3 text-muted">
               {artist.total_gigs > 0 && (
                 <span className="t-mono">
-                  {artist.total_gigs} {artist.total_gigs === 1 ? "gig" : "gigs"} on Naada
+                  {artist.total_gigs} {artist.total_gigs === 1 ? "gig" : "gigs"} on Showzy
                 </span>
               )}
               {artist.follower_count > 0 && (

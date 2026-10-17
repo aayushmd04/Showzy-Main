@@ -1,6 +1,6 @@
 # Compliance dossier
 
-Everything needed to explain — to a user, a payment gateway, a venue customer or a regulator — how Naada handles personal data. Written from the code as it stands on 11 Oct 2026.
+Everything needed to explain — to a user, a payment gateway, a venue customer or a regulator — how Showzy handles personal data. Written from the code as it stands on 11 Oct 2026.
 
 | File | What it answers |
 |---|---|

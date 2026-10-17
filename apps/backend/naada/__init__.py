@@ -1,4 +1,4 @@
-"""Naada project package.
+"""Showzy project package.
 
 Importing the Celery app here guarantees that ``@shared_task`` decorators use
 this app when Django starts, so scheduled/queued jobs actually run.

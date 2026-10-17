@@ -1,6 +1,6 @@
 """Create one signed-in-able account per role, for testing the real flows.
 
-Naada has no passwords — sign-in is an emailed one-time code — so an account is
+Showzy has no passwords — sign-in is an emailed one-time code — so an account is
 just an email address plus the right role. This makes four, one per role, and
 prints them.
 

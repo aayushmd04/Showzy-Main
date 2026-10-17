@@ -116,8 +116,8 @@ export function PublicShell({ children }: { children: ReactNode }) {
         {/* One bar on a laptop; on a phone the brand and sign-in stay on top, then
             search, then the section links. One nav element, placed by `order`. */}
         <div className="flex w-full flex-wrap items-center px-[var(--page-pad)] lg:flex-nowrap lg:gap-10">
-          <Link to="/" className="order-1 flex h-16 shrink-0 items-center no-underline" aria-label="Naada home">
-            <Wordmark className="text-[19px] md:text-[21px]" />
+          <Link to="/" className="order-1 flex h-16 shrink-0 items-center no-underline" aria-label="Showzy home">
+            <Wordmark />
           </Link>
 
           <div className="order-2 ml-8 hidden h-16 min-w-0 flex-1 items-center md:flex lg:order-3 lg:ml-0">
@@ -144,14 +144,14 @@ export function PublicShell({ children }: { children: ReactNode }) {
               <>
                 <button
                   type="button"
-                  onClick={() => openAuth("Host your event on Naada", { preferRole: "host", onDone: afterSignIn })}
+                  onClick={() => openAuth("Host your event on Showzy", { preferRole: "host", onDone: afterSignIn })}
                   className="hidden whitespace-nowrap text-[13px] font-semibold text-muted hover:text-paper xl:block"
                 >
                   {kn ? "ನಿಮ್ಮ ಕಾರ್ಯಕ್ರಮ ಆಯೋಜಿಸಿ" : "Host your event"}
                 </button>
                 <button
                   type="button"
-                  onClick={() => openAuth("Sign in to Naada", { onDone: afterSignIn })}
+                  onClick={() => openAuth("Sign in to Showzy", { onDone: afterSignIn })}
                   className="min-h-10 shrink-0 whitespace-nowrap rounded-md bg-signal px-4 text-[14px] font-bold text-white hover:bg-[#d4503a]"
                 >
                   {kn ? "ಸೈನ್ ಇನ್" : "Sign in"}
@@ -191,7 +191,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
 
       <footer className="glass-soft mt-16 rounded-none border-x-0 border-b-0 bg-[var(--glass-bar)]">
         <div className="flex w-full flex-wrap items-center justify-between gap-4 px-[var(--page-pad)] py-8">
-          <Wordmark className="text-[19px]" />
+          <Wordmark />
           {/* Terms, Privacy, Refunds and Contact must be reachable from the
               site itself — a payment gateway's merchant review checks for them,
               and a buyer looking for a refund policy should not have to guess

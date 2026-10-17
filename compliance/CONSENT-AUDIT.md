@@ -1,4 +1,4 @@
-# Consent audit — every place Naada asks for, or relies on, an agreement
+# Consent audit — every place Showzy asks for, or relies on, an agreement
 
 *11 Oct 2026. Framework: India's Digital Personal Data Protection Act, 2023 (notice, free/specific/unambiguous consent, ability to withdraw, record-keeping), plus the Consumer Protection (E-Commerce) Rules, 2020 and the IT Act. This is an engineering review, not legal advice — see the lawyer checklist in [README.md](README.md).*
 

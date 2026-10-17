@@ -1,6 +1,6 @@
-# Deploying Naada
+# Deploying Showzy
 
-This is the complete, start-to-finish guide to putting Naada on the internet.
+This is the complete, start-to-finish guide to putting Showzy on the internet.
 It assumes you have never deployed anything before. Every command is one you
 can copy and paste.
 
@@ -54,7 +54,7 @@ buys a real ticket and refunds it.
 
 Two things to know before you begin, because they surprise people:
 
-**Payments run on a stand-in.** Naada has no Razorpay merchant account yet, so
+**Payments run on a stand-in.** Showzy has no Razorpay merchant account yet, so
 the app uses a mock gateway. Orders, inventory, signature checks, ticket
 issuing and QR codes are all completely real — only the money is simulated.
 Nothing needs rewriting when the account is approved; see *When Razorpay is
@@ -68,7 +68,7 @@ variables in Step B4. That is deliberate for a first deploy.
 
 ## 1. What you are actually deploying
 
-Naada is not one program. It is five things that must all be running:
+Showzy is not one program. It is five things that must all be running:
 
 | Piece | What it does | What happens if it's missing |
 |---|---|---|
@@ -132,7 +132,7 @@ free to start. Django connects to it over a normal Postgres connection string.
 You could later also use Supabase Storage for uploaded photos (the code already
 supports it — see `AWS_*` in the variable table), but you don't need to.
 
-You are **not** using Supabase Auth. Naada has its own user model, its own
+You are **not** using Supabase Auth. Showzy has its own user model, its own
 OTP login and its own JWT tokens. Ignore that part of the dashboard.
 
 ### And Cloudflare? Can Django run there?
@@ -846,7 +846,7 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `SENTRY_ENVIRONMENT` / `SENTRY_TRACES_SAMPLE_RATE` | `production` / `0.1` | |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USE_TLS` | `smtp.gmail.com` / `587` / `True` | |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | *(empty)* | Both empty ⇒ email prints to the logs. |
-| `DEFAULT_FROM_EMAIL` | `Naada <noreply@naada.live>` | |
+| `DEFAULT_FROM_EMAIL` | `Showzy <noreply@naada.live>` | |
 | `CSRF_TRUSTED_ORIGINS` | https entries of CORS | |
 | `SECURE_SSL_REDIRECT` | `True` | Set `False` only for plain-HTTP local runs. |
 | `DB_SSLMODE` | `require` | `prefer` only for a local Postgres. |

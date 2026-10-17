@@ -12,7 +12,7 @@ TDS_PCT = Decimal("0.01")  # 1% TDS (194-O — confirm with CA)
 
 
 def platform_fee_pct() -> Decimal:
-    """Naada's fee on a booking, read from settings (PLATFORM_FEE_PCT, default 5%)."""
+    """Showzy's fee on a booking, read from settings (PLATFORM_FEE_PCT, default 5%)."""
     return Decimal(str(settings.PLATFORM_FEE_PCT))
 
 
@@ -139,7 +139,7 @@ class BookingOrderSerializer(serializers.ModelSerializer):
         return hasattr(obj, "dispute")
 
     def get_agreed_amount(self, obj):
-        """What the venue and artist agreed: what the venue pays, less Naada's fee."""
+        """What the venue and artist agreed: what the venue pays, less Showzy's fee."""
         return str(obj.gross_amount - obj.platform_fee)
 
 
@@ -211,7 +211,7 @@ class MakeOfferSerializer(serializers.Serializer):
 def compute_fees(agreed: Decimal):
     """Split a booking into (platform_fee, tds, artist_payout, gross).
 
-    ``agreed`` is the fee the venue and artist settled on. Naada's fee is added
+    ``agreed`` is the fee the venue and artist settled on. Showzy's fee is added
     on top and paid by the venue; TDS is deducted from the artist's side. So:
 
         gross         = agreed + platform_fee      (what the venue pays)

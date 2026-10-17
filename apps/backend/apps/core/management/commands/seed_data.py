@@ -6,7 +6,7 @@ from decimal import Decimal
 
 
 class Command(BaseCommand):
-    help = "Seed the database with realistic Naada demo data"
+    help = "Seed the database with realistic Showzy demo data"
 
     def handle(self, *args, **options):
         from apps.core.models import City, Area, Genre
@@ -63,7 +63,7 @@ class Command(BaseCommand):
         self.stdout.write("Seeding users...")
         admin_user, _ = User.objects.get_or_create(
             email="admin@naada.live",
-            defaults={"full_name": "Naada Admin", "role": "admin",
+            defaults={"full_name": "Showzy Admin", "role": "admin",
                       "is_staff": True, "is_superuser": True, "is_verified": True}
         )
         if _:
@@ -483,7 +483,7 @@ class Command(BaseCommand):
                 organizer=org,
                 artist=artist,
                 event=event,
-                # ₹15,000 agreed; Naada's 5% (₹750) is added for the venue; the
+                # ₹15,000 agreed; Showzy's 5% (₹750) is added for the venue; the
                 # artist receives ₹15,000 less 1% TDS.
                 gross_amount=Decimal("15750"),
                 platform_fee=Decimal("750"),

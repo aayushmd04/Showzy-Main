@@ -74,7 +74,7 @@ No analytics, advertising, social-media or tag-manager scripts exist in the fron
 | qrcode | "BSD; Other" | Metadata is ambiguous; upstream is BSD. Confirm before distributing a closed binary. |
 | Pillow | MIT-CMU | Permissive. |
 
-Nothing requires publishing Naada's source. If you ever **distribute** the backend (rather than host it), have counsel re-check the LGPL items.
+Nothing requires publishing Showzy's source. If you ever **distribute** the backend (rather than host it), have counsel re-check the LGPL items.
 
 ## Housekeeping findings
 

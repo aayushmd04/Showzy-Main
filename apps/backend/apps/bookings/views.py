@@ -315,7 +315,7 @@ def accept_offer(request, offer_id):
     if offer.proposed_by == request.user:
         return Response({"detail": "You cannot accept your own offer."}, status=400)
 
-    # The offer's fee is what was agreed. Naada's fee is added on top and paid
+    # The offer's fee is what was agreed. Showzy's fee is added on top and paid
     # by the venue, so gross (the venue's payment) is larger than the offer.
     platform_fee, tds, artist_payout, gross = compute_fees(offer.fee_amount)
 

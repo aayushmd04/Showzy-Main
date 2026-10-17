@@ -1,6 +1,6 @@
 # 00 · Sign in, sign up and choosing a role
 
-Naada has no passwords. You enter your email, we send a six-digit code, and the code signs you in.
+Showzy has no passwords. You enter your email, we send a six-digit code, and the code signs you in.
 If the email is new, the same steps create your account — there is no separate "Sign up".
 
 **Who:** everyone. **Time:** about 1 minute.
@@ -44,7 +44,7 @@ Between the two, a notice reads *"By continuing you agree to our Terms and Priva
 
 The code expires in 10 minutes. "Resend in 0:47" counts down before you can ask for another.
 
-## Step 3 — Tell Naada how you'll use it (new accounts only)
+## Step 3 — Tell Showzy how you'll use it (new accounts only)
 
 ![Choose a role](assets/auth-03-choose-role.jpg)
 
@@ -80,6 +80,6 @@ Click your round initial at the top right. The menu has **My tickets**, **Gate d
 
 | Problem | Fix |
 |---|---|
-| "I didn't get the code" | Check spam; wait for the 0:00 timer, then **Resend**. After several tries Naada slows requests down on purpose. |
+| "I didn't get the code" | Check spam; wait for the 0:00 timer, then **Resend**. After several tries Showzy slows requests down on purpose. |
 | "Wrong code" | Codes lock after repeated wrong guesses; request a new one. |
 | "I picked the wrong role" | Contact support — see ⚠ above. |

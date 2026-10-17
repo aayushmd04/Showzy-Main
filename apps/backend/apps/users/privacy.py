@@ -224,9 +224,9 @@ def export_data(user) -> dict:
     data = {
         "exported_at": timezone.now().isoformat(),
         "about_this_file": (
-            "A copy of the personal data Naada holds about you. "
+            "A copy of the personal data Showzy holds about you. "
             "Questions or corrections: see the Contact page. Payment card details are "
-            "never held by Naada."
+            "never held by Showzy."
         ),
         "account": UserProfileSerializer(user).data,
     }

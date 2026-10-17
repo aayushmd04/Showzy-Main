@@ -7,11 +7,11 @@ Hand the door to people you trust — without giving them your venue, money or o
 ## How it works
 
 1. You **invite** someone by email or phone, for **one event**.
-2. They sign in with their own Naada account and **accept** ([07](07-gatekeeper-guide.md)).
+2. They sign in with their own Showzy account and **accept** ([07](07-gatekeeper-guide.md)).
 3. From **4 hours before the event starts until 4 hours after it ends** they can scan tickets and search the guest list. Outside that window, or on any other event, they can do nothing.
 4. You watch every scan **live**, and can end anyone's access instantly.
 
-A gatekeeper is just an ordinary Naada account. They don't get a host console and can't see ticket buyers' emails or phones.
+A gatekeeper is just an ordinary Showzy account. They don't get a host console and can't see ticket buyers' emails or phones.
 
 ## Open the Gate team
 
@@ -25,7 +25,7 @@ Event page → **Gate team**.
 | 2 | **Gatekeepers active** — people who have accepted and can scan now or later. |
 | 3 | **Gate access right now** — **Open** or **Closed** for gatekeepers (you can always scan). |
 | 4 | **Invite by Email / Phone** — pick how you'll name them. |
-| 5 | **Their email** (or phone number). Use exactly the email or number on *their* Naada account. |
+| 5 | **Their email** (or phone number). Use exactly the email or number on *their* Showzy account. |
 | 6 | **Post (optional)** — e.g. "Main gate". |
 | 7 | **Send invite** |
 | 8 | **Open door scanner** — scan yourself. |
@@ -45,7 +45,7 @@ Enter the email, optionally a post, then **Send invite**.
 | 3 | **Cancel invite** — withdraws it. For active members the button reads **End access**. |
 
 - If the person **already has an account**, they get an in-app notification and see the invite under **Gate duty**.
-- If they **don't have one yet**, the invite waits for them. **Naada does not email them**, so tell them yourself to sign up with that email or phone number (UX-AUDIT **M7**).
+- If they **don't have one yet**, the invite waits for them. **Showzy does not email them**, so tell them yourself to sign up with that email or phone number (UX-AUDIT **M7**).
 - Limits: one invite per person per event; up to 25 people per event; you can't invite yourself.
 
 ## Watch the door live

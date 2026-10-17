@@ -1,13 +1,13 @@
 # 07 · Gatekeeper: accept an invite and check tickets
 
-You've been asked to check tickets at someone's event. You don't need a special account — just your normal Naada account.
+You've been asked to check tickets at someone's event. You don't need a special account — just your normal Showzy account.
 
 **What you can do:** scan tickets and look up guests for **that one event**, from 4 hours before it starts until 4 hours after it ends.
 **What you can't do:** see buyers' emails or phones, sales, money, the venue's settings, or any other event.
 
 ## Step 1 — Sign in with the email or number you were invited on
 
-New to Naada? Create an account with that email ([00](00-getting-started-sign-in-and-roles.md)); choose **I'm here to watch**.
+New to Showzy? Create an account with that email ([00](00-getting-started-sign-in-and-roles.md)); choose **I'm here to watch**.
 
 ## Step 2 — Open Gate duty and accept
 

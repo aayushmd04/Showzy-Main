@@ -125,5 +125,5 @@ export function ticketCode(): string {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   const block = (n: number) =>
     Array.from({ length: n }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
-  return `NAADA-${block(4)}-${block(4)}`;
+  return `SHOWZY-${block(4)}-${block(4)}`;
 }

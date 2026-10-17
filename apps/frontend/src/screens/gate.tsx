@@ -59,7 +59,7 @@ export function GateScreen() {
         {!signedIn ? (
           <div className="mt-8 border border-line bg-surface p-5">
             <p className="t-body">Sign in with the email or phone number you were invited on.</p>
-            <Button className="mt-4" variant="primary" onClick={() => openAuth("Sign in to Naada")}>
+            <Button className="mt-4" variant="primary" onClick={() => openAuth("Sign in to Showzy")}>
               Sign in
             </Button>
           </div>

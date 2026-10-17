@@ -14,7 +14,7 @@ vi.mock("@/lib/api", async (importOriginal) => {
  * The bug this pins: the dashboard read the store's `events`, which is the
  * *public* catalogue — every published event on the platform. A host saw
  * other venues' nights listed among their own, and "Revenue (est.)" was the
- * sum of every ticket Naada had ever sold, presented as theirs.
+ * sum of every ticket Showzy had ever sold, presented as theirs.
  *
  * So the store is seeded here with an event belonging to somebody else, and
  * the assertions are that it never appears and never counts.

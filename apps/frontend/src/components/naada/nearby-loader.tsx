@@ -10,7 +10,6 @@
  */
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { MapPin } from "lucide-react";
 
 import { randomFact, type FunFact } from "@/data/fun-facts";
 import { locateCity, type LocateResult } from "@/lib/nearby";
@@ -94,9 +93,7 @@ export function NearbyLoader() {
                 <span className="absolute inset-2 animate-ping rounded-full bg-signal/20 [animation-delay:.4s]" />
               </>
             )}
-            <span className="relative grid size-14 place-items-center rounded-full bg-signal text-white">
-              <MapPin className="size-7" />
-            </span>
+            <img src="/brand/showzy-icon-on-dark.svg" alt="" className="relative size-16" />
           </motion.div>
 
           <h2

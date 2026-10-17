@@ -96,7 +96,7 @@ export function CheckoutDetailsScreen() {
           </Field>
 
           <ConsentCheck id="guest-consent" checked={consent} onChange={setConsent}>
-            I agree to Naada storing these details to issue and verify my ticket, and to sharing my name and
+            I agree to Showzy storing these details to issue and verify my ticket, and to sharing my name and
             contact details with the organiser of {event.name} so they can admit me and reach me if the event
             changes. See the <PolicyLink to="/privacy">Privacy Policy</PolicyLink>.
           </ConsentCheck>

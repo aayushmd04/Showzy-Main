@@ -7,7 +7,7 @@
     "venues": 12,
     "restaurants": 10
   },
-  "note": "Provenance record for Naada seed imagery. Every image is free for commercial use with no attribution required; this record exists so the licence is provable later, not because credit is owed. Keys are the paths the frontend serves from apps/frontend/public/.",
+  "note": "Provenance record for Showzy seed imagery. Every image is free for commercial use with no attribution required; this record exists so the licence is provable later, not because credit is owed. Keys are the paths the frontend serves from apps/frontend/public/.",
   "licenses": {
     "Pexels License": {
       "url": "https://www.pexels.com/license/",

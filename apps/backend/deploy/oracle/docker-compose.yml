@@ -1,4 +1,4 @@
-# Naada backend on one VM (Oracle Cloud Always Free or any Ubuntu server).
+# Showzy backend on one VM (Oracle Cloud Always Free or any Ubuntu server).
 # The database is Supabase, so there is no Postgres container here.
 #
 #   cd ~/naada/apps/backend/deploy/oracle

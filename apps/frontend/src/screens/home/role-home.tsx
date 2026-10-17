@@ -69,7 +69,7 @@ export function RoleHomeScreen() {
   if (resolving) return <HomeFallback />;
 
   // A role without a signed-in user is a stale local value, not an account.
-  // A separate page of its own: it introduces Naada, then sends people on to /whats-on.
+  // A separate page of its own: it introduces Showzy, then sends people on to /whats-on.
   if (!currentUser) return <HeroCarousel />;
 
   if (role === "artist") {

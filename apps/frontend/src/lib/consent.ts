@@ -1,7 +1,7 @@
 /**
  * Cookie & storage consent.
  *
- * What Naada actually stores in your browser, and why (see /cookies):
+ * What Showzy actually stores in your browser, and why (see /cookies):
  *
  *  - Strictly necessary — your sign-in token, the offline door-scan queue, an
  *    unsaved floor-plan draft, the consent choice itself. The site cannot work

@@ -76,7 +76,7 @@ export function ArtistHomeScreen() {
       )}
 
       <p className="t-small mt-6 glass-soft rounded-xl p-4 text-muted">
-        You are not charged a Naada fee: the venue pays {Math.round(PLATFORM_FEE_RATE * 100)}% on top of your
+        You are not charged a Showzy fee: the venue pays {Math.round(PLATFORM_FEE_RATE * 100)}% on top of your
         agreed fee. You receive your fee less {Math.round(TDS_RATE * 100)}% TDS.
       </p>
     </ConsoleShell>

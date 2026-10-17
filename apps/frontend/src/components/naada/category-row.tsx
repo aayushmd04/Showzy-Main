@@ -4,7 +4,8 @@ import { CATEGORIES, type CategoryId } from "@/lib/categories";
 import { useStore } from "@/store/app-store";
 
 /**
- * Five round art-form icons plus "See all". Tapping an art form filters the page;
+ * Art forms as outlined pills with an icon and a label, in the theme's own colours:
+ * ivory outline, red icon, red fill when chosen. Tapping one filters the page;
  * tapping it again clears it. "See all" clears any filter and shows everything.
  */
 export function CategoryRow({
@@ -18,11 +19,13 @@ export function CategoryRow({
 }) {
   const { lang } = useStore();
   const kn = lang === "kn";
+  const pill =
+    "group relative z-10 inline-flex min-h-12 shrink-0 cursor-pointer items-center gap-2.5 rounded-full border-2 pl-3 pr-5 text-[15px] font-extrabold tracking-tight transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0 active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal md:min-h-[52px]";
 
   return (
     <nav
       aria-label={kn ? "ವರ್ಗಗಳು" : "Categories"}
-      className="relative z-10 -mx-[var(--page-pad)] flex justify-between gap-1 overflow-x-auto px-[var(--page-pad)] sm:gap-2 md:mx-0 md:justify-start md:gap-8 md:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      className="relative z-10 -mx-[var(--page-pad)] flex gap-2.5 overflow-x-auto px-[var(--page-pad)] py-2 [scrollbar-width:none] md:mx-0 md:flex-wrap md:gap-3 md:overflow-visible md:px-0 [&::-webkit-scrollbar]:hidden"
     >
       {CATEGORIES.map(({ id, label, labelKn, icon: Icon }) => {
         const active = value === id;
@@ -32,20 +35,20 @@ export function CategoryRow({
             type="button"
             aria-pressed={active}
             onClick={() => onChange(active ? null : id)}
-            className="group relative z-10 flex min-w-[50px] flex-1 flex-col items-center gap-1.5 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal md:min-w-[76px] md:flex-none"
+            className={`${pill} ${
+              active
+                ? "border-signal bg-signal text-[#F3E9D6]"
+                : "border-[var(--glass-border)] bg-[var(--glass-bg-soft)] text-paper hover:border-signal"
+            }`}
           >
             <span
-              className={`grid size-11 sm:size-12 place-items-center rounded-full border transition-colors md:size-14 ${
-                active
-                  ? "border-signal bg-signal text-white"
-                  : "glass text-paper group-hover:border-white/40"
+              className={`grid size-8 place-items-center rounded-full transition-colors ${
+                active ? "bg-[#F3E9D6]/20" : "bg-signal/15 group-hover:bg-signal/25"
               }`}
             >
-              <Icon className="size-5 md:size-6" strokeWidth={1.5} aria-hidden />
+              <Icon className={`size-[18px] ${active ? "text-[#F3E9D6]" : "text-signal"}`} strokeWidth={2} aria-hidden />
             </span>
-            <span className={`text-[13px] font-semibold drop-shadow ${active ? "text-paper" : "text-paper/80 group-hover:text-paper"}`}>
-              {kn ? labelKn : label}
-            </span>
+            {kn ? labelKn : label}
           </button>
         );
       })}
@@ -53,12 +56,10 @@ export function CategoryRow({
       <button
         type="button"
         onClick={onSeeAll}
-        className="group relative z-10 flex min-w-[50px] flex-1 flex-col items-center gap-1.5 rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal md:min-w-[76px] md:flex-none"
+        className={`${pill} border-dashed border-[var(--glass-border)] pr-4 text-signal hover:border-signal`}
       >
-        <span className="glass grid size-11 place-items-center rounded-full border-dashed text-signal transition-colors group-hover:border-signal sm:size-12 md:size-14">
-          <LayoutGrid className="size-5 md:size-6" strokeWidth={1.5} aria-hidden />
-        </span>
-        <span className="text-[13px] font-semibold text-signal drop-shadow">{kn ? "ಎಲ್ಲವನ್ನೂ ನೋಡಿ" : "See all"}</span>
+        <LayoutGrid className="size-[18px]" strokeWidth={2} aria-hidden />
+        {kn ? "ಎಲ್ಲವನ್ನೂ ನೋಡಿ" : "See all"}
       </button>
     </nav>
   );

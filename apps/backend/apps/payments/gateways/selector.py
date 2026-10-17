@@ -132,6 +132,6 @@ def log_active_gateway() -> None:
         logger.error("Payment gateway misconfigured: %s", exc)
         return
     logger.info(
-        "Naada payments -> gateway=%s (%s), mock=%s",
+        "Showzy payments -> gateway=%s (%s), mock=%s",
         gateway.name, gateway.display_name, gateway.is_mock,
     )

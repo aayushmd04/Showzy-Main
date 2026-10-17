@@ -1,6 +1,6 @@
 # 01 · Find an event and book a ticket
 
-**Who:** guests (audience). **Time:** about 2 minutes. **You need:** a Naada account (see [00](00-getting-started-sign-in-and-roles.md)).
+**Who:** guests (audience). **Time:** about 2 minutes. **You need:** a Showzy account (see [00](00-getting-started-sign-in-and-roles.md)).
 
 ## Step 1 — Find something on
 
@@ -103,7 +103,7 @@ Click **Pay ₹…**. In the dev build a **Test payment** sheet stands in for th
 | 8 | **Cancel** — cancel and refund ([02](02-guest-tickets-and-account.md)). |
 | 9 | **My tickets** — all your tickets. |
 
-> ⚠ The banner says *"We've sent the ticket to your phone."* Naada does not collect a phone number at checkout or send SMS. Your ticket is in **My tickets** and by email (UX-AUDIT **H8**).
+> ⚠ The banner says *"We've sent the ticket to your phone."* Showzy does not collect a phone number at checkout or send SMS. Your ticket is in **My tickets** and by email (UX-AUDIT **H8**).
 
 ## On a phone
 

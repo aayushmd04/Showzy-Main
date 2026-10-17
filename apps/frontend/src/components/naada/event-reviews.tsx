@@ -48,7 +48,7 @@ export function EventReviews({
               <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                 <Stars rating={review.rating} />
                 <span className="text-[15px]">
-                  {review.reviewer_name || "A Naada listener"}
+                  {review.reviewer_name || "A Showzy listener"}
                 </span>
                 {review.is_verified_attendee && (
                   <span className="t-small flex items-center gap-1 text-live">

@@ -1,5 +1,5 @@
 """
-Celery application for Naada.
+Celery application for Showzy.
 
 Without this module the ``@shared_task`` functions in ``apps/bookings/tasks.py``
 (auto_release_booking, kyc_nudge, nightly_reconciliation) are never registered

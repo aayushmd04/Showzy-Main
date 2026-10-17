@@ -124,9 +124,9 @@ class PaymentWebhook(models.Model):
 
 
 class OrganizerPayout(TimeStampedModel):
-    """A manual transfer of ticket money from Naada to an event's organiser.
+    """A manual transfer of ticket money from Showzy to an event's organiser.
 
-    While every ticket payment lands in Naada's own gateway account, what each
+    While every ticket payment lands in Showzy's own gateway account, what each
     organiser is owed has to be tracked and paid out by hand. One row per
     transfer made (bank/UPI reference included), so the summary can show what
     has been paid and what is still owed.

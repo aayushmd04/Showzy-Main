@@ -17,7 +17,7 @@ const LISTENER_STEPS = [
 
 const ARTIST_STEPS = [
   { icon: "✍️",  title: "Build your profile",        body: "Add your genres, fee range, and bio. Hosts search our artist directory to find their lineup." },
-  { icon: "💬",  title: "Negotiate in-app",           body: "Receive offers, counter-propose, and agree on a fee — all in the Naada message thread." },
+  { icon: "💬",  title: "Negotiate in-app",           body: "Receive offers, counter-propose, and agree on a fee — all in the Showzy message thread." },
   { icon: "🔒",  title: "Escrow keeps you safe",      body: "Once accepted, the host funds escrow. You are paid 72 hours after the gig unless a dispute is raised — no chasing invoices." },
 ];
 
@@ -38,7 +38,7 @@ function StepCard({ icon, title, body, tok }: { icon: string; title: string; bod
 }
 
 export function HowItWorksScreen() {
-  usePageMeta({ title: "How it works", description: "How Naada connects audiences, artists and venues — and what it costs." });
+  usePageMeta({ title: "How it works", description: "How Showzy connects audiences, artists and venues — and what it costs." });
   const { theme } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
@@ -52,7 +52,7 @@ export function HowItWorksScreen() {
         {/* Hero */}
         <div style={{ textAlign: "center", marginBottom: 64 }}>
           <h1 style={{ fontSize: 40, fontWeight: 800, color: tok.paper, margin: 0, lineHeight: 1.2 }}>
-            How Naada works
+            How Showzy works
           </h1>
           <p style={{ fontSize: 17, color: tok.muted, marginTop: 16, maxWidth: 560, margin: "16px auto 0", lineHeight: 1.6 }}>
             A three-sided platform connecting music lovers, independent artists, and venue hosts.
@@ -125,7 +125,7 @@ export function HowItWorksScreen() {
           <h2 style={{ fontSize: 24, fontWeight: 800, color: tok.paper, marginBottom: 24 }}>Common questions</h2>
           {[
             ["Is it free for ticket buyers?", "Browsing is free. Paid tickets carry a small booking fee of ₹19 per ticket, shown before you pay. Free events have no fee."],
-            ["What does Naada charge for artist bookings?", "Artists are not charged. The venue pays Naada 5% on top of the agreed fee. The artist receives the agreed fee less 1% TDS, a statutory tax deduction."],
+            ["What does Showzy charge for artist bookings?", "Artists are not charged. The venue pays Showzy 5% on top of the agreed fee. The artist receives the agreed fee less 1% TDS, a statutory tax deduction."],
             ["How does the escrow work?", "When a host and artist agree on a fee, the host locks the amount in escrow before the show. After the gig is marked complete, the funds are released to the artist automatically 72 hours after, unless a dispute is raised."],
             ["What if the event is cancelled?", "If the host cancels, the escrowed funds are refunded in full. Ticket buyers also receive automatic refunds."],
             ["What cities are you in?", "We're live in Mysuru and Bengaluru. More cities coming soon."],

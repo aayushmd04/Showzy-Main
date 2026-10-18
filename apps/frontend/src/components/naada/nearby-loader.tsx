@@ -28,6 +28,10 @@ function showFor(fact: FunFact): number {
 interface ShowDetail {
   fact: FunFact;
   ms: number;
+  /** Heading. Defaults to the location wording. */
+  title?: string;
+  /** Whether tapping the screen dismisses it. */
+  skippable?: boolean;
 }
 const SHOW = "naada:loader-show";
 const HIDE = "naada:loader-hide";
@@ -40,6 +44,30 @@ export async function runNearbyLoader(): Promise<LocateResult> {
   return result;
 }
 
+const SEEN_KEY = "showzy_splash_seen";
+
+/**
+ * The screen shown when the site is opened: the first visit of a session, and only
+ * on the home page (a shared link to one event goes straight to that event). It
+ * says what it is doing, which is loading, not locating, and a tap skips it.
+ */
+export function showStartupLoader() {
+  try {
+    if (sessionStorage.getItem(SEEN_KEY)) return;
+    sessionStorage.setItem(SEEN_KEY, "1");
+  } catch {
+    /* no storage: show it, once per page load */
+  }
+  const path = window.location.pathname;
+  if (path !== "/" && path !== "/whats-on") return;
+  const fact = randomFact();
+  const ms = showFor(fact);
+  window.dispatchEvent(
+    new CustomEvent<ShowDetail>(SHOW, { detail: { fact, ms, title: "Getting Showzy ready", skippable: true } }),
+  );
+  window.setTimeout(hideNearbyLoader, ms);
+}
+
 export function hideNearbyLoader() {
   window.dispatchEvent(new CustomEvent(HIDE));
 }
@@ -50,18 +78,23 @@ export function NearbyLoader() {
   const [fact, setFact] = useState<FunFact>(() => randomFact());
   const [ms, setMs] = useState(5000);
   const [run, setRun] = useState(0);
+  const [title, setTitle] = useState("Finding events near you");
+  const [skippable, setSkippable] = useState(false);
 
   useEffect(() => {
     const show = (e: Event) => {
       const d = (e as CustomEvent<ShowDetail>).detail;
       setFact(d.fact);
       setMs(d.ms);
+      setTitle(d.title ?? "Finding events near you");
+      setSkippable(Boolean(d.skippable));
       setRun((n) => n + 1);
       setOpen(true);
     };
     const hide = () => setOpen(false);
     window.addEventListener(SHOW, show);
     window.addEventListener(HIDE, hide);
+    showStartupLoader();
     return () => {
       window.removeEventListener(SHOW, show);
       window.removeEventListener(HIDE, hide);
@@ -77,7 +110,8 @@ export function NearbyLoader() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: reduce ? 0 : 0.45, ease: "easeInOut" }}
-          className="fixed inset-0 z-[80] flex flex-col items-center justify-center bg-ink px-6 text-center font-support text-paper"
+          className="theme-dark fixed inset-0 z-[80] flex flex-col items-center justify-center bg-ink px-6 text-center font-support text-paper"
+          onClick={skippable ? () => setOpen(false) : undefined}
         >
           <motion.div
             key={run}
@@ -100,7 +134,7 @@ export function NearbyLoader() {
             role="status"
             className="mt-8 font-megrim text-[clamp(26px,6vw,44px)] font-normal uppercase leading-tight tracking-[0.02em]"
           >
-            Finding events near you
+            {title}
             {!reduce && (
               <span aria-hidden className="inline-flex w-8 justify-start">
                 <motion.span animate={{ opacity: [0, 1, 1, 0] }} transition={{ duration: 1.2, repeat: Infinity }}>
@@ -135,6 +169,7 @@ export function NearbyLoader() {
               className="h-full bg-signal"
             />
           </div>
+          {skippable && <p className="mt-6 text-[13px] text-paper/50">Tap anywhere to skip</p>}
         </motion.div>
       )}
     </AnimatePresence>

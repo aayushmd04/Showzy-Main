@@ -27,6 +27,9 @@ import { usePageMeta } from "@/lib/use-meta";
 /** How many cards a row shows before "See all". */
 const PREVIEW = 6;
 
+/** After this many failed tries the page stops saying it is waking up and says it cannot reach the server. */
+const delaysDone = 7;
+
 const POSTER_W = "w-[44vw] max-w-[190px] sm:w-[200px] lg:w-[220px] lg:max-w-none 2xl:w-[250px]";
 
 /** Card width in a row with only a few items: one fifth of the row, one sixth on very large screens. */
@@ -348,7 +351,7 @@ function VenueCard({ venue, index }: { venue: Venue; index: number }) {
 /* ── Screen ─────────────────────────────────────────────────────────────── */
 
 export function HomeFeed() {
-  const { events, artists, venues, venueOf, lang, role, currentUser } = useStore();
+  const { events, artists, venues, venueOf, lang, role, currentUser, eventsLoaded, hydrateFromApi } = useStore();
   const { open: openAuth } = useAuthSheet();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -372,7 +375,24 @@ export function HomeFeed() {
     return () => window.removeEventListener(NEARBY_EVENT, onNearby);
   }, []);
 
-  const loading = events.length === 0;
+  // "Loading" means the events request has not succeeded yet, not merely that the list is empty.
+  const loading = !eventsLoaded && events.length === 0;
+
+  // If the first request fails or hangs (the free server can take about a minute to wake), keep
+  // trying, spaced out, instead of leaving the page on grey boxes forever.
+  const [attempt, setAttempt] = useState(0);
+  useEffect(() => {
+    if (!loading) {
+      setAttempt(0);
+      return;
+    }
+    const delays = [3000, 5000, 8000, 12000, 20000, 30000, 30000];
+    if (attempt >= delays.length) return;
+    const timer = window.setTimeout(() => {
+      hydrateFromApi().finally(() => setAttempt((a) => a + 1));
+    }, delays[attempt]);
+    return () => window.clearTimeout(timer);
+  }, [loading, attempt, hydrateFromApi]);
 
   const upcoming = useMemo(
     () =>
@@ -579,6 +599,23 @@ export function HomeFeed() {
         {loading ? (
           <section aria-label="Loading events">
             <div className="mb-3 h-7 w-56 animate-pulse rounded bg-paper/10" />
+            {attempt >= 1 && (
+              <p role="status" className="mb-3 text-[14px] text-muted">
+                {attempt >= delaysDone
+                  ? "Still can't reach the server."
+                  : "Waking up the server. The first load can take up to a minute."}{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAttempt(0);
+                    void hydrateFromApi();
+                  }}
+                  className="font-semibold text-signal underline underline-offset-2"
+                >
+                  Try again
+                </button>
+              </p>
+            )}
             <div className="flex gap-3 overflow-hidden">
               {Array.from({ length: 5 }, (_, i) => (
                 <PosterSkeleton key={i} />

@@ -12,7 +12,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 
 import { randomFact, type FunFact } from "@/data/fun-facts";
-import { locateCity, type LocateResult } from "@/lib/nearby";
+import { getNearbyCity, locateCity, setNearbyCity, type LocateResult } from "@/lib/nearby";
 
 /** Time for the title and the fact to arrive, before any reading starts. */
 const LEAD_IN_MS = 1000;
@@ -53,6 +53,8 @@ const SEEN_KEY = "showzy_splash_seen";
 const STARTUP_HOLD_MS = 3800;
 /** Only facts this short are used on it, so they can be read in that time. */
 const STARTUP_MAX_WORDS = 18;
+/** The most it will wait for the visitor to answer the browser's location prompt. */
+const STARTUP_LOCATION_WAIT_MS = 9000;
 
 /** True from the moment the opening screen is requested until it is hidden. */
 let startupScreenUp = false;
@@ -96,11 +98,26 @@ export function showStartupLoader() {
   const fact = randomFact(STARTUP_MAX_WORDS);
   const ms = STARTUP_HOLD_MS;
   startupScreenUp = true;
+
+  // Ask the browser where the visitor is, once, unless they have already picked a city this
+  // visit. The screen says so ("Finding events near you"); only the nearest city's name is kept.
+  const canAsk = "geolocation" in navigator && getNearbyCity() === null;
+  const located: Promise<LocateResult | null> = canAsk ? locateCity() : Promise.resolve(null);
+  located.then((r) => {
+    if (r?.status === "city" && getNearbyCity() === null) setNearbyCity(r.city);
+  });
+
   window.dispatchEvent(
-    new CustomEvent<ShowDetail>(SHOW, { detail: { fact, ms, title: "Getting Showzy ready" } }),
+    new CustomEvent<ShowDetail>(SHOW, {
+      detail: { fact, ms, title: canAsk ? "Finding events near you" : "Getting Showzy ready" },
+    }),
   );
-  // Instead of cutting away, finish with the dive into the dot.
-  window.setTimeout(() => window.dispatchEvent(new CustomEvent(ZOOM)), ms);
+
+  // Instead of cutting away, finish with the dive into the dot: after the hold, and after the
+  // location answer if the prompt is still open (but never longer than a few seconds more).
+  const hold = new Promise<void>((r) => window.setTimeout(r, ms));
+  const patience = Promise.race([located, new Promise((r) => window.setTimeout(r, STARTUP_LOCATION_WAIT_MS))]);
+  void Promise.all([hold, patience]).then(() => window.dispatchEvent(new CustomEvent(ZOOM)));
 }
 
 export function hideNearbyLoader() {

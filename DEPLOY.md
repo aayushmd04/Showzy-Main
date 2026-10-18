@@ -531,7 +531,7 @@ Optional and safe to leave empty: `VITE_SENTRY_DSN`, `VITE_ANALYTICS_KEY`,
 - Build command: `npm ci && npm run build --workspace apps/frontend`
 - Build output directory: `apps/frontend/dist`
 - Environment variable: `VITE_API_BASE` as above
-- Deep links (`/host/events/<id>`) already work — `public/_redirects` handles it.
+- Deep links (`/host/events/<id>`) already work: `wrangler.jsonc` sets `not_found_handling: single-page-application` (and `netlify.toml` does the same on Netlify).
 
 ### C3. If you use Vercel instead
 
@@ -882,5 +882,6 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `apps/frontend/Dockerfile` | Vite build + nginx; context is the repo root |
 | `apps/frontend/nginx.conf` | SPA history fallback, caching, gzip |
 | `apps/frontend/vercel.json` | Vercel config |
-| `apps/frontend/public/_redirects` | Cloudflare Pages / Netlify SPA fallback |
+| `wrangler.jsonc` | Cloudflare: publishes `apps/frontend/dist`, with the SPA fallback |
+| `netlify.toml` | Netlify SPA fallback |
 | `apps/frontend/.env.example` | Frontend variables |

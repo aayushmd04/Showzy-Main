@@ -39,11 +39,24 @@ export function FeedCarousel({ slides, label }: { slides: FeedSlide[]; label: st
   const next = useCallback(() => setIndex((i) => (i + 1) % n), [n]);
   const prev = useCallback(() => setIndex((i) => (i - 1 + n) % n), [n]);
 
+  // While the opening loading screen hides the page, the banner waits on its first slide;
+  // `restart` begins its timer again when the page appears.
+  const [restart, setRestart] = useState(0);
+  useEffect(() => {
+    const onBloom = () => {
+      setIndex(0);
+      setRestart((r) => r + 1);
+    };
+    window.addEventListener("showzy:bloom", onBloom);
+    return () => window.removeEventListener("showzy:bloom", onBloom);
+  }, []);
+
   useEffect(() => {
     if (reduce || paused || n < 2) return;
+    if (document.documentElement.classList.contains("bloom-wait")) return;
     const t = window.setTimeout(next, INTERVAL_MS);
     return () => window.clearTimeout(t);
-  }, [index, paused, reduce, next, n]);
+  }, [index, paused, reduce, next, n, restart]);
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.x < -50) next();

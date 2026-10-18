@@ -410,7 +410,7 @@ that for you.
 ### B3. Create the blueprint
 
 1. Go to <https://dashboard.render.com> → **New** → **Blueprint**.
-2. Connect your GitHub account and pick the Naada repository.
+2. Connect your GitHub account and pick the Showzy-Main repository.
 3. Render reads `render.yaml` and shows you five services to be created:
    `naada-api`, `naada-worker`, `naada-beat`, `naada-redis`, `naada-web`.
 4. It will prompt you for each value marked "sync: false". Fill them in as

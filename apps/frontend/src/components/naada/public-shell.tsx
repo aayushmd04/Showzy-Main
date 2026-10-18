@@ -128,7 +128,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
             <CityPicker plain />
             <span aria-hidden className="hidden h-4 w-px bg-[var(--color-line)] sm:block" />
             <LanguageToggle className="hidden sm:block" />
-            <ThemeToggle className="hidden sm:grid" />
+            <ThemeToggle />
 
             {isLoggedIn ? (
               <div className="flex shrink-0 items-center gap-2">
@@ -217,10 +217,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
               Cookie settings
             </button>
           </div>
-          <div className="flex items-center gap-4">
-            <p className="text-[13px] text-muted">Live art · Mysuru &amp; Bengaluru</p>
-            <ThemeToggle className="sm:hidden" />
-          </div>
+          <p className="text-[13px] text-muted">Live art · Mysuru &amp; Bengaluru</p>
         </div>
       </footer>
     </div>

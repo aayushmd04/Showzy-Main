@@ -1,0 +1,16 @@
+{
+  // Cloudflare Workers build for the frontend (static assets, no Worker code).
+  // The dashboard build runs `npm ci && npm run build --workspace apps/frontend`,
+  // then `npx wrangler preview` on pull requests or `npx wrangler deploy` on the
+  // production branch; both read this file.
+  "name": "showzy-main",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "apps/frontend/dist",
+    // Any path that is not a real file serves index.html with 200, so deep links
+    // such as /host/events/<id> open the app instead of a 404.
+    "not_found_handling": "single-page-application"
+  },
+  // Required by `wrangler preview`. Empty is fine.
+  "previews": {}
+}

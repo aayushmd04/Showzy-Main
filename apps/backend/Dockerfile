@@ -76,8 +76,11 @@ USER naada
 # The values below are throwaway build-time placeholders: collectstatic only
 # needs the settings module to import cleanly, it opens no database socket and
 # no Redis socket. Real values arrive as environment variables at run time.
+#
+# DATABASE_URL must look like Postgres: production.py refuses SQLite at import time,
+# so a SQLite placeholder here fails the build. Nothing ever connects to this one.
 RUN SECRET_KEY="build-time-placeholder-not-used-at-runtime" \
-    DATABASE_URL="sqlite:////tmp/build-only.sqlite3" \
+    DATABASE_URL="postgresql://build:build@localhost:5432/build" \
     ALLOWED_HOSTS="*" \
     CORS_ALLOWED_ORIGINS="http://localhost" \
     REDIS_URL="redis://localhost:6379/0" \

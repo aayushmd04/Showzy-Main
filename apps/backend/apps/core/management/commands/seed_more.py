@@ -74,9 +74,16 @@ class Command(BaseCommand):
         from apps.tickets.models import TicketTier
 
         User = get_user_model()
-        blr = City.objects.get(slug="bengaluru")
-        mys = City.objects.get(slug="mysuru")
-        owner = User.objects.filter(email="venue@naada.live").first() or User.objects.filter(is_staff=True).first()
+        # Works on an empty database: create the two cities and the base genres if they are missing,
+        # so this command never needs seed_data (which also creates an admin with a published password).
+        blr, _ = City.objects.get_or_create(slug="bengaluru", defaults={"name": "Bengaluru", "name_kn": "ಬೆಂಗಳೂರು"})
+        mys, _ = City.objects.get_or_create(slug="mysuru", defaults={"name": "Mysuru", "name_kn": "ಮೈಸೂರು"})
+        owner = User.objects.filter(email="venue@naada.live").first()
+        if owner is None:
+            owner = User(email="venue@naada.live", full_name="Demo Venue Owner", role="venue_owner",
+                         is_verified=True, city=mys)
+            owner.set_unusable_password()  # nobody can log in as this account
+            owner.save()
 
         # ── genres ────────────────────────────────────────────────────────────
         genre_rows = [
@@ -96,8 +103,19 @@ class Command(BaseCommand):
         for order, (name, kn, slug, icon, colour) in enumerate(genre_rows, start=20):
             g[slug], _ = Genre.objects.get_or_create(
                 slug=slug, defaults=dict(name=name, name_kn=kn, icon=icon, color=colour, sort_order=order))
-        for slug in ["open-mic", "blues", "jazz", "folk", "carnatic-fusion", "rock", "indie", "classical"]:
-            g[slug] = Genre.objects.get(slug=slug)
+        base_genres = [
+            ("Open Mic", "ಓಪನ್ ಮಿಕ್", "open-mic", "🎤", "#C4472E", 1),
+            ("Blues", "ಬ್ಲೂಸ್", "blues", "🎸", "#2563EB", 2),
+            ("Jazz", "ಜಾಝ್", "jazz", "🎷", "#D97706", 3),
+            ("Folk", "ಜಾನಪದ", "folk", "🪕", "#16A34A", 4),
+            ("Carnatic Fusion", "ಕರ್ನಾಟಕ ಫ್ಯೂಷನ್", "carnatic-fusion", "🎵", "#7C3AED", 5),
+            ("Rock", "ರಾಕ್", "rock", "🤘", "#DC2626", 6),
+            ("Indie", "ಇಂಡಿ", "indie", "🎶", "#0891B2", 7),
+            ("Classical", "ಶಾಸ್ತ್ರೀಯ", "classical", "🪘", "#9D174D", 8),
+        ]
+        for name, kn, slug, icon, colour, order in base_genres:
+            g[slug], _ = Genre.objects.get_or_create(
+                slug=slug, defaults=dict(name=name, name_kn=kn, icon=icon, color=colour, sort_order=order))
 
         # ── venues (all invented) ─────────────────────────────────────────────
         def area(city, name, slug):
@@ -142,8 +160,11 @@ class Command(BaseCommand):
         ]
         artists = {}
         for i, (handle, name, city, gslugs, bio, lo, hi) in enumerate(artist_rows):
-            u, _ = User.objects.get_or_create(email=f"{handle}@naada.live", defaults=dict(
+            u, made_user = User.objects.get_or_create(email=f"{handle}@naada.live", defaults=dict(
                 full_name=name, role="artist", is_verified=True, city=city))
+            if made_user:
+                u.set_unusable_password()  # demo accounts cannot be logged into
+                u.save(update_fields=["password"])
             a, made = Artist.objects.get_or_create(user=u, defaults=dict(
                 stage_name=name, bio=bio, city=city, is_active=True, is_featured=i < 4,
                 booking_fee_min=Decimal(lo), booking_fee_max=Decimal(hi)))

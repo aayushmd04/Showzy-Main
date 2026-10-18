@@ -22,6 +22,8 @@ export interface FeedSlide {
   badge?: string;
   title: string;
   body: string;
+  /** Optional short rows under the title, e.g. one line per kind of visitor. Replaces `body`. */
+  lines?: { label: string; text: string }[];
   cta: string;
   onClick: () => void;
 }
@@ -101,7 +103,7 @@ export function FeedCarousel({ slides, label }: { slides: FeedSlide[]; label: st
                 <div aria-hidden className="absolute inset-0 bg-gradient-to-r from-black/85 via-black/50 to-transparent" />
               </div>
 
-              <div className="relative flex h-full max-w-2xl [text-shadow:0_1px_14px_rgba(0,0,0,.5)] flex-col items-start justify-center gap-2 px-[var(--page-pad)] md:gap-3 min-[1440px]:px-14 2xl:max-w-3xl">
+              <div className="relative flex h-full max-w-2xl [text-shadow:0_1px_14px_rgba(0,0,0,.5)] flex-col items-start justify-center gap-2 pb-9 px-[var(--page-pad)] md:pb-0 md:gap-3 md:pl-16 min-[1440px]:pr-14 2xl:max-w-3xl">
                 {s.badge && (
                   <span className="rounded bg-signal px-2 py-0.5 text-[12px] font-bold uppercase tracking-wider text-white">
                     {s.badge}
@@ -110,7 +112,18 @@ export function FeedCarousel({ slides, label }: { slides: FeedSlide[]; label: st
                 <h2 className="font-hero text-[clamp(22px,3.6vw,56px)] font-normal uppercase leading-[1.12] tracking-[0.05em] text-white">
                   {s.title}
                 </h2>
-                <p className="line-clamp-2 text-[14px] leading-snug text-white/85 md:text-[17px]">{s.body}</p>
+                {s.lines ? (
+                  <dl className="max-w-xl divide-y divide-white/20 border-y border-white/20 text-[12.5px] leading-snug text-white/85 md:text-[16px]">
+                    {s.lines.map((l) => (
+                      <div key={l.label} className="py-1 md:grid md:grid-cols-[7.5rem_1fr] md:gap-x-4 md:py-2">
+                        <dt className="inline font-semibold text-white after:mx-1.5 after:opacity-60 after:content-['—'] md:block md:after:content-none">{l.label}</dt>{" "}
+                        <dd className="inline md:block">{l.text}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                ) : (
+                  <p className="line-clamp-2 text-[14px] leading-snug text-white/85 md:text-[17px]">{s.body}</p>
+                )}
                 <button
                   type="button"
                   onClick={s.onClick}

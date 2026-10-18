@@ -441,6 +441,25 @@ export function HomeFeed() {
           },
         ]
       : []),
+    // What the old intro page said to a first-time visitor, as the second banner.
+    ...(signedIn
+      ? []
+      : [
+          {
+            id: "small-rooms",
+            image: "/media/events/acoustic-band-bar-night.jpg",
+            position: "50% 50%",
+            title: "Small rooms. Good art. Real audiences.",
+            body: "",
+            lines: [
+              { label: "For Audiences", text: "Find close-knit events around you and support art in your community." },
+              { label: "For Artists", text: "Find spaces to perform, collaborate and host yourself." },
+              { label: "For Hosts", text: "Find artists, build your event and bring your audience together." },
+            ],
+            cta: "Explore events",
+            onClick: () => rails.current?.scrollIntoView({ behavior: "smooth" }),
+          },
+        ]),
     // Anyone signed in has already chosen what they are here for, so the two
     // sell-side banners go to people who have not: signed-out visitors, who
     // could be hosts or artists. Everyone else sees the audience's own pair.

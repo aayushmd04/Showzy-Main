@@ -10,7 +10,6 @@ import { Suspense, lazy, useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 
 import { HomeFeed } from "@/screens/home-feed";
-import { HeroCarousel } from "./hero-carousel";
 import { useStore } from "@/store/app-store";
 import { tokens } from "@/lib/api";
 
@@ -69,8 +68,9 @@ export function RoleHomeScreen() {
   if (resolving) return <HomeFallback />;
 
   // A role without a signed-in user is a stale local value, not an account.
-  // A separate page of its own: it introduces Showzy, then sends people on to /whats-on.
-  if (!currentUser) return <HeroCarousel />;
+  // Visitors who are not signed in land on the same feed as everyone else; what the old
+  // intro page said now lives in the feed's banner.
+  if (!currentUser) return <HomeFeed />;
 
   if (role === "artist") {
     return (

@@ -258,15 +258,18 @@ EMAIL_FROM_ALERTS = config("EMAIL_FROM_ALERTS", default="") or "Showzy <alerts@s
 # Fallback for anything that doesn't pick a sender.
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or EMAIL_FROM_ALERTS
 
+# Email over HTTPS (Resend). Use this where the mail ports are blocked, e.g. Render's free
+# plan. Set RESEND_API_KEY and verify the sending domain in Resend; it takes priority over SMTP.
+RESEND_API_KEY = config("RESEND_API_KEY", default="")
+
 _smtp_configured = bool(EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
-EMAIL_BACKEND = config(
-    "EMAIL_BACKEND",
-    default=(
-        "django.core.mail.backends.smtp.EmailBackend"
-        if _smtp_configured
-        else "django.core.mail.backends.console.EmailBackend"
-    ),
-)
+if RESEND_API_KEY:
+    _default_email_backend = "apps.core.email_backend.ResendEmailBackend"
+elif _smtp_configured:
+    _default_email_backend = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    _default_email_backend = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = config("EMAIL_BACKEND", default=_default_email_backend)
 
 # ── Razorpay ─────────────────────────────────────────────────────────────────
 RAZORPAY_KEY_ID = config("RAZORPAY_KEY_ID", default="rzp_test_placeholder")

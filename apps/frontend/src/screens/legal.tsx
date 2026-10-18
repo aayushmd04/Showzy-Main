@@ -351,6 +351,13 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 visits. We do not use them for advertising.
               </p>
               <p>
+                <strong>Your location, if you allow it:</strong> when you open Showzy your browser asks
+                whether it may share where you are. If you say yes, your device works out whether Mysuru or
+                Bengaluru is nearer and we remember only that city's name, for this visit. Your
+                coordinates are not sent to our servers and are not stored. If you say no, you choose a
+                city yourself and nothing is lost.
+              </p>
+              <p>
                 <strong>From others:</strong> an organiser who invites you to their gate team gives us your
                 email or phone number so we can match the invitation to you. A friend who transfers you a
                 ticket gives us your email address. A payment gateway tells us whether a payment

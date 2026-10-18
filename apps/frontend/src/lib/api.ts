@@ -104,12 +104,21 @@ async function rawRequest(
   if (!isFormData) headers["Content-Type"] = "application/json";
   if (auth && tokens.access) headers["Authorization"] = `Bearer ${tokens.access}`;
 
-  return fetch(`${API_BASE}${path}`, {
-    method,
-    headers,
-    body:
-      body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
-  });
+  // Reads give up after 30s so the page can retry; writes and uploads are left alone.
+  const timeoutMs = method === "GET" ? 30000 : 0;
+  const controller = timeoutMs ? new AbortController() : undefined;
+  const timer = controller ? window.setTimeout(() => controller.abort(), timeoutMs) : undefined;
+  try {
+    return await fetch(`${API_BASE}${path}`, {
+      method,
+      headers,
+      signal: controller?.signal,
+      body:
+        body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
+    });
+  } finally {
+    if (timer !== undefined) window.clearTimeout(timer);
+  }
 }
 
 async function parseBody(res: Response): Promise<unknown> {

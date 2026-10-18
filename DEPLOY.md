@@ -847,6 +847,7 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USE_TLS` | `smtp.gmail.com` / `587` / `True` | |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | *(empty)* | Both empty ⇒ email prints to the logs. |
 | `DEFAULT_FROM_EMAIL` | `Showzy <no-reply@mail.showzy.in>` | |
+| `TURNSTILE_SECRET_KEY` | empty | Cloudflare Turnstile secret; pair with `VITE_TURNSTILE_SITE_KEY` in the frontend build. Empty = no bot check (`check --deploy` warns) |
 | `EMAIL_PROVIDER` | empty | `cloudflare` to send through Cloudflare Email Sending; see `docs/email-and-domain-plan.md` |
 | `CLOUDFLARE_ACCOUNT_ID` | empty | Required when `EMAIL_PROVIDER=cloudflare` |
 | `CLOUDFLARE_EMAIL_TOKEN` | empty | Token with only "Email Sending: Edit". Required with the above. Secret |

@@ -23,6 +23,8 @@ import {
 } from "@/lib/api";
 import type { ApiArtist, ApiCity, ApiGenre } from "@/lib/api";
 import type { Role } from "@/data/fixtures";
+import { createTurnstile, turnstileEnabled } from "@/lib/turnstile";
+import type { TurnstileHandle } from "@/lib/turnstile";
 
 type Outcome = "authed" | "guest";
 
@@ -63,6 +65,23 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
   const [stepError, setStepError] = useState("");
   const [pendingRole, setPendingRole] = useState<Role>("listener");
   const optionsRef = useRef<AuthOptions>({});
+  // Cloudflare Turnstile: created on first use inside the container below,
+  // removed when the sheet closes. Off entirely without a site key.
+  const checkBoxRef = useRef<HTMLDivElement | null>(null);
+  const checkRef = useRef<TurnstileHandle | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      checkRef.current?.destroy();
+      checkRef.current = null;
+    }
+  }, [open]);
+
+  const securityToken = async (): Promise<string | undefined> => {
+    if (!turnstileEnabled() || !checkBoxRef.current) return undefined;
+    checkRef.current ??= createTurnstile(checkBoxRef.current);
+    return checkRef.current.getToken();
+  };
 
   const openSheet = useCallback((nextTitle: string, options: AuthOptions = {}) => {
     optionsRef.current = options;
@@ -209,7 +228,19 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
   const sendCode = async (): Promise<boolean> => {
     setLoading(true);
     try {
-      const res = await requestOtp(email.trim());
+      let token: string | undefined;
+      try {
+        token = await securityToken();
+      } catch (err: unknown) {
+        toast(
+          err instanceof Error && err.message !== "Superseded"
+            ? `${err.message}. Please try again.`
+            : "Security check didn't finish. Please try again.",
+          "fault",
+        );
+        return false;
+      }
+      const res = await requestOtp(email.trim(), token);
       setDebugOtp(res?.debug_otp);
       setOtpClock({
         sentAt: Date.now(),
@@ -369,6 +400,9 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
             onVerified={handleVerifyOtp}
           />
         )}
+        {/* Turnstile mounts here. Empty (and collapsed) unless Cloudflare asks
+            for a click; kept outside the steps so it survives email → code. */}
+        <div ref={checkBoxRef} className="mt-3 flex justify-center empty:hidden" />
       </Modal>
     </AuthContext.Provider>
   );

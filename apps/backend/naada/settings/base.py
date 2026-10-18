@@ -325,6 +325,17 @@ OTP_PEPPER = config("OTP_PEPPER", default="")
 CLIENT_IP_HEADER = config("CLIENT_IP_HEADER", default="")
 # Proxies in front of Django that append to X-Forwarded-For. Render: 1.
 TRUSTED_PROXY_COUNT = config("TRUSTED_PROXY_COUNT", default=1, cast=int)
+# ── Cloudflare Turnstile (bot check on requesting a sign-in code) ────────────
+# Secret key from Cloudflare dashboard → Turnstile. Empty = check is off.
+# The matching *site* key is public and lives in the frontend build
+# (VITE_TURNSTILE_SITE_KEY). Cloudflare publishes always-pass test keys
+# (secret 1x0000000000000000000000000000000AA) for local work.
+TURNSTILE_SECRET_KEY = config("TURNSTILE_SECRET_KEY", default="")
+TURNSTILE_TIMEOUT = config("TURNSTILE_TIMEOUT", default=3, cast=int)
+# Optional: only accept tokens issued on these hostnames (comma separated).
+TURNSTILE_ALLOWED_HOSTNAMES = [
+    h.strip() for h in config("TURNSTILE_ALLOWED_HOSTNAMES", default="").split(",") if h.strip()
+]
 # Bound on how long a mail provider can hold up a request.
 EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=8, cast=int)
 

@@ -95,3 +95,22 @@ def cloudflare_email_needs_credentials(app_configs, **kwargs):
             id="naada.E003",
         )
     ]
+
+
+@register(deploy=True)
+def turnstile_should_be_on(app_configs, **kwargs):
+    """Without the bot check, anyone can script sign-in-code requests.
+
+    The throttles cap the damage per address and per caller, but not the
+    breadth: a script walking a list of real addresses still sends each of them
+    mail from our domain, which is how a sender's reputation is lost.
+    """
+    if settings.DEBUG or getattr(settings, "TURNSTILE_SECRET_KEY", ""):
+        return []
+    return [
+        CheckWarning(
+            "Turnstile is off: sign-in code requests have no bot check.",
+            hint="Set TURNSTILE_SECRET_KEY and build the frontend with VITE_TURNSTILE_SITE_KEY.",
+            id="naada.W004",
+        )
+    ]

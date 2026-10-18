@@ -39,11 +39,13 @@ ARG VITE_API_BASE=http://localhost:8000/api/v1
 ARG VITE_SENTRY_DSN=""
 ARG VITE_ANALYTICS_KEY=""
 ARG VITE_ANALYTICS_HOST=""
+ARG VITE_TURNSTILE_SITE_KEY=""
 
 ENV VITE_API_BASE=$VITE_API_BASE \
     VITE_SENTRY_DSN=$VITE_SENTRY_DSN \
     VITE_ANALYTICS_KEY=$VITE_ANALYTICS_KEY \
-    VITE_ANALYTICS_HOST=$VITE_ANALYTICS_HOST
+    VITE_ANALYTICS_HOST=$VITE_ANALYTICS_HOST \
+    VITE_TURNSTILE_SITE_KEY=$VITE_TURNSTILE_SITE_KEY
 
 # `npm run build` is `tsc -b && vite build` — the type check is part of the
 # build on purpose, so a type error fails here rather than in production.

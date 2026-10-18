@@ -46,6 +46,9 @@ PUBLIC_OTP_PURPOSES = [
 
 class OTPRequestSerializer(serializers.Serializer):
     email = serializers.EmailField()
+    # Cloudflare Turnstile token. Checked in the view, where the client IP is
+    # at hand; optional here so a missing token is a clean 400, not a schema error.
+    turnstile_token = serializers.CharField(required=False, allow_blank=True, write_only=True)
     purpose = serializers.ChoiceField(
         choices=PUBLIC_OTP_PURPOSES, default=OTPToken.Purpose.LOGIN
     )

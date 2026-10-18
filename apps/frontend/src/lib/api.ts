@@ -205,10 +205,10 @@ export interface OtpRequestResult {
   resend_after?: number;
 }
 
-export async function requestOtp(email: string): Promise<OtpRequestResult> {
+export async function requestOtp(email: string, turnstileToken?: string): Promise<OtpRequestResult> {
   return post<OtpRequestResult & { detail: string }>(
     "/auth/request-otp/",
-    { email, purpose: "login" },
+    { email, purpose: "login", ...(turnstileToken ? { turnstile_token: turnstileToken } : {}) },
     false,
   );
 }

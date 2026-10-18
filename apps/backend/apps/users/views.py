@@ -14,6 +14,7 @@ from rest_framework_simplejwt.token_blacklist.models import (
 )
 from datetime import timedelta
 
+from apps.core import turnstile
 from apps.core.net import get_client_ip
 
 from . import privacy
@@ -89,6 +90,17 @@ def request_otp(request):
     serializer.is_valid(raise_exception=True)
     email = serializer.validated_data["email"].lower()
     purpose = serializer.validated_data["purpose"]
+
+    # Before the cooldown and before any code exists or mail is sent: a bot
+    # that fails here costs us one cheap HTTP call and nothing else.
+    if not turnstile.verify(
+        serializer.validated_data.get("turnstile_token", ""), get_client_ip(request)
+    ):
+        return Response(
+            {"detail": "We couldn't verify you're not a bot. Please try again.",
+             "code": "turnstile_failed"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
     wait = OTPToken.seconds_until_resend(email, purpose)
     if wait:

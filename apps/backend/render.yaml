@@ -108,6 +108,11 @@ envVarGroups:
       # Cloudflare Email Sending. Set EMAIL_PROVIDER to "cloudflare" and fill in
       # the other two (token permission: Email Sending: Edit only) to send real
       # sign-in codes. Blank = console/SMTP behaviour as before.
+      # Turnstile bot check on requesting a sign-in code. Secret key from the
+      # Cloudflare dashboard; the public site key goes into the frontend build
+      # as VITE_TURNSTILE_SITE_KEY. Blank = check off.
+      - key: TURNSTILE_SECRET_KEY
+        value: ""
       - key: EMAIL_PROVIDER
         value: ""
       - key: CLOUDFLARE_ACCOUNT_ID

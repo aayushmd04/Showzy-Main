@@ -109,6 +109,8 @@ interface AppStore {
 
   /** Fetch real data from API and replace in-memory fixtures. */
   hydrateFromApi: () => Promise<void>;
+  /** True once the events request has succeeded (even with an empty list). False while loading or failing. */
+  eventsLoaded: boolean;
 
   events: NaadaEvent[];
   artists: Artist[];
@@ -234,9 +236,10 @@ export function AppStoreProvider({
    */
   const [theme, setTheme] = useState<Theme>(() => {
     try {
-      return readPref("naada_theme") === "light" ? "light" : "dark";
+      // Light unless the visitor has chosen dark.
+      return readPref("naada_theme") === "dark" ? "dark" : "light";
     } catch {
-      return "dark";
+      return "light";
     }
   });
   const [lang, setLang] = useState<Lang>(() => {
@@ -283,6 +286,7 @@ export function AppStoreProvider({
    * The fixtures remain for tests, which seed the store deliberately.
    */
   const [events, setEvents] = useState<NaadaEvent[]>(seed.events);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
   const [artists, setArtists] = useState<Artist[]>(seed.artists);
   const [venues, setVenues] = useState<Venue[]>(seed.venues);
   const [bookings, setBookings] = useState<Booking[]>(seed.bookings);
@@ -323,6 +327,7 @@ export function AppStoreProvider({
       if (eventsData.status === "fulfilled") {
         const adapted = eventsData.value.results.map(adaptEvent);
         setEvents(adapted);
+        setEventsLoaded(true);
         // Build venues from flat event fields (list endpoint returns venue as UUID + venue_name/venue_area)
         const eventVenues = eventsData.value.results.map((e) => {
           const raw = e as unknown as { venue: string | ApiVenue; venue_name?: string; venue_area?: string };
@@ -759,6 +764,7 @@ export function AppStoreProvider({
       lang,
       setLang,
       hydrateFromApi,
+      eventsLoaded,
       events,
       artists,
       bookings,
@@ -814,7 +820,7 @@ export function AppStoreProvider({
       apiCompleteOrder,
     }),
     [
-      role, currentUser, theme, lang, hydrateFromApi,
+      role, currentUser, theme, lang, hydrateFromApi, eventsLoaded,
       events, artists, bookings, tickets, messages, applications, reviews, venues,
       checkout, artistProfile, emptyLists, toasts, toast, dismissToast,
       eventById, artistById, venueById, bookingById, ticketByCode, messagesFor, reviewsFor,

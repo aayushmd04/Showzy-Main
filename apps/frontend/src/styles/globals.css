@@ -466,15 +466,6 @@
 .banner-fade {
   inset-block: 0;
   pointer-events: none;
-  /* The picture melts into the page along a smooth (eased) curve, so there is no visible edge. */
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,1.000) 66%, rgba(0,0,0,0.957) 70%, rgba(0,0,0,0.844) 74%, rgba(0,0,0,0.684) 79%, rgba(0,0,0,0.500) 83%, rgba(0,0,0,0.316) 87%, rgba(0,0,0,0.156) 92%, rgba(0,0,0,0.043) 96%, rgba(0,0,0,0.000) 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, rgba(0,0,0,1.000) 66%, rgba(0,0,0,0.957) 70%, rgba(0,0,0,0.844) 74%, rgba(0,0,0,0.684) 79%, rgba(0,0,0,0.500) 83%, rgba(0,0,0,0.316) 87%, rgba(0,0,0,0.156) 92%, rgba(0,0,0,0.043) 96%, rgba(0,0,0,0.000) 100%);
-}
-/* A dark photo fading into light cream always turns muddy grey, so in light mode the banner
-   keeps a clean edge instead. */
-.theme-light .banner-fade {
-  -webkit-mask-image: none;
-  mask-image: none;
 }
 
 .theme-light body,
@@ -836,3 +827,64 @@ html.theme-fading *::after {
 
 /* Title face. One place to change it. */
 :root { --font-title: "Manrope", "Anek Kannada", system-ui, sans-serif; }
+
+/* The loading screen's ring turning around the red dot. */
+@keyframes showzy-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Bloom in after the opening loading screen ──────────────────────────── */
+header,
+main,
+footer {
+  transition:
+    opacity 1s ease,
+    transform 1.1s cubic-bezier(0.2, 0.7, 0.2, 1),
+    filter 1s ease;
+}
+html.bloom-wait header,
+html.bloom-wait main,
+html.bloom-wait footer {
+  opacity: 0;
+  transform: scale(0.985);
+  filter: blur(10px);
+}
+/* A warm light that swells from the middle and fades as the page sharpens. */
+html.bloom-run::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--color-signal) 22%, transparent), transparent 60%);
+  animation: showzy-bloom 1.6s ease-out forwards;
+}
+@keyframes showzy-bloom {
+  0% { opacity: 0; transform: scale(0.6); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html.bloom-wait header,
+  html.bloom-wait main,
+  html.bloom-wait footer {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+/* The loading screen's logo bounces: up, a hang, then down with a small squash. */
+@keyframes showzy-bounce {
+  0%, 100% { transform: translateY(0) scale(1, 1); }
+  18% { transform: translateY(-4px) scale(0.97, 1.05); }
+  42% { transform: translateY(-22px) scale(1, 1); }
+  58% { transform: translateY(-22px) scale(1, 1); }
+  82% { transform: translateY(0) scale(1.08, 0.9); }
+  92% { transform: translateY(-3px) scale(0.99, 1.02); }
+}
+/* Its shadow shrinks and fades as the logo rises. */
+@keyframes showzy-shadow {
+  0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.9; }
+  50% { transform: translateX(-50%) scale(0.55); opacity: 0.35; }
+}

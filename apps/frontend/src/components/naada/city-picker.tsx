@@ -9,15 +9,29 @@ import { CityDropdown } from "@/components/naada/city-dropdown";
  * The city dropdown used in every header. The choice is shared app-wide through
  * `lib/nearby`, so the hero button, the header and the feed stay in step.
  */
+/**
+ * Shown straight away and whenever the server cannot be reached (or is still waking up),
+ * so the picker is never missing. These are the two cities Showzy launches in; the
+ * server's list replaces them as soon as it arrives.
+ */
+const FALLBACK_CITIES = [
+  { name: "Mysuru", name_kn: "ಮೈಸೂರು" },
+  { name: "Bengaluru", name_kn: "ಬೆಂಗಳೂರು" },
+] as unknown as ApiCity[];
+
 export function CityPicker({ compact, onPhoto, plain }: { compact?: boolean; onPhoto?: boolean; plain?: boolean }) {
   const { lang } = useStore();
   const [city, setCity] = useState(() => getNearbyCity() ?? "all");
-  const [cities, setCities] = useState<ApiCity[]>([]);
+  const [cities, setCities] = useState<ApiCity[]>(FALLBACK_CITIES);
 
   useEffect(() => {
     getCities()
-      .then(setCities)
-      .catch(() => setCities([]));
+      .then((list) => {
+        if (list.length > 0) setCities(list);
+      })
+      .catch(() => {
+        /* keep the fallback list */
+      });
   }, []);
 
   useEffect(() => {
@@ -25,8 +39,6 @@ export function CityPicker({ compact, onPhoto, plain }: { compact?: boolean; onP
     window.addEventListener(NEARBY_EVENT, onNearby);
     return () => window.removeEventListener(NEARBY_EVENT, onNearby);
   }, []);
-
-  if (cities.length === 0) return null;
 
   const label = (v: string) => {
     if (v === "all") return lang === "kn" ? "ಎಲ್ಲಾ ನಗರಗಳು" : "All cities";

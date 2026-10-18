@@ -2,13 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      // Light by default: set the theme before the first paint so there is no dark flash.
+      try {
+        var t = sessionStorage.getItem("naada_theme") || localStorage.getItem("naada_theme");
+        if (t !== "dark") document.documentElement.classList.add("theme-light");
+      } catch (e) {
+        document.documentElement.classList.add("theme-light");
+      }
+      // The page blooms in once the opening loading screen is done. Hold it hidden until then
+      // (only where that screen will actually show), with a failsafe so it can never stay hidden.
+      try {
+        var p = location.pathname;
+        if ((p === "/" || p === "/whats-on") && !sessionStorage.getItem("showzy_splash_seen")) {
+          document.documentElement.classList.add("bloom-wait");
+          setTimeout(function () { document.documentElement.classList.remove("bloom-wait"); }, 12000);
+        }
+      } catch (e) {}
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="icon" type="image/png" sizes="48x48" href="/favicon-48.png" />
     <link rel="shortcut icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#120E0B" />
+    <meta name="theme-color" content="#F3F0EB" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

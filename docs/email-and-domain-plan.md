@@ -3,6 +3,17 @@
 Status: plan only, nothing implemented. Written 2026-10-18 against `Showzy-Main` @ `897b19f`.
 Target from `TODO.md`: working product first week of December 2026, so about 6–7 weeks.
 
+> ## Decision change, 2026-10-18: mail goes through Titan, not Cloudflare
+>
+> The owner chose to **send and receive through the GoDaddy/Titan mailbox** and not use Cloudflare Email Sending. The Cloudflare mail backend was removed from the code. What this changes in the rest of this document:
+>
+> - **Sending** is Django's normal SMTP backend using the mailbox login (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USE_TLS` or `EMAIL_USE_SSL`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`). **Senders are the aliases**: `auth@`, `tickets@`, `alerts@` `@showzy.in`; replies land in the inbox through the aliases. Override with `EMAIL_FROM_*` if the server insists on the login address.
+> - **Not needed any more:** Workers Paid, onboarding `mail.showzy.in`, a Cloudflare API token, the sending-subdomain records, Cloudflare mail analytics and event feed. Sections 2, 4 and 9 are superseded by this; the Cloudflare DNS move, Turnstile, DMARC and security sections still apply.
+> - **SPF, DKIM and DMARC already exist** on the apex from GoDaddy, so nothing new to publish. DMARC must be a single record (`p=reject` kept).
+> - **New risks:** a mailbox is not a transactional sender. Expect a low daily send cap (check GoDaddy's current number; unverified), no delivery events or bounce webhooks, and Render may block outbound SMTP ports on its free tier (verify; Oracle VM or a paid Render plan avoids it). Our throttles, cooldown and Turnstile bound the volume. If the cap is hit during ticket sales, the code is provider-neutral: switching to a transactional service is an env change.
+> - **Analytics** shrink to what we own: the OTP funnel from `OTPToken` (requested, verified, expired) and a send log, with no delivery or bounce data.
+> - **Still unverified:** that the mail server lets the app send "From" an alias. It needs one real test send (see the checklist in the PR).
+
 ---
 
 ## 0. What the repo already does (so we don't rebuild it)

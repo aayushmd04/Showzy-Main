@@ -421,14 +421,14 @@ class SenderAddressTests(TestCase):
     def test_ticket_and_refund_mail_uses_the_tickets_address(self):
         from apps.notifications.dispatch import sender_for
 
-        self.assertIn("tickets@mail.showzy.in", sender_for("ticket_confirmed"))
-        self.assertIn("tickets@mail.showzy.in", sender_for("refund_processed"))
+        self.assertIn("tickets@showzy.in", sender_for("ticket_confirmed"))
+        self.assertIn("tickets@showzy.in", sender_for("refund_processed"))
 
     def test_everything_else_uses_the_alerts_address(self):
         from apps.notifications.dispatch import sender_for
 
         for kind in ("booking_offer", "event_cancelled", "gig_application_reviewed", None):
-            self.assertIn("alerts@mail.showzy.in", sender_for(kind))
+            self.assertIn("alerts@showzy.in", sender_for(kind))
 
     def test_sign_in_code_uses_the_auth_address(self):
         from django.core import mail
@@ -441,5 +441,5 @@ class SenderAddressTests(TestCase):
             reverse("auth-request-otp"), {"email": "a@naada.test"}, format="json"
         )
         self.assertEqual(resp.status_code, 200)
-        self.assertIn("auth@mail.showzy.in", mail.outbox[0].from_email)
+        self.assertIn("auth@showzy.in", mail.outbox[0].from_email)
         cache.clear()

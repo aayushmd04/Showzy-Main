@@ -92,8 +92,9 @@ envVarGroups:
       # *present* value, so decouple hands int("") a "" and the whole app dies
       # at boot with ValueError. Leaving the SMTP port at 587 is harmless when
       # no SMTP credentials are set — the console backend is used instead.
+      # Host from GoDaddy → Email → Server settings (Titan: smtp.titan.email).
       - key: EMAIL_HOST
-        value: smtp.gmail.com
+        value: smtp.titan.email
       - key: EMAIL_PORT
         value: "587"
       # These two are the real switch: with both blank, EMAIL_BACKEND falls
@@ -104,20 +105,6 @@ envVarGroups:
       - key: EMAIL_HOST_PASSWORD
         value: ""
       - key: DEFAULT_FROM_EMAIL
-        value: ""
-      # Cloudflare Email Sending. Set EMAIL_PROVIDER to "cloudflare" and fill in
-      # the other two (token permission: Email Sending: Edit only) to send real
-      # sign-in codes. Blank = console/SMTP behaviour as before.
-      # Turnstile bot check on requesting a sign-in code. Secret key from the
-      # Cloudflare dashboard; the public site key goes into the frontend build
-      # as VITE_TURNSTILE_SITE_KEY. Blank = check off.
-      - key: TURNSTILE_SECRET_KEY
-        value: ""
-      - key: EMAIL_PROVIDER
-        value: ""
-      - key: CLOUDFLARE_ACCOUNT_ID
-        value: ""
-      - key: CLOUDFLARE_EMAIL_TOKEN
         value: ""
 
 services:

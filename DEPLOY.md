@@ -846,12 +846,9 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `SENTRY_ENVIRONMENT` / `SENTRY_TRACES_SAMPLE_RATE` | `production` / `0.1` | |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USE_TLS` | `smtp.gmail.com` / `587` / `True` | |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | *(empty)* | Both empty ⇒ email prints to the logs. |
-| `DEFAULT_FROM_EMAIL` | `Showzy <alerts@mail.showzy.in>` | Fallback sender. Sign-in codes use `EMAIL_FROM_AUTH` (`auth@mail.showzy.in`), tickets and refunds `EMAIL_FROM_TICKETS` (`tickets@`), everything else `EMAIL_FROM_ALERTS` (`alerts@`) |
+| `DEFAULT_FROM_EMAIL` | `Showzy <alerts@showzy.in>` | Fallback sender. Sign-in codes use `EMAIL_FROM_AUTH` (`auth@showzy.in`), tickets and refunds `EMAIL_FROM_TICKETS` (`tickets@`), everything else `EMAIL_FROM_ALERTS` (`alerts@`). All are aliases on the mailbox |
+| `EMAIL_USE_SSL` | `False` | `True` for port 465 (then set `EMAIL_USE_TLS=False`) |
 | `TURNSTILE_SECRET_KEY` | empty | Cloudflare Turnstile secret; pair with `VITE_TURNSTILE_SITE_KEY` in the frontend build. Empty = no bot check (`check --deploy` warns) |
-| `EMAIL_PROVIDER` | empty | `cloudflare` to send through Cloudflare Email Sending; see `docs/email-and-domain-plan.md` |
-| `CLOUDFLARE_ACCOUNT_ID` | empty | Required when `EMAIL_PROVIDER=cloudflare` |
-| `CLOUDFLARE_EMAIL_TOKEN` | empty | Token with only "Email Sending: Edit". Required with the above. Secret |
-| `EMAIL_REPLY_TO` | `Showzy Support <support@showzy.in>` | Where replies go |
 | `OTP_PEPPER` | empty (falls back to `SECRET_KEY`) | Secret key protecting stored sign-in codes; set it separately |
 | `TRUSTED_PROXY_COUNT` | `1` | Proxies in front of Django (Render: 1; Cloudflare + Render: 2) |
 | `CLIENT_IP_HEADER` | empty | `CF-Connecting-IP` only once the origin accepts Cloudflare traffic exclusively |

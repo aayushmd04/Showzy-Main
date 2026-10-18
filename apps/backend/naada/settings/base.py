@@ -230,50 +230,43 @@ CORS_ALLOW_CREDENTIALS = True
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173").rstrip("/")
 
 # ── Email ─────────────────────────────────────────────────────────────────────
-# Auto-detects SMTP vs console backend: if EMAIL_HOST_USER is set in .env, use real
-# SMTP; otherwise fall back to console (dev mode — OTP appears in server terminal).
-EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
+# Sent through the GoDaddy/Titan mailbox over SMTP, the same mailbox that
+# receives replies. If EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are set, real
+# SMTP is used; otherwise messages (including OTPs) print to the server terminal.
+#
+# Port 465 needs EMAIL_USE_SSL=True; port 587 needs EMAIL_USE_TLS=True (default).
+# Django refuses to start if both are on, so TLS defaults off when SSL is on.
+# Host: take it from GoDaddy → Email → Server settings (smtp.titan.email for
+# Titan, smtpout.secureserver.net for GoDaddy's own Workspace Email).
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.titan.email")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
-EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=not EMAIL_USE_SSL, cast=bool)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
-# `or`, not a default alone: render.yaml ships these as "", and an empty string
-# is a *present* value, so decouple would hand back "" and every message would
-# go out with no sender.
-# One sender per kind of mail, all on the sending subdomain onboarded in
-# Cloudflare (mail.showzy.in). These addresses only *send*; nothing can be
-# delivered to the subdomain, so every message carries a Reply-To on the main
-# domain, where the aliases below forward to the real inbox.
-EMAIL_FROM_AUTH = config("EMAIL_FROM_AUTH", default="") or "Showzy <auth@mail.showzy.in>"
-EMAIL_FROM_TICKETS = config("EMAIL_FROM_TICKETS", default="") or "Showzy Tickets <tickets@mail.showzy.in>"
-EMAIL_FROM_ALERTS = config("EMAIL_FROM_ALERTS", default="") or "Showzy <alerts@mail.showzy.in>"
+# Bound on how long the mail server can hold up a request.
+EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=8, cast=int)
+
+# One sender per kind of mail. They are aliases on the mailbox, so replies to
+# any of them land in its inbox. `or`, not a default alone: render.yaml ships
+# these as "", and an empty string is a *present* value, so decouple would hand
+# back "" and every message would go out with no sender. If the mail server
+# insists on the login address as sender, set all three to the mailbox itself.
+EMAIL_FROM_AUTH = config("EMAIL_FROM_AUTH", default="") or "Showzy <auth@showzy.in>"
+EMAIL_FROM_TICKETS = config("EMAIL_FROM_TICKETS", default="") or "Showzy Tickets <tickets@showzy.in>"
+EMAIL_FROM_ALERTS = config("EMAIL_FROM_ALERTS", default="") or "Showzy <alerts@showzy.in>"
 # Fallback for anything that doesn't pick a sender.
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or EMAIL_FROM_ALERTS
-# Where replies go: support@showzy.in, an alias on the GoDaddy mailbox.
-EMAIL_REPLY_TO = config("EMAIL_REPLY_TO", default="") or "Showzy Support <support@showzy.in>"
-
-# Cloudflare Email Sending (REST). Create the token with the single permission
-# "Email Sending: Edit", account-owned, one per environment.
-CLOUDFLARE_ACCOUNT_ID = config("CLOUDFLARE_ACCOUNT_ID", default="")
-CLOUDFLARE_EMAIL_TOKEN = config("CLOUDFLARE_EMAIL_TOKEN", default="")
-
-# "cloudflare" | "" (auto: SMTP if EMAIL_HOST_USER is set, else console).
-# An explicit EMAIL_BACKEND still wins over both.
-EMAIL_PROVIDER = config("EMAIL_PROVIDER", default="").strip().lower()
-
-
-
-def pick_email_backend(provider, smtp_configured):
-    """Backend class path for a provider choice (see EMAIL_PROVIDER above)."""
-    if provider == "cloudflare":
-        return "apps.core.email_backends.CloudflareEmailBackend"
-    if smtp_configured:
-        return "django.core.mail.backends.smtp.EmailBackend"
-    return "django.core.mail.backends.console.EmailBackend"
-
 
 _smtp_configured = bool(EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
-EMAIL_BACKEND = config("EMAIL_BACKEND", default=pick_email_backend(EMAIL_PROVIDER, _smtp_configured))
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default=(
+        "django.core.mail.backends.smtp.EmailBackend"
+        if _smtp_configured
+        else "django.core.mail.backends.console.EmailBackend"
+    ),
+)
 
 # ── Razorpay ─────────────────────────────────────────────────────────────────
 RAZORPAY_KEY_ID = config("RAZORPAY_KEY_ID", default="rzp_test_placeholder")
@@ -344,8 +337,6 @@ TURNSTILE_TIMEOUT = config("TURNSTILE_TIMEOUT", default=3, cast=int)
 TURNSTILE_ALLOWED_HOSTNAMES = [
     h.strip() for h in config("TURNSTILE_ALLOWED_HOSTNAMES", default="").split(",") if h.strip()
 ]
-# Bound on how long a mail provider can hold up a request.
-EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=8, cast=int)
 
 # When True the OTP request endpoint echoes the generated code back in the JSON
 # response so you can log in without a mail server. NEVER enable in production:

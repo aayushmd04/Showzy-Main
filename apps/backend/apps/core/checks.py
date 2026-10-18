@@ -5,7 +5,7 @@ handful of Showzy-specific ways a deploy can look healthy and quietly not be.
 """
 
 from django.conf import settings
-from django.core.checks import Error as CheckError, Warning as CheckWarning, register
+from django.core.checks import Warning as CheckWarning, register
 
 
 @register(deploy=True)
@@ -60,39 +60,12 @@ def email_must_actually_send(app_configs, **kwargs):
         CheckWarning(
             "Sign-in codes are being printed to the log, not emailed.",
             hint=(
-                "Set EMAIL_PROVIDER=cloudflare with CLOUDFLARE_ACCOUNT_ID and "
-                "CLOUDFLARE_EMAIL_TOKEN, or EMAIL_HOST_USER and EMAIL_HOST_PASSWORD "
-                "(DEPLOY.md, step B4). "
+                "Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (the mailbox login; "
+                "DEPLOY.md, step B4). "
                 "Until then every visitor who tries to sign in waits for a code "
                 "that will never arrive — and there is no password to fall back on."
             ),
             id="naada.W002",
-        )
-    ]
-
-
-@register(deploy=True)
-def cloudflare_email_needs_credentials(app_configs, **kwargs):
-    """Selecting the Cloudflare backend without its token fails every send.
-
-    The backend refuses to construct without them, and the sign-in view turns
-    that into "we couldn't send the code" for every visitor. Better to stop the
-    deploy than to find out from users.
-    """
-    if "CloudflareEmailBackend" not in settings.EMAIL_BACKEND:
-        return []
-    missing = [
-        name
-        for name in ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_EMAIL_TOKEN")
-        if not getattr(settings, name, "")
-    ]
-    if not missing:
-        return []
-    return [
-        CheckError(
-            f"Cloudflare email is selected but {', '.join(missing)} is not set.",
-            hint="Set it in the host's environment (never in git).",
-            id="naada.E003",
         )
     ]
 

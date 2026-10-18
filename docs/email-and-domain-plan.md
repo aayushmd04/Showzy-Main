@@ -129,6 +129,8 @@ Facts as of 2026-10-18 from Cloudflare's docs; re-check before buying anything.
 ## 5. Backend work (phased)
 
 ### Phase A: provider plumbing (about 1–2 days)
+
+**Status 2026-10-18: done on branch `feat/otp-hardening`, 341 backend tests pass.** `apps/core/email_backends.py` (`CloudflareEmailBackend`: REST, one recipient per message, no attachments, 8 s timeout, no redirects, errors carry only status and error code), `EMAIL_PROVIDER=cloudflare` + `CLOUDFLARE_ACCOUNT_ID` + `CLOUDFLARE_EMAIL_TOKEN`, `EMAIL_REPLY_TO`, new default sender `no-reply@mail.showzy.in` (a blank `DEFAULT_FROM_EMAIL` in `render.yaml` used to produce an empty sender; fixed), and deploy check `naada.E003` that fails the deploy if the token is missing. **Not yet exercised against the real API**: that needs the domain onboarded and a token (week 1 steps). The `naada.W002` console-backend check is still a warning, not an error.
 - `apps/core/email_backends.py`: `CloudflareEmailBackend(BaseEmailBackend)` that POSTs to the REST API with `requests`/`httpx` (timeout 5 s, no redirects, raise on non-2xx; REST `from` uses `address`, `reply_to` is snake_case). No failover class (decision: Cloudflare only).
 - `base.py`: new `EMAIL_PROVIDER` (`console` | `cloudflare`), `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_EMAIL_TOKEN`; keep `EMAIL_PORT` safe-default behaviour (blank int crashes boot, see the `render.yaml` comment). Add `EMAIL_USE_SSL` support if SMTP is ever used.
 - `DEFAULT_FROM_EMAIL=Showzy <no-reply@mail.showzy.in>`, `EMAIL_REPLY_TO=support@showzy.in`. Replace `naada.live` defaults in `base.py`, `.env.example`, `render.yaml`, `deploy/oracle/.env.example`.

@@ -105,6 +105,15 @@ envVarGroups:
         value: ""
       - key: DEFAULT_FROM_EMAIL
         value: ""
+      # Cloudflare Email Sending. Set EMAIL_PROVIDER to "cloudflare" and fill in
+      # the other two (token permission: Email Sending: Edit only) to send real
+      # sign-in codes. Blank = console/SMTP behaviour as before.
+      - key: EMAIL_PROVIDER
+        value: ""
+      - key: CLOUDFLARE_ACCOUNT_ID
+        value: ""
+      - key: CLOUDFLARE_EMAIL_TOKEN
+        value: ""
 
 services:
   # ── Redis ─────────────────────────────────────────────────────────────────

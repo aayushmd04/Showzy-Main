@@ -237,16 +237,35 @@ EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
 EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Showzy <noreply@naada.live>")
+# `or`, not a default alone: render.yaml ships these as "", and an empty string
+# is a *present* value, so decouple would hand back "" and every message would
+# go out with no sender.
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or "Showzy <no-reply@mail.showzy.in>"
+# Where replies go: the human mailbox, not the no-reply sender.
+EMAIL_REPLY_TO = config("EMAIL_REPLY_TO", default="") or "Showzy Support <support@showzy.in>"
+
+# Cloudflare Email Sending (REST). Create the token with the single permission
+# "Email Sending: Edit", account-owned, one per environment.
+CLOUDFLARE_ACCOUNT_ID = config("CLOUDFLARE_ACCOUNT_ID", default="")
+CLOUDFLARE_EMAIL_TOKEN = config("CLOUDFLARE_EMAIL_TOKEN", default="")
+
+# "cloudflare" | "" (auto: SMTP if EMAIL_HOST_USER is set, else console).
+# An explicit EMAIL_BACKEND still wins over both.
+EMAIL_PROVIDER = config("EMAIL_PROVIDER", default="").strip().lower()
+
+
+
+def pick_email_backend(provider, smtp_configured):
+    """Backend class path for a provider choice (see EMAIL_PROVIDER above)."""
+    if provider == "cloudflare":
+        return "apps.core.email_backends.CloudflareEmailBackend"
+    if smtp_configured:
+        return "django.core.mail.backends.smtp.EmailBackend"
+    return "django.core.mail.backends.console.EmailBackend"
+
+
 _smtp_configured = bool(EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
-EMAIL_BACKEND = config(
-    "EMAIL_BACKEND",
-    default=(
-        "django.core.mail.backends.smtp.EmailBackend"
-        if _smtp_configured
-        else "django.core.mail.backends.console.EmailBackend"
-    ),
-)
+EMAIL_BACKEND = config("EMAIL_BACKEND", default=pick_email_backend(EMAIL_PROVIDER, _smtp_configured))
 
 # ── Razorpay ─────────────────────────────────────────────────────────────────
 RAZORPAY_KEY_ID = config("RAZORPAY_KEY_ID", default="rzp_test_placeholder")

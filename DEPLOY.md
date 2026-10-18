@@ -846,7 +846,14 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `SENTRY_ENVIRONMENT` / `SENTRY_TRACES_SAMPLE_RATE` | `production` / `0.1` | |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USE_TLS` | `smtp.gmail.com` / `587` / `True` | |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | *(empty)* | Both empty ⇒ email prints to the logs. |
-| `DEFAULT_FROM_EMAIL` | `Showzy <noreply@naada.live>` | |
+| `DEFAULT_FROM_EMAIL` | `Showzy <no-reply@mail.showzy.in>` | |
+| `EMAIL_PROVIDER` | empty | `cloudflare` to send through Cloudflare Email Sending; see `docs/email-and-domain-plan.md` |
+| `CLOUDFLARE_ACCOUNT_ID` | empty | Required when `EMAIL_PROVIDER=cloudflare` |
+| `CLOUDFLARE_EMAIL_TOKEN` | empty | Token with only "Email Sending: Edit". Required with the above. Secret |
+| `EMAIL_REPLY_TO` | `Showzy Support <support@showzy.in>` | Where replies go |
+| `OTP_PEPPER` | empty (falls back to `SECRET_KEY`) | Secret key protecting stored sign-in codes; set it separately |
+| `TRUSTED_PROXY_COUNT` | `1` | Proxies in front of Django (Render: 1; Cloudflare + Render: 2) |
+| `CLIENT_IP_HEADER` | empty | `CF-Connecting-IP` only once the origin accepts Cloudflare traffic exclusively |
 | `CSRF_TRUSTED_ORIGINS` | https entries of CORS | |
 | `SECURE_SSL_REDIRECT` | `True` | Set `False` only for plain-HTTP local runs. |
 | `DB_SSLMODE` | `require` | `prefer` only for a local Postgres. |

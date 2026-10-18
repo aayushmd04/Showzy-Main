@@ -166,7 +166,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
 
           <nav
             aria-label="Sections"
-            className="order-5 -mx-[var(--page-pad)] flex basis-full items-center gap-3 overflow-x-auto border-t sm:gap-7 border-[var(--color-line)] px-[var(--page-pad)] [scrollbar-width:none] lg:order-2 lg:mx-0 lg:basis-auto lg:border-t-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
+            className="order-5 -mx-[var(--page-pad)] flex basis-[calc(100%+2*var(--page-pad))] items-center justify-between gap-2 overflow-x-auto border-t border-[var(--color-line)] px-[var(--page-pad)] lg:justify-start lg:gap-7 [scrollbar-width:none] lg:order-2 lg:mx-0 lg:basis-auto lg:border-t-0 lg:px-0 [&::-webkit-scrollbar]:hidden"
           >
             {navLinks.map(({ label, labelKn, path, exact }) => {
               const active = isActive(path, exact);
@@ -175,7 +175,7 @@ export function PublicShell({ children }: { children: ReactNode }) {
                   key={path}
                   to={path}
                   aria-current={active ? "page" : undefined}
-                  className={`relative flex h-11 shrink-0 items-center whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.1em] no-underline sm:text-[12px] sm:tracking-[0.12em] transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-signal after:opacity-0 aria-[current=page]:after:opacity-100 lg:h-16 ${
+                  className={`relative flex h-11 shrink-0 items-center whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.06em] no-underline sm:text-[12px] sm:tracking-[0.12em] transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:bg-signal after:opacity-0 aria-[current=page]:after:opacity-100 lg:h-16 ${
                     active ? "text-paper" : "text-muted hover:text-paper"
                   }`}
                 >

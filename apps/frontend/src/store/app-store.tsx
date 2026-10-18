@@ -234,9 +234,10 @@ export function AppStoreProvider({
    */
   const [theme, setTheme] = useState<Theme>(() => {
     try {
-      return readPref("naada_theme") === "light" ? "light" : "dark";
+      // Light unless the visitor has chosen dark.
+      return readPref("naada_theme") === "dark" ? "dark" : "light";
     } catch {
-      return "dark";
+      return "light";
     }
   });
   const [lang, setLang] = useState<Lang>(() => {

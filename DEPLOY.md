@@ -846,7 +846,7 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `SENTRY_ENVIRONMENT` / `SENTRY_TRACES_SAMPLE_RATE` | `production` / `0.1` | |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USE_TLS` | `smtp.gmail.com` / `587` / `True` | |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | *(empty)* | Both empty ⇒ email prints to the logs. |
-| `DEFAULT_FROM_EMAIL` | `Showzy <no-reply@mail.showzy.in>` | |
+| `DEFAULT_FROM_EMAIL` | `Showzy <alerts@mail.showzy.in>` | Fallback sender. Sign-in codes use `EMAIL_FROM_AUTH` (`auth@mail.showzy.in`), tickets and refunds `EMAIL_FROM_TICKETS` (`tickets@`), everything else `EMAIL_FROM_ALERTS` (`alerts@`) |
 | `TURNSTILE_SECRET_KEY` | empty | Cloudflare Turnstile secret; pair with `VITE_TURNSTILE_SITE_KEY` in the frontend build. Empty = no bot check (`check --deploy` warns) |
 | `EMAIL_PROVIDER` | empty | `cloudflare` to send through Cloudflare Email Sending; see `docs/email-and-domain-plan.md` |
 | `CLOUDFLARE_ACCOUNT_ID` | empty | Required when `EMAIL_PROVIDER=cloudflare` |

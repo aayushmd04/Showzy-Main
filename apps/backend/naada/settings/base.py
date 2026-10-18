@@ -240,8 +240,16 @@ EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
 # `or`, not a default alone: render.yaml ships these as "", and an empty string
 # is a *present* value, so decouple would hand back "" and every message would
 # go out with no sender.
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or "Showzy <no-reply@mail.showzy.in>"
-# Where replies go: the human mailbox, not the no-reply sender.
+# One sender per kind of mail, all on the sending subdomain onboarded in
+# Cloudflare (mail.showzy.in). These addresses only *send*; nothing can be
+# delivered to the subdomain, so every message carries a Reply-To on the main
+# domain, where the aliases below forward to the real inbox.
+EMAIL_FROM_AUTH = config("EMAIL_FROM_AUTH", default="") or "Showzy <auth@mail.showzy.in>"
+EMAIL_FROM_TICKETS = config("EMAIL_FROM_TICKETS", default="") or "Showzy Tickets <tickets@mail.showzy.in>"
+EMAIL_FROM_ALERTS = config("EMAIL_FROM_ALERTS", default="") or "Showzy <alerts@mail.showzy.in>"
+# Fallback for anything that doesn't pick a sender.
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or EMAIL_FROM_ALERTS
+# Where replies go: support@showzy.in, an alias on the GoDaddy mailbox.
 EMAIL_REPLY_TO = config("EMAIL_REPLY_TO", default="") or "Showzy Support <support@showzy.in>"
 
 # Cloudflare Email Sending (REST). Create the token with the single permission

@@ -61,6 +61,17 @@ def record(user, *, notification_type, title, body, action_url="", data=None):
         return None
 
 
+# Money and tickets come from tickets@, everything else from alerts@. Sign-in
+# codes use auth@ and are sent from apps/users/views.py.
+_TICKET_MAIL = {"ticket_confirmed", "refund_processed"}
+
+
+def sender_for(notification_type):
+    if notification_type in _TICKET_MAIL:
+        return settings.EMAIL_FROM_TICKETS
+    return settings.EMAIL_FROM_ALERTS
+
+
 def send_email(user, subject, text_body, html_body=None, *, notification_type=None):
     """Send one email. Swallows every failure — callers are mid-transaction."""
     if not getattr(user, "email", None):
@@ -69,7 +80,7 @@ def send_email(user, subject, text_body, html_body=None, *, notification_type=No
         message = EmailMultiAlternatives(
             subject=subject,
             body=text_body,
-            from_email=settings.DEFAULT_FROM_EMAIL,
+            from_email=sender_for(notification_type),
             to=[user.email],
         )
         if html_body:

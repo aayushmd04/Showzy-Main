@@ -130,7 +130,7 @@ It expires in {expiry_minutes} minutes. Do not share this with anyone. Showzy wi
 If you didn't ask to sign in, you can ignore this email.
 
 — Showzy Team""",
-            from_email=django_settings.DEFAULT_FROM_EMAIL,
+            from_email=django_settings.EMAIL_FROM_AUTH,
             recipient_list=[email],
             fail_silently=False,
         )
@@ -294,7 +294,7 @@ It expires in {expiry_minutes} minutes. If this wasn't you, ignore this email �
 nothing will be deleted — and consider who else has access to your inbox.
 
 — Showzy Team""",
-            from_email=django_settings.DEFAULT_FROM_EMAIL,
+            from_email=django_settings.EMAIL_FROM_AUTH,
             recipient_list=[user.email],
             fail_silently=False,
         )

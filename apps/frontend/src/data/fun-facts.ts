@@ -52,7 +52,14 @@ export const FUN_FACTS: FunFact[] = [
   },
 ];
 
-/** A fact chosen at random, so a returning visitor does not always see the same one. */
-export function randomFact(): FunFact {
-  return FUN_FACTS[Math.floor(Math.random() * FUN_FACTS.length)];
+/**
+ * A fact chosen at random, so a returning visitor does not always see the same one.
+ * With `maxWords`, only facts that short are considered (a brief screen needs a brief fact).
+ */
+export function randomFact(maxWords?: number): FunFact {
+  const pool = maxWords
+    ? FUN_FACTS.filter((f) => f.text.trim().split(/\s+/).length <= maxWords)
+    : FUN_FACTS;
+  const from = pool.length > 0 ? pool : FUN_FACTS;
+  return from[Math.floor(Math.random() * from.length)];
 }

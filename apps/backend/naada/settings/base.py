@@ -172,8 +172,13 @@ REST_FRAMEWORK = {
         # "otp" is per caller IP, "otp_email" is per recipient address. Both
         # apply to the sign-in endpoint; see apps/users/views.py for why one
         # without the other leaves a hole.
-        "otp": "5/hour",
+        "otp": "10/hour",
         "otp_email": "5/hour",
+        "otp_email_day": "10/day",
+        # Redeeming a code: per caller IP and per address. Per-token attempts
+        # are capped separately, but asking for a fresh code resets that cap.
+        "otp_verify": "20/hour",
+        "otp_verify_email": "10/hour",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
@@ -287,8 +292,22 @@ GSTIN = config("GSTIN", default="")
 
 # ── OTP settings ─────────────────────────────────────────────────────────────
 OTP_LENGTH = config("OTP_LENGTH", default=6, cast=int)
-OTP_EXPIRY_MINUTES = config("OTP_EXPIRY_MINUTES", default=10, cast=int)
+OTP_EXPIRY_MINUTES = config("OTP_EXPIRY_MINUTES", default=3, cast=int)
 OTP_MAX_ATTEMPTS = config("OTP_MAX_ATTEMPTS", default=5, cast=int)
+# Minimum gap between two codes sent to the same address.
+OTP_RESEND_COOLDOWN_SECONDS = config("OTP_RESEND_COOLDOWN_SECONDS", default=45, cast=int)
+# Key for the HMAC that protects stored codes. Falls back to SECRET_KEY so
+# nothing breaks if it is unset, but set it separately in production.
+OTP_PEPPER = config("OTP_PEPPER", default="")
+
+# ── Client IP (see apps/core/net.py) ─────────────────────────────────────────
+# Header written by an edge we control. Empty until the API is reachable only
+# through Cloudflare; then "CF-Connecting-IP".
+CLIENT_IP_HEADER = config("CLIENT_IP_HEADER", default="")
+# Proxies in front of Django that append to X-Forwarded-For. Render: 1.
+TRUSTED_PROXY_COUNT = config("TRUSTED_PROXY_COUNT", default=1, cast=int)
+# Bound on how long a mail provider can hold up a request.
+EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=8, cast=int)
 
 # When True the OTP request endpoint echoes the generated code back in the JSON
 # response so you can log in without a mail server. NEVER enable in production:
@@ -315,6 +334,10 @@ CELERY_BEAT_SCHEDULE = {
     "release-expired-ticket-orders": {
         "task": "apps.tickets.tasks.release_expired_orders",
         "schedule": 300,  # every 5 minutes
+    },
+    "purge-old-otp-tokens": {
+        "task": "apps.users.tasks.purge_old_otp_tokens",
+        "schedule": 86400,
     },
 }
 

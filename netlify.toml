@@ -1,0 +1,7 @@
+# Netlify only: send any path that is not a real file to the app, so deep links such as
+# /e/<id> or /artists work on a refresh. (Cloudflare does the same through "assets" in
+# wrangler.jsonc, which is why there is no _redirects file: Cloudflare rejects it as a loop.)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

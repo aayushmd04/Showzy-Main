@@ -1,7 +1,7 @@
 {
   // Cloudflare: publishes the built website (static files) with no server code.
   // The name must match the project's name in the Cloudflare dashboard.
-  "name": "showzy",
+  "name": "showzy-main",
   "compatibility_date": "2026-10-01",
   "assets": {
     "directory": "./apps/frontend/dist",

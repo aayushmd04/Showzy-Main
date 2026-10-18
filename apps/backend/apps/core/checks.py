@@ -87,3 +87,40 @@ def turnstile_should_be_on(app_configs, **kwargs):
             id="naada.W004",
         )
     ]
+
+
+def _is_local(url):
+    return any(h in url for h in ("localhost", "127.0.0.1", "0.0.0.0"))
+
+
+@register(deploy=True)
+def public_urls_must_not_be_local(app_configs, **kwargs):
+    """The two settings that quietly point a live site back at a laptop.
+
+    FRONTEND_URL builds the links inside emails (tickets, receipts): left at its
+    default, every email tells people to open http://localhost:5173.
+    CORS_ALLOWED_ORIGINS lists the websites the browser may call this API from:
+    left at its default, the live site loads but every request is blocked.
+    """
+    if settings.DEBUG:
+        return []
+
+    found = []
+    if _is_local(settings.FRONTEND_URL):
+        found.append(
+            CheckWarning(
+                "FRONTEND_URL still points at this computer, so email links will be broken.",
+                hint="Set FRONTEND_URL to the public website address, e.g. https://showzy.in",
+                id="naada.W005",
+            )
+        )
+    origins = [o for o in settings.CORS_ALLOWED_ORIGINS if o.strip()]
+    if not origins or all(_is_local(o) for o in origins):
+        found.append(
+            CheckWarning(
+                "CORS_ALLOWED_ORIGINS only allows local addresses, so the live site cannot call this API.",
+                hint="Set CORS_ALLOWED_ORIGINS to the website address, with https:// and no trailing slash.",
+                id="naada.W006",
+            )
+        )
+    return found

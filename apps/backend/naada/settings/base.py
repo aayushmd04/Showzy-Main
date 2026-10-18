@@ -258,13 +258,17 @@ EMAIL_FROM_ALERTS = config("EMAIL_FROM_ALERTS", default="") or "Showzy <alerts@s
 # Fallback for anything that doesn't pick a sender.
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or EMAIL_FROM_ALERTS
 
-# Email over HTTPS (Resend). Use this where the mail ports are blocked, e.g. Render's free
-# plan. Set RESEND_API_KEY and verify the sending domain in Resend; it takes priority over SMTP.
+# Email over HTTPS (Resend and/or Brevo). Use this where the mail ports are blocked, e.g.
+# Render's free plan. Set one or both keys and verify the sending domain with each provider;
+# either takes priority over SMTP. Free plans cap at 100/day (Resend) and 300/day (Brevo).
 RESEND_API_KEY = config("RESEND_API_KEY", default="")
+BREVO_API_KEY = config("BREVO_API_KEY", default="")
+# Which to try first when both keys are set; the next is used if one refuses (e.g. daily cap).
+EMAIL_PROVIDER_ORDER = config("EMAIL_PROVIDER_ORDER", default="resend,brevo")
 
 _smtp_configured = bool(EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
-if RESEND_API_KEY:
-    _default_email_backend = "apps.core.email_backend.ResendEmailBackend"
+if RESEND_API_KEY or BREVO_API_KEY:
+    _default_email_backend = "apps.core.email_backend.HttpsEmailBackend"
 elif _smtp_configured:
     _default_email_backend = "django.core.mail.backends.smtp.EmailBackend"
 else:

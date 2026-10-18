@@ -1,0 +1,11 @@
+{
+  // Cloudflare: publishes the built website (static files) with no server code.
+  // The name must match the project's name in the Cloudflare dashboard.
+  "name": "showzy",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./apps/frontend/dist",
+    // Deep links such as /e/<id> or /artists get the app's index.html, so React can route them.
+    "not_found_handling": "single-page-application"
+  }
+}

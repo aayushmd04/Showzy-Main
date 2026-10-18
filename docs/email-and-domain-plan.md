@@ -105,6 +105,18 @@ With passwordless sign-in, **whoever controls the domain's DNS or mailboxes cont
 
 ---
 
+### Addresses (decided 2026-10-18)
+
+The GoDaddy mailbox `amd@showzy.in` has four aliases that all land in its inbox: `auth@`, `tickets@`, `alerts@`, `support@` (`@showzy.in`). Senders live on the sending subdomain so the main domain's mail records stay untouched, and every message carries `Reply-To: support@showzy.in`, because nothing can be delivered to `@mail.showzy.in`.
+
+| Mail | From (sends only) | Reply-To (real, receives) |
+|---|---|---|
+| Sign-in codes, account-deletion codes | `auth@mail.showzy.in` | `support@showzy.in` |
+| Ticket confirmations, refunds | `tickets@mail.showzy.in` | `support@showzy.in` |
+| Event changes, booking offers, chat and other notifications | `alerts@mail.showzy.in` | `support@showzy.in` |
+
+Live DNS check 2026-10-18: nameservers are on Cloudflare and the GoDaddy MX/SPF/DKIM records are in place. **Still to fix:** two conflicting `_dmarc` records (delete the `p=quarantine` one, keep `p=reject`), and `mail.showzy.in` is not onboarded yet (no records exist for it), so the app cannot send real mail until it is.
+
 ## 4. Cloudflare Email Sending setup
 
 Facts as of 2026-10-18 from Cloudflare's docs; re-check before buying anything.

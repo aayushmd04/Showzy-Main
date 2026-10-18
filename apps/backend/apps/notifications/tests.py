@@ -430,7 +430,7 @@ class SenderAddressTests(TestCase):
         for kind in ("booking_offer", "event_cancelled", "gig_application_reviewed", None):
             self.assertIn("alerts@mail.showzy.in", sender_for(kind))
 
-    def test_sign_in_code_uses_the_auth_address_and_replies_go_to_support(self):
+    def test_sign_in_code_uses_the_auth_address(self):
         from django.core import mail
         from django.core.cache import cache
         from django.urls import reverse

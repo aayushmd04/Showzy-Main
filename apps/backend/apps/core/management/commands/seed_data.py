@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -67,7 +68,12 @@ class Command(BaseCommand):
                       "is_staff": True, "is_superuser": True, "is_verified": True}
         )
         if _:
-            admin_user.set_password("naada@admin123")
+            # The known demo password exists only on a developer's machine. Anywhere else
+            # (DEBUG off, e.g. a hosted database) the admin account cannot be logged into.
+            if settings.DEBUG:
+                admin_user.set_password("naada@admin123")
+            else:
+                admin_user.set_unusable_password()
             admin_user.save()
 
         venue_owner, _ = User.objects.get_or_create(
@@ -324,7 +330,7 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS(
             "\n✓ Seed complete!\n"
-            "  Admin login:  admin@naada.live / naada@admin123\n"
+            + ("  Admin login:  admin@naada.live / naada@admin123\n" if settings.DEBUG else "  Admin login:  disabled (not a development environment)\n") +
             "  Venue owner:  venue@naada.live\n"
             "  Artist:       artist@naada.live\n"
             "  Fan:          fan@naada.live\n"

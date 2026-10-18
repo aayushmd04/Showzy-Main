@@ -92,8 +92,9 @@ envVarGroups:
       # *present* value, so decouple hands int("") a "" and the whole app dies
       # at boot with ValueError. Leaving the SMTP port at 587 is harmless when
       # no SMTP credentials are set — the console backend is used instead.
+      # Host from GoDaddy → Email → Server settings (Titan: smtp.titan.email).
       - key: EMAIL_HOST
-        value: smtp.gmail.com
+        value: smtp.titan.email
       - key: EMAIL_PORT
         value: "587"
       # These two are the real switch: with both blank, EMAIL_BACKEND falls

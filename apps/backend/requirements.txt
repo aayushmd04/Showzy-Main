@@ -24,6 +24,9 @@ python-decouple==3.8
 pillow==12.3.0
 qrcode==8.0
 
+# ── Outbound HTTP (Cloudflare email; also a razorpay dependency)
+requests>=2.32.4,<3
+
 # ── Payments & crypto ────────────────────────────────────────────────────────
 razorpay==1.4.2
 cryptography==50.0.2

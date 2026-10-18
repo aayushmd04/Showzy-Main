@@ -60,10 +60,30 @@ def email_must_actually_send(app_configs, **kwargs):
         CheckWarning(
             "Sign-in codes are being printed to the log, not emailed.",
             hint=(
-                "Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (DEPLOY.md, step B4). "
+                "Set EMAIL_HOST_USER and EMAIL_HOST_PASSWORD (the mailbox login; "
+                "DEPLOY.md, step B4). "
                 "Until then every visitor who tries to sign in waits for a code "
                 "that will never arrive — and there is no password to fall back on."
             ),
             id="naada.W002",
+        )
+    ]
+
+
+@register(deploy=True)
+def turnstile_should_be_on(app_configs, **kwargs):
+    """Without the bot check, anyone can script sign-in-code requests.
+
+    The throttles cap the damage per address and per caller, but not the
+    breadth: a script walking a list of real addresses still sends each of them
+    mail from our domain, which is how a sender's reputation is lost.
+    """
+    if settings.DEBUG or getattr(settings, "TURNSTILE_SECRET_KEY", ""):
+        return []
+    return [
+        CheckWarning(
+            "Turnstile is off: sign-in code requests have no bot check.",
+            hint="Set TURNSTILE_SECRET_KEY and build the frontend with VITE_TURNSTILE_SITE_KEY.",
+            id="naada.W004",
         )
     ]

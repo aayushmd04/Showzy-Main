@@ -6,6 +6,7 @@ import {
   get,
   getAllPages,
   logout,
+  retryAfterSeconds,
   scanTicket,
   tokens,
 } from "./api";
@@ -263,5 +264,19 @@ describe("api client", () => {
       await expect(get("/ticket-orders/")).rejects.toMatchObject({ status: 500 });
       await expect(get("/ticket-orders/")).rejects.toBeInstanceOf(ApiError);
     });
+  });
+});
+
+describe("retryAfterSeconds", () => {
+  it("reads the wait from a 429 on the sign-in endpoints", () => {
+    expect(retryAfterSeconds(new ApiError(429, "slow down", { retry_after: 31.2 }))).toBe(32);
+  });
+
+  it("ignores other statuses, missing or nonsense values, and non-API errors", () => {
+    expect(retryAfterSeconds(new ApiError(503, "down", { retry_after: 30 }))).toBeUndefined();
+    expect(retryAfterSeconds(new ApiError(429, "throttled", { detail: "x" }))).toBeUndefined();
+    expect(retryAfterSeconds(new ApiError(429, "x", { retry_after: "soon" }))).toBeUndefined();
+    expect(retryAfterSeconds(new ApiError(429, "x", { retry_after: -5 }))).toBeUndefined();
+    expect(retryAfterSeconds(new Error("network"))).toBeUndefined();
   });
 });

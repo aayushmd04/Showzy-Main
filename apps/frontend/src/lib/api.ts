@@ -206,8 +206,27 @@ export interface MeResponse {
   is_new_user?: boolean;
 }
 
-export async function requestOtp(email: string): Promise<{ debug_otp?: string }> {
-  return post<{ detail: string; debug_otp?: string }>("/auth/request-otp/", { email, purpose: "login" }, false);
+export interface OtpRequestResult {
+  debug_otp?: string;
+  /** Seconds the code stays valid. */
+  expires_in?: number;
+  /** Seconds before another code may be requested. */
+  resend_after?: number;
+}
+
+export async function requestOtp(email: string, turnstileToken?: string): Promise<OtpRequestResult> {
+  return post<OtpRequestResult & { detail: string }>(
+    "/auth/request-otp/",
+    { email, purpose: "login", ...(turnstileToken ? { turnstile_token: turnstileToken } : {}) },
+    false,
+  );
+}
+
+/** Seconds the server asked us to wait, from a 429 on the sign-in endpoints. */
+export function retryAfterSeconds(err: unknown): number | undefined {
+  if (!(err instanceof ApiError) || err.status !== 429) return undefined;
+  const wait = (err.body as { retry_after?: unknown } | undefined)?.retry_after;
+  return typeof wait === "number" && wait > 0 ? Math.ceil(wait) : undefined;
 }
 
 export async function verifyOtp(

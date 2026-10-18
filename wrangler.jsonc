@@ -7,5 +7,8 @@
     "directory": "./apps/frontend/dist",
     // Deep links such as /e/<id> or /artists get the app's index.html, so React can route them.
     "not_found_handling": "single-page-application"
-  }
+  },
+  // Required by `wrangler preview`, which the dashboard runs for pull requests
+  // (without it that build fails). Empty is fine.
+  "previews": {}
 }

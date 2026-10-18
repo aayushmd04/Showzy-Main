@@ -1,6 +1,4 @@
 import logging
-import random
-import string
 from django.utils import timezone
 from django.contrib.auth import get_user_model
 from django.core.mail import send_mail
@@ -15,6 +13,9 @@ from rest_framework_simplejwt.token_blacklist.models import (
     OutstandingToken,
 )
 from datetime import timedelta
+
+from apps.core import turnstile
+from apps.core.net import get_client_ip
 
 from . import privacy
 from .models import ConsentRecord, OTPToken, UserDevice, UserRole
@@ -58,56 +59,96 @@ class OTPEmailThrottle(SimpleRateThrottle):
         return self.cache_format % {"scope": self.scope, "ident": email.strip().lower()}
 
 
-def get_client_ip(request):
-    x_forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    return x_forwarded.split(",")[0] if x_forwarded else request.META.get("REMOTE_ADDR")
+class OTPEmailDayThrottle(OTPEmailThrottle):
+    """Same key as the hourly budget, longer window: a patient attacker can
+    stay under 5/hour all day, so the daily cap is what bounds the total."""
+
+    scope = "otp_email_day"
+
+
+class OTPVerifyRateThrottle(AnonRateThrottle):
+    """Caps how many codes one *caller* can try to redeem. Keyed on IP."""
+
+    scope = "otp_verify"
+
+
+class OTPVerifyEmailThrottle(OTPEmailThrottle):
+    """Caps guesses against one *address* across all of its tokens.
+
+    Each token allows OTP_MAX_ATTEMPTS guesses, but requesting a fresh token
+    resets that count. This bounds the total however many tokens are minted.
+    """
+
+    scope = "otp_verify_email"
 
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
-@throttle_classes([OTPRateThrottle, OTPEmailThrottle])
+@throttle_classes([OTPRateThrottle, OTPEmailThrottle, OTPEmailDayThrottle])
 def request_otp(request):
     serializer = OTPRequestSerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
     email = serializer.validated_data["email"].lower()
     purpose = serializer.validated_data["purpose"]
 
-    # Invalidate any existing unused OTPs for this email/purpose
-    OTPToken.objects.filter(email=email, purpose=purpose, is_used=False).update(is_used=True)
+    # Before the cooldown and before any code exists or mail is sent: a bot
+    # that fails here costs us one cheap HTTP call and nothing else.
+    if not turnstile.verify(
+        serializer.validated_data.get("turnstile_token", ""), get_client_ip(request)
+    ):
+        return Response(
+            {"detail": "We couldn't verify you're not a bot. Please try again.",
+             "code": "turnstile_failed"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
 
-    raw_otp = OTPToken.generate_otp()
-    otp_hash = OTPToken.hash_otp(raw_otp)
-    expiry = timezone.now() + timedelta(minutes=getattr(django_settings, "OTP_EXPIRY_MINUTES", 10))
+    wait = OTPToken.seconds_until_resend(email, purpose)
+    if wait:
+        return Response(
+            {"detail": f"A code was just sent. You can ask for another in {wait} seconds.",
+             "retry_after": wait},
+            status=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": str(wait)},
+        )
 
-    OTPToken.objects.create(
-        email=email,
-        otp_hash=otp_hash,
-        purpose=purpose,
-        expires_at=expiry,
-        ip_address=get_client_ip(request),
-    )
+    token, raw_otp = OTPToken.issue(email, purpose, ip_address=get_client_ip(request))
+    expiry_minutes = getattr(django_settings, "OTP_EXPIRY_MINUTES", 3)
 
-    # Send email (console backend locally, SMTP in prod)
     # The code stays out of the subject: subject lines show in lock-screen
     # previews and are retained in mail-relay logs far more widely than bodies.
-    expiry_minutes = getattr(django_settings, "OTP_EXPIRY_MINUTES", 10)
-    send_mail(
-        subject="Your Showzy sign-in code",
-        message=f"""Hi,
+    # Sent inline rather than through the task queue so the code is never
+    # written to Redis or a worker log; EMAIL_TIMEOUT bounds the wait.
+    try:
+        send_mail(
+            subject="Your Showzy sign-in code",
+            message=f"""Hi,
 
 Your Showzy one-time password is: {raw_otp}
 
-It expires in {expiry_minutes} minutes. Do not share this with anyone.
+It expires in {expiry_minutes} minutes. Do not share this with anyone. Showzy will never ask you for it.
 
 If you didn't ask to sign in, you can ignore this email.
 
 — Showzy Team""",
-        from_email=django_settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[email],
-        fail_silently=False,
-    )
+            from_email=django_settings.EMAIL_FROM_AUTH,
+            recipient_list=[email],
+            fail_silently=False,
+        )
+    except Exception:
+        # Log the failure, never the code. Drop the token so the user is not
+        # held to the resend cooldown for a message that never left.
+        logger.exception("Sign-in code email failed (token %s)", token.pk)
+        token.delete()
+        return Response(
+            {"detail": "We couldn't send the code. Please try again in a moment."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
-    resp = {"detail": f"OTP sent to {email}. Check your email."}
+    resp = {
+        "detail": f"OTP sent to {email}. Check your email.",
+        "expires_in": expiry_minutes * 60,
+        "resend_after": getattr(django_settings, "OTP_RESEND_COOLDOWN_SECONDS", 45),
+    }
     # Echo the OTP only where a setting explicitly allows it (local dev). Keying
     # this off DEBUG alone meant one misconfigured deploy would hand any caller
     # a valid OTP for any email address; production forces this to False.
@@ -118,6 +159,7 @@ If you didn't ask to sign in, you can ignore this email.
 
 @api_view(["POST"])
 @permission_classes([permissions.AllowAny])
+@throttle_classes([OTPVerifyRateThrottle, OTPVerifyEmailThrottle])
 def verify_otp(request):
     serializer = OTPVerifySerializer(data=request.data)
     serializer.is_valid(raise_exception=True)
@@ -235,21 +277,14 @@ def deletion_check(request):
 def request_deletion_code(request):
     """Email a fresh one-time code to the signed-in user, to confirm deletion."""
     user = request.user
-    OTPToken.objects.filter(
-        email__iexact=user.email, purpose=OTPToken.Purpose.DELETE_ACCOUNT, is_used=False
-    ).update(is_used=True)
-    raw_otp = OTPToken.generate_otp()
-    expiry_minutes = getattr(django_settings, "OTP_EXPIRY_MINUTES", 10)
-    OTPToken.objects.create(
-        email=user.email.lower(),
-        otp_hash=OTPToken.hash_otp(raw_otp),
-        purpose=OTPToken.Purpose.DELETE_ACCOUNT,
-        expires_at=timezone.now() + timedelta(minutes=expiry_minutes),
-        ip_address=get_client_ip(request),
+    token, raw_otp = OTPToken.issue(
+        user.email, OTPToken.Purpose.DELETE_ACCOUNT, ip_address=get_client_ip(request)
     )
-    send_mail(
-        subject="Confirm deleting your Showzy account",
-        message=f"""Hi,
+    expiry_minutes = getattr(django_settings, "OTP_EXPIRY_MINUTES", 3)
+    try:
+        send_mail(
+            subject="Confirm deleting your Showzy account",
+            message=f"""Hi,
 
 Someone asked to permanently delete your Showzy account.
 
@@ -259,10 +294,17 @@ It expires in {expiry_minutes} minutes. If this wasn't you, ignore this email �
 nothing will be deleted — and consider who else has access to your inbox.
 
 — Showzy Team""",
-        from_email=django_settings.DEFAULT_FROM_EMAIL,
-        recipient_list=[user.email],
-        fail_silently=False,
-    )
+            from_email=django_settings.EMAIL_FROM_AUTH,
+            recipient_list=[user.email],
+            fail_silently=False,
+        )
+    except Exception:
+        logger.exception("Deletion code email failed (token %s)", token.pk)
+        token.delete()
+        return Response(
+            {"detail": "We couldn't send the code. Please try again in a moment."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
     resp = {"detail": "We've emailed you a code."}
     if getattr(django_settings, "OTP_DEBUG_RESPONSE", False):
         resp["debug_otp"] = raw_otp

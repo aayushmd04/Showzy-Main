@@ -172,8 +172,13 @@ REST_FRAMEWORK = {
         # "otp" is per caller IP, "otp_email" is per recipient address. Both
         # apply to the sign-in endpoint; see apps/users/views.py for why one
         # without the other leaves a hole.
-        "otp": "5/hour",
+        "otp": "10/hour",
         "otp_email": "5/hour",
+        "otp_email_day": "10/day",
+        # Redeeming a code: per caller IP and per address. Per-token attempts
+        # are capped separately, but asking for a fresh code resets that cap.
+        "otp_verify": "20/hour",
+        "otp_verify_email": "10/hour",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
@@ -225,14 +230,34 @@ CORS_ALLOW_CREDENTIALS = True
 FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:5173").rstrip("/")
 
 # ── Email ─────────────────────────────────────────────────────────────────────
-# Auto-detects SMTP vs console backend: if EMAIL_HOST_USER is set in .env, use real
-# SMTP; otherwise fall back to console (dev mode — OTP appears in server terminal).
-EMAIL_HOST = config("EMAIL_HOST", default="smtp.gmail.com")
+# Sent through the GoDaddy/Titan mailbox over SMTP, the same mailbox that
+# receives replies. If EMAIL_HOST_USER and EMAIL_HOST_PASSWORD are set, real
+# SMTP is used; otherwise messages (including OTPs) print to the server terminal.
+#
+# Port 465 needs EMAIL_USE_SSL=True; port 587 needs EMAIL_USE_TLS=True (default).
+# Django refuses to start if both are on, so TLS defaults off when SSL is on.
+# Host: take it from GoDaddy → Email → Server settings (smtp.titan.email for
+# Titan, smtpout.secureserver.net for GoDaddy's own Workspace Email).
+EMAIL_HOST = config("EMAIL_HOST", default="smtp.titan.email")
 EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
-EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_USE_SSL = config("EMAIL_USE_SSL", default=False, cast=bool)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=not EMAIL_USE_SSL, cast=bool)
 EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
-DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="Showzy <noreply@naada.live>")
+# Bound on how long the mail server can hold up a request.
+EMAIL_TIMEOUT = config("EMAIL_TIMEOUT", default=8, cast=int)
+
+# One sender per kind of mail. They are aliases on the mailbox, so replies to
+# any of them land in its inbox. `or`, not a default alone: render.yaml ships
+# these as "", and an empty string is a *present* value, so decouple would hand
+# back "" and every message would go out with no sender. If the mail server
+# insists on the login address as sender, set all three to the mailbox itself.
+EMAIL_FROM_AUTH = config("EMAIL_FROM_AUTH", default="") or "Showzy <auth@showzy.in>"
+EMAIL_FROM_TICKETS = config("EMAIL_FROM_TICKETS", default="") or "Showzy Tickets <tickets@showzy.in>"
+EMAIL_FROM_ALERTS = config("EMAIL_FROM_ALERTS", default="") or "Showzy <alerts@showzy.in>"
+# Fallback for anything that doesn't pick a sender.
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or EMAIL_FROM_ALERTS
+
 _smtp_configured = bool(EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
 EMAIL_BACKEND = config(
     "EMAIL_BACKEND",
@@ -287,8 +312,31 @@ GSTIN = config("GSTIN", default="")
 
 # ── OTP settings ─────────────────────────────────────────────────────────────
 OTP_LENGTH = config("OTP_LENGTH", default=6, cast=int)
-OTP_EXPIRY_MINUTES = config("OTP_EXPIRY_MINUTES", default=10, cast=int)
+OTP_EXPIRY_MINUTES = config("OTP_EXPIRY_MINUTES", default=3, cast=int)
 OTP_MAX_ATTEMPTS = config("OTP_MAX_ATTEMPTS", default=5, cast=int)
+# Minimum gap between two codes sent to the same address.
+OTP_RESEND_COOLDOWN_SECONDS = config("OTP_RESEND_COOLDOWN_SECONDS", default=45, cast=int)
+# Key for the HMAC that protects stored codes. Falls back to SECRET_KEY so
+# nothing breaks if it is unset, but set it separately in production.
+OTP_PEPPER = config("OTP_PEPPER", default="")
+
+# ── Client IP (see apps/core/net.py) ─────────────────────────────────────────
+# Header written by an edge we control. Empty until the API is reachable only
+# through Cloudflare; then "CF-Connecting-IP".
+CLIENT_IP_HEADER = config("CLIENT_IP_HEADER", default="")
+# Proxies in front of Django that append to X-Forwarded-For. Render: 1.
+TRUSTED_PROXY_COUNT = config("TRUSTED_PROXY_COUNT", default=1, cast=int)
+# ── Cloudflare Turnstile (bot check on requesting a sign-in code) ────────────
+# Secret key from Cloudflare dashboard → Turnstile. Empty = check is off.
+# The matching *site* key is public and lives in the frontend build
+# (VITE_TURNSTILE_SITE_KEY). Cloudflare publishes always-pass test keys
+# (secret 1x0000000000000000000000000000000AA) for local work.
+TURNSTILE_SECRET_KEY = config("TURNSTILE_SECRET_KEY", default="")
+TURNSTILE_TIMEOUT = config("TURNSTILE_TIMEOUT", default=3, cast=int)
+# Optional: only accept tokens issued on these hostnames (comma separated).
+TURNSTILE_ALLOWED_HOSTNAMES = [
+    h.strip() for h in config("TURNSTILE_ALLOWED_HOSTNAMES", default="").split(",") if h.strip()
+]
 
 # When True the OTP request endpoint echoes the generated code back in the JSON
 # response so you can log in without a mail server. NEVER enable in production:
@@ -315,6 +363,10 @@ CELERY_BEAT_SCHEDULE = {
     "release-expired-ticket-orders": {
         "task": "apps.tickets.tasks.release_expired_orders",
         "schedule": 300,  # every 5 minutes
+    },
+    "purge-old-otp-tokens": {
+        "task": "apps.users.tasks.purge_old_otp_tokens",
+        "schedule": 86400,
     },
 }
 

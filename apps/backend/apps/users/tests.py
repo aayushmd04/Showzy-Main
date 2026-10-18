@@ -18,7 +18,9 @@ from rest_framework.test import APIClient, APIRequestFactory
 from rest_framework.views import APIView
 
 from apps.core.checks import email_must_actually_send, throttle_needs_a_shared_cache
-from .views import OTPEmailThrottle, OTPRateThrottle
+from .views import (
+    OTPEmailThrottle, OTPRateThrottle, OTPVerifyEmailThrottle, OTPVerifyRateThrottle,
+)
 
 from apps.artists.models import Artist
 from .models import UserRole
@@ -188,7 +190,9 @@ class OTPAttemptLockoutTests(TestCase):
         self.raw_otp = "482913"
         self.token = OTPToken.objects.create(
             email="lockout@naada.test",
-            otp_hash=OTPToken.hash_otp(self.raw_otp),
+            otp_hash=OTPToken.hash_otp(
+                self.raw_otp, OTPToken.binding_for("lockout@naada.test", OTPToken.Purpose.LOGIN)
+            ),
             expires_at=timezone.now() + timedelta(minutes=5),
         )
 
@@ -216,6 +220,261 @@ class OTPAttemptLockoutTests(TestCase):
         self.token.refresh_from_db()
         self.assertFalse(self.token.is_used)
         self.assertEqual(self.token.attempt_count, 3)
+
+
+class OTPHardeningTests(TestCase):
+    """Code generation, storage, cooldown, expiry, failure handling, verify limits."""
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.request_url = reverse("auth-request-otp")
+        self.verify_url = reverse("auth-verify-otp")
+        self.email = "hard@naada.test"
+
+    def tearDown(self):
+        cache.clear()
+
+    def _request(self, email=None, **extra):
+        return self.client.post(
+            self.request_url, {"email": email or self.email}, format="json", **extra
+        )
+
+    @override_settings(OTP_DEBUG_RESPONSE=True, OTP_RESEND_COOLDOWN_SECONDS=0)
+    def test_code_is_stored_keyed_not_as_plain_sha256(self):
+        import hashlib
+        from .models import OTPToken
+
+        raw = self._request().data["debug_otp"]
+        token = OTPToken.objects.get(email=self.email)
+        self.assertNotEqual(token.otp_hash, hashlib.sha256(raw.encode()).hexdigest())
+        self.assertEqual(
+            token.otp_hash,
+            OTPToken.hash_otp(raw, OTPToken.binding_for(self.email, token.purpose)),
+        )
+
+    def test_hash_is_bound_to_the_address(self):
+        from .models import OTPToken
+
+        self.assertNotEqual(
+            OTPToken.hash_otp("123456", "a@x.test|login"),
+            OTPToken.hash_otp("123456", "b@x.test|login"),
+        )
+
+    @override_settings(OTP_PEPPER="one")
+    def test_changing_the_pepper_invalidates_stored_codes(self):
+        from .models import OTPToken
+
+        before = OTPToken.hash_otp("123456", "a@x.test|login")
+        with override_settings(OTP_PEPPER="two"):
+            after = OTPToken.hash_otp("123456", "a@x.test|login")
+        self.assertNotEqual(before, after)
+
+    def test_generated_codes_are_numeric_and_the_right_length(self):
+        from .models import OTPToken
+
+        with override_settings(OTP_LENGTH=6):
+            codes = {OTPToken.generate_otp() for _ in range(50)}
+        self.assertTrue(all(len(c) == 6 and c.isdigit() for c in codes))
+        self.assertGreater(len(codes), 40)  # not a constant
+
+    def test_default_expiry_is_three_minutes(self):
+        from django.conf import settings
+
+        self.assertEqual(settings.OTP_EXPIRY_MINUTES, 3)
+
+    @override_settings(OTP_DEBUG_RESPONSE=True)
+    def test_response_tells_the_client_how_long_the_code_lives(self):
+        data = self._request().data
+        self.assertEqual(data["expires_in"], 180)
+        self.assertEqual(data["resend_after"], 45)
+
+    @override_settings(OTP_RESEND_COOLDOWN_SECONDS=45)
+    def test_a_second_request_inside_the_cooldown_is_refused_and_sends_nothing(self):
+        from django.core import mail
+
+        self.assertEqual(self._request().status_code, 200)
+        again = self._request()
+        self.assertEqual(again.status_code, 429)
+        self.assertGreater(again.data["retry_after"], 0)
+        self.assertIn("Retry-After", again)
+        self.assertEqual(len(mail.outbox), 1)
+
+    @override_settings(OTP_RESEND_COOLDOWN_SECONDS=45)
+    def test_cooldown_is_per_address(self):
+        self.assertEqual(self._request().status_code, 200)
+        self.assertEqual(self._request("other@naada.test").status_code, 200)
+
+    @override_settings(OTP_RESEND_COOLDOWN_SECONDS=45)
+    def test_cooldown_ends(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import OTPToken
+
+        self._request()
+        OTPToken.objects.update(created_at=timezone.now() - timedelta(seconds=46))
+        self.assertEqual(self._request().status_code, 200)
+
+    @override_settings(OTP_DEBUG_RESPONSE=True, OTP_RESEND_COOLDOWN_SECONDS=0)
+    def test_a_new_code_kills_the_old_one(self):
+        old = self._request().data["debug_otp"]
+        new = self._request().data["debug_otp"]
+        bad = self.client.post(
+            self.verify_url, {"email": self.email, "otp": old}, format="json"
+        )
+        if old != new:
+            self.assertEqual(bad.status_code, 400)
+        good = self.client.post(
+            self.verify_url, {"email": self.email, "otp": new}, format="json"
+        )
+        self.assertEqual(good.status_code, 200)
+
+    @override_settings(OTP_DEBUG_RESPONSE=True)
+    def test_an_expired_code_is_refused(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import OTPToken
+
+        raw = self._request().data["debug_otp"]
+        OTPToken.objects.update(expires_at=timezone.now() - timedelta(seconds=1))
+        resp = self.client.post(
+            self.verify_url, {"email": self.email, "otp": raw}, format="json"
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_a_failed_send_returns_503_leaks_no_code_and_leaves_no_cooldown(self):
+        from .models import OTPToken
+
+        with patch("apps.users.views.send_mail", side_effect=OSError("smtp down")):
+            with self.assertLogs("apps.users.views", level="ERROR") as logs:
+                resp = self._request()
+        self.assertEqual(resp.status_code, 503)
+        self.assertNotIn("debug_otp", resp.data)
+        self.assertFalse(OTPToken.objects.filter(email=self.email).exists())
+        # Nothing the log recorded contains a six-digit code.
+        import re
+        self.assertIsNone(re.search(r"\b\d{6}\b", " ".join(logs.output)))
+        # The user can retry straight away.
+        self.assertEqual(self._request().status_code, 200)
+
+    def test_email_does_not_contain_the_code_in_the_subject(self):
+        from django.core import mail
+
+        self._request()
+        msg = mail.outbox[0]
+        self.assertNotRegex(msg.subject, r"\d{4,}")
+        self.assertRegex(msg.body, r"\b\d{6}\b")
+        self.assertIn("3 minutes", msg.body)
+
+    def test_verify_is_throttled_per_address_across_tokens(self):
+        with patch.object(OTPVerifyEmailThrottle, "get_rate", return_value="3/hour"), \
+             patch.object(OTPVerifyRateThrottle, "get_rate", return_value="1000/hour"):
+            codes = [
+                self.client.post(
+                    self.verify_url,
+                    {"email": self.email, "otp": "000000"},
+                    format="json",
+                    REMOTE_ADDR=f"203.0.113.{i + 1}",
+                ).status_code
+                for i in range(6)
+            ]
+        self.assertIn(429, codes, codes)
+
+    def test_verify_is_throttled_per_caller(self):
+        with patch.object(OTPVerifyRateThrottle, "get_rate", return_value="3/hour"), \
+             patch.object(OTPVerifyEmailThrottle, "get_rate", return_value="1000/hour"):
+            codes = [
+                self.client.post(
+                    self.verify_url,
+                    {"email": f"u{i}@naada.test", "otp": "000000"},
+                    format="json",
+                    REMOTE_ADDR="198.51.100.20",
+                ).status_code
+                for i in range(6)
+            ]
+        self.assertIn(429, codes, codes)
+
+    def test_daily_cap_applies_even_when_the_hourly_cap_is_not_hit(self):
+        from .views import OTPEmailDayThrottle
+
+        with override_settings(OTP_RESEND_COOLDOWN_SECONDS=0), \
+             patch.object(OTPEmailDayThrottle, "get_rate", return_value="3/day"), \
+             patch.object(OTPEmailThrottle, "get_rate", return_value="100/hour"), \
+             patch.object(OTPRateThrottle, "get_rate", return_value="100/hour"):
+            codes = [self._request().status_code for _ in range(6)]
+        self.assertIn(429, codes, codes)
+
+    @override_settings(OTP_DEBUG_RESPONSE=False)
+    def test_the_code_is_never_echoed_unless_the_setting_allows_it(self):
+        self.assertNotIn("debug_otp", self._request().data)
+
+
+class ClientIPTests(TestCase):
+    """A caller must not be able to choose the address we throttle them under."""
+
+    def _req(self, **meta):
+        return APIRequestFactory().post("/x/", **meta)
+
+    def test_spoofed_leading_forwarded_for_is_ignored(self):
+        from apps.core.net import get_client_ip
+
+        # Client sent "1.2.3.4"; our one proxy appended the real address.
+        req = self._req(HTTP_X_FORWARDED_FOR="1.2.3.4, 203.0.113.9", REMOTE_ADDR="10.0.0.1")
+        self.assertEqual(get_client_ip(req), "203.0.113.9")
+
+    @override_settings(TRUSTED_PROXY_COUNT=2)
+    def test_two_proxies_in_front(self):
+        from apps.core.net import get_client_ip
+
+        req = self._req(
+            HTTP_X_FORWARDED_FOR="9.9.9.9, 203.0.113.9, 172.16.0.1", REMOTE_ADDR="10.0.0.1"
+        )
+        self.assertEqual(get_client_ip(req), "203.0.113.9")
+
+    def test_without_the_header_falls_back_to_the_socket(self):
+        from apps.core.net import get_client_ip
+
+        self.assertEqual(get_client_ip(self._req(REMOTE_ADDR="198.51.100.5")), "198.51.100.5")
+
+    def test_a_chain_shorter_than_the_trusted_count_falls_back_to_the_socket(self):
+        from apps.core.net import get_client_ip
+
+        with override_settings(TRUSTED_PROXY_COUNT=3):
+            req = self._req(HTTP_X_FORWARDED_FOR="1.1.1.1", REMOTE_ADDR="198.51.100.5")
+            self.assertEqual(get_client_ip(req), "198.51.100.5")
+
+    @override_settings(CLIENT_IP_HEADER="CF-Connecting-IP")
+    def test_edge_header_wins_when_configured(self):
+        from apps.core.net import get_client_ip
+
+        req = self._req(
+            HTTP_CF_CONNECTING_IP="203.0.113.77",
+            HTTP_X_FORWARDED_FOR="1.2.3.4",
+            REMOTE_ADDR="10.0.0.1",
+        )
+        self.assertEqual(get_client_ip(req), "203.0.113.77")
+
+    def test_edge_header_is_ignored_when_not_configured(self):
+        from apps.core.net import get_client_ip
+
+        req = self._req(HTTP_CF_CONNECTING_IP="6.6.6.6", REMOTE_ADDR="198.51.100.5")
+        self.assertEqual(get_client_ip(req), "198.51.100.5")
+
+
+class PurgeOTPTokensTests(TestCase):
+    def test_only_old_tokens_are_deleted(self):
+        from datetime import timedelta
+        from django.utils import timezone
+        from .models import OTPToken
+        from .tasks import purge_old_otp_tokens
+
+        fresh, _ = OTPToken.issue("fresh@naada.test", "login")
+        old, _ = OTPToken.issue("old@naada.test", "login")
+        OTPToken.objects.filter(pk=old.pk).update(created_at=timezone.now() - timedelta(hours=25))
+
+        self.assertEqual(purge_old_otp_tokens(), 1)
+        self.assertTrue(OTPToken.objects.filter(pk=fresh.pk).exists())
+        self.assertFalse(OTPToken.objects.filter(pk=old.pk).exists())
 
 
 class DeployCheckTests(TestCase):

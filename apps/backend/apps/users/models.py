@@ -1,7 +1,7 @@
 import uuid
 import hashlib
-import random
-import string
+import hmac
+import secrets
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
 from django.utils import timezone
@@ -110,11 +110,73 @@ class OTPToken(models.Model):
     @classmethod
     def generate_otp(cls):
         from django.conf import settings
-        return "".join(random.choices(string.digits, k=getattr(settings, "OTP_LENGTH", 6)))
+        length = getattr(settings, "OTP_LENGTH", 6)
+        # secrets, not random: random is a Mersenne Twister, whose output can
+        # be predicted from enough observed values.
+        return "".join(secrets.choice("0123456789") for _ in range(length))
 
     @classmethod
-    def hash_otp(cls, raw_otp: str) -> str:
-        return hashlib.sha256(raw_otp.encode()).hexdigest()
+    def _pepper(cls) -> bytes:
+        from django.conf import settings
+        pepper = getattr(settings, "OTP_PEPPER", "") or settings.SECRET_KEY
+        return pepper.encode()
+
+    @classmethod
+    def hash_otp(cls, raw_otp: str, binding: str = "") -> str:
+        """Keyed hash of a code, bound to who it was issued to.
+
+        A bare SHA-256 of a 6-digit code falls to a lookup table of a million
+        entries, so a leaked table of tokens would hand over every live code.
+        The HMAC key (``OTP_PEPPER``) lives in the environment, not the
+        database, and ``binding`` ("email|purpose") stops one user's hash being
+        replayed against another's token.
+        """
+        return hmac.new(
+            cls._pepper(), f"{binding}|{raw_otp}".encode(), hashlib.sha256
+        ).hexdigest()
+
+    @classmethod
+    def binding_for(cls, email: str, purpose: str) -> str:
+        return f"{email.strip().lower()}|{purpose}"
+
+    @classmethod
+    def issue(cls, email: str, purpose: str, ip_address=None):
+        """Invalidate any open code, mint a new one. Returns ``(token, raw_otp)``."""
+        from datetime import timedelta
+        from django.conf import settings
+
+        email = email.strip().lower()
+        cls.objects.filter(email=email, purpose=purpose, is_used=False).update(is_used=True)
+        raw_otp = cls.generate_otp()
+        token = cls.objects.create(
+            email=email,
+            otp_hash=cls.hash_otp(raw_otp, cls.binding_for(email, purpose)),
+            purpose=purpose,
+            expires_at=timezone.now()
+            + timedelta(minutes=getattr(settings, "OTP_EXPIRY_MINUTES", 3)),
+            ip_address=ip_address,
+        )
+        return token, raw_otp
+
+    @classmethod
+    def seconds_until_resend(cls, email: str, purpose: str) -> int:
+        """0 if a new code may be sent now, else how long the caller must wait.
+
+        Looks at the newest token regardless of ``is_used``: asking for a code
+        marks the previous one used, so "unused" would never find it.
+        """
+        from django.conf import settings
+
+        cooldown = getattr(settings, "OTP_RESEND_COOLDOWN_SECONDS", 45)
+        latest = (
+            cls.objects.filter(email=email.strip().lower(), purpose=purpose)
+            .order_by("-created_at")
+            .first()
+        )
+        if not latest or cooldown <= 0:
+            return 0
+        elapsed = (timezone.now() - latest.created_at).total_seconds()
+        return max(0, int(cooldown - elapsed + 0.999))
 
     def verify(self, raw_otp: str) -> bool:
         from django.conf import settings
@@ -138,7 +200,8 @@ class OTPToken(models.Model):
             return False
         self.refresh_from_db(fields=["attempt_count"])
 
-        if self.otp_hash == self.hash_otp(raw_otp):
+        expected = self.hash_otp(raw_otp, self.binding_for(self.email, self.purpose))
+        if hmac.compare_digest(self.otp_hash, expected):
             self.is_used = True
             self.save(update_fields=["is_used"])
             return True

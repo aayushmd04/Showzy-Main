@@ -17,12 +17,14 @@ import { Field, Input, Label, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useStore } from "@/store/app-store";
 import {
-  requestOtp, verifyOtp, updateMe, setUserRole, logout as apiLogout,
+  requestOtp, retryAfterSeconds, verifyOtp, updateMe, setUserRole, logout as apiLogout,
   getMyArtistProfile, updateArtist, createVenue, getCities, getGenres, post,
-  recordConsent,
+  recordConsent, ApiError,
 } from "@/lib/api";
 import type { ApiArtist, ApiCity, ApiGenre } from "@/lib/api";
 import type { Role } from "@/data/fixtures";
+import { createTurnstile, turnstileEnabled } from "@/lib/turnstile";
+import type { TurnstileHandle } from "@/lib/turnstile";
 
 type Outcome = "authed" | "guest";
 
@@ -56,10 +58,30 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
   >("email");
   const [email, setEmail] = useState("");
   const [debugOtp, setDebugOtp] = useState<string | undefined>();
+  // When the current code was sent and what the server said about it. The
+  // countdowns are derived from these, so they survive re-renders and a slow tab.
+  const [otpClock, setOtpClock] = useState<OtpClock | null>(null);
   const [loading, setLoading] = useState(false);
   const [stepError, setStepError] = useState("");
   const [pendingRole, setPendingRole] = useState<Role>("listener");
   const optionsRef = useRef<AuthOptions>({});
+  // Cloudflare Turnstile: created on first use inside the container below,
+  // removed when the sheet closes. Off entirely without a site key.
+  const checkBoxRef = useRef<HTMLDivElement | null>(null);
+  const checkRef = useRef<TurnstileHandle | null>(null);
+
+  useEffect(() => {
+    if (!open) {
+      checkRef.current?.destroy();
+      checkRef.current = null;
+    }
+  }, [open]);
+
+  const securityToken = async (): Promise<string | undefined> => {
+    if (!turnstileEnabled() || !checkBoxRef.current) return undefined;
+    checkRef.current ??= createTurnstile(checkBoxRef.current);
+    return checkRef.current.getToken();
+  };
 
   const openSheet = useCallback((nextTitle: string, options: AuthOptions = {}) => {
     optionsRef.current = options;
@@ -67,6 +89,7 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     setStep("email");
     setEmail("");
     setDebugOtp(undefined);
+    setOtpClock(null);
     setStepError("");
     setOpen(true);
   }, []);
@@ -201,25 +224,56 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     [finish, pendingRole, setCurrentUser],
   );
 
-  const handleSendOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
+  /** Ask for a code. Returns true if one is now on its way (or was just sent). */
+  const sendCode = async (): Promise<boolean> => {
     setLoading(true);
     try {
-      const res = await requestOtp(email.trim());
+      let token: string | undefined;
+      try {
+        token = await securityToken();
+      } catch (err: unknown) {
+        toast(
+          err instanceof Error && err.message !== "Superseded"
+            ? `${err.message}. Please try again.`
+            : "Security check didn't finish. Please try again.",
+          "fault",
+        );
+        return false;
+      }
+      const res = await requestOtp(email.trim(), token);
       setDebugOtp(res?.debug_otp);
-      setStep("code");
+      setOtpClock({
+        sentAt: Date.now(),
+        expiresIn: res?.expires_in,
+        resendAfter: res?.resend_after ?? DEFAULT_RESEND_SECONDS,
+      });
       if (res?.debug_otp) {
         toast(`Dev mode — OTP: ${res.debug_otp}`, "default");
       } else {
         toast("Code sent — check your email");
       }
+      return true;
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Failed to send code";
-      toast(msg, "fault");
+      const wait = retryAfterSeconds(err);
+      if (wait) {
+        // A code went out moments ago (reopened the sheet, double tap). Let
+        // them type it instead of dead-ending; the expiry is unknown, so the
+        // code step shows only the resend countdown.
+        setOtpClock({ sentAt: Date.now(), resendAfter: wait });
+        toast("A code was just sent — check your email", "default");
+        return true;
+      }
+      toast(friendlySendError(err), "fault");
+      return false;
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    if (await sendCode()) setStep("code");
   };
 
   const handleVerifyOtp = async (otp: string) => {
@@ -242,7 +296,12 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
         finish("authed", nextRole);
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Invalid code — try again";
+      const tooMany = err instanceof ApiError && err.status === 429;
+      const msg = tooMany
+        ? "Too many attempts. Please wait a while, then ask for a new code."
+        : err instanceof Error
+          ? err.message
+          : "Invalid code — try again";
       toast(msg, "fault");
     } finally {
       setLoading(false);
@@ -334,11 +393,16 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
           <CodeStep
             email={email}
             debugOtp={debugOtp}
+            clock={otpClock}
             loading={loading}
             onBack={() => setStep("email")}
+            onResend={sendCode}
             onVerified={handleVerifyOtp}
           />
         )}
+        {/* Turnstile mounts here. Empty (and collapsed) unless Cloudflare asks
+            for a click; kept outside the steps so it survives email → code. */}
+        <div ref={checkBoxRef} className="mt-3 flex justify-center empty:hidden" />
       </Modal>
     </AuthContext.Provider>
   );
@@ -385,33 +449,72 @@ function RoleStep({
   );
 }
 
+/** What we know about the code currently in the user's inbox. */
+interface OtpClock {
+  sentAt: number;
+  /** Seconds the code lives; unknown when we only learned a code was just sent. */
+  expiresIn?: number;
+  /** Seconds until another code may be requested. */
+  resendAfter: number;
+}
+
+const DEFAULT_RESEND_SECONDS = 45;
+
+function formatClock(totalSeconds: number): string {
+  const m = Math.floor(totalSeconds / 60);
+  return `${m}:${String(totalSeconds % 60).padStart(2, "0")}`;
+}
+
+function friendlySendError(err: unknown): string {
+  if (err instanceof ApiError) {
+    if (err.status === 429) return "Too many codes requested. Please try again in a while.";
+    if (err.status === 503) return "We couldn't send the code. Please try again in a moment.";
+  }
+  return err instanceof Error ? err.message : "Failed to send code";
+}
+
 function CodeStep({
   email,
   debugOtp,
+  clock,
   loading,
   onBack,
+  onResend,
   onVerified,
 }: {
   email: string;
   debugOtp?: string;
+  clock: OtpClock | null;
   loading: boolean;
   onBack: () => void;
+  onResend: () => Promise<boolean>;
   onVerified: (otp: string) => void;
 }) {
   const [digits, setDigits] = useState<string[]>(Array(6).fill(""));
-  const [seconds, setSeconds] = useState(59);
+  const [now, setNow] = useState(() => Date.now());
   const inputRefs = useRef<Array<HTMLInputElement | null>>(Array(6).fill(null));
 
   useEffect(() => {
     inputRefs.current[0]?.focus();
   }, []);
 
+  // A fresh code means a fresh, empty field.
+  const sentAt = clock?.sentAt;
   useEffect(() => {
-    const timer = window.setInterval(() => {
-      setSeconds((s) => (s <= 1 ? 0 : s - 1));
-    }, 1000);
+    setDigits(Array(6).fill(""));
+    inputRefs.current[0]?.focus();
+  }, [sentAt]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 500);
     return () => window.clearInterval(timer);
   }, []);
+
+  const elapsed = clock ? (now - clock.sentAt) / 1000 : 0;
+  const resendIn = clock ? Math.max(0, Math.ceil(clock.resendAfter - elapsed)) : 0;
+  const expiresIn =
+    clock?.expiresIn !== undefined ? Math.max(0, Math.ceil(clock.expiresIn - elapsed)) : undefined;
+  const expired = expiresIn === 0;
 
   // Auto-fill if debugOtp is available
   useEffect(() => {
@@ -419,7 +522,7 @@ function CodeStep({
       const filled = debugOtp.split("");
       setDigits(filled);
     }
-  }, [debugOtp]);
+  }, [debugOtp, sentAt]);
 
   const code = digits.join("");
 
@@ -505,14 +608,38 @@ function CodeStep({
         ))}
       </div>
 
-      <p className="t-small mt-4 text-muted">
-        {seconds > 0 ? (
-          <>Resend in <span className="t-mono">0:{String(seconds).padStart(2, "0")}</span></>
+      {expiresIn !== undefined && (
+        <p
+          className={`t-small mt-4 ${expired ? "text-signal" : "text-muted"}`}
+          role="status"
+          aria-live="polite"
+        >
+          {expired ? (
+            "This code has expired. Send a new one."
+          ) : (
+            <>
+              Code expires in <span className="t-mono">{formatClock(expiresIn)}</span>
+            </>
+          )}
+        </p>
+      )}
+
+      <p className="t-small mt-2 text-muted">
+        {resendIn > 0 ? (
+          <>
+            Send a new code in <span className="t-mono">{formatClock(resendIn)}</span>
+          </>
         ) : (
-          <button type="button" className="underline hover:text-paper transition-colors" onClick={onBack}>
-            Didn't get it? Go back and try again.
+          <button
+            type="button"
+            className="underline hover:text-paper transition-colors disabled:opacity-50"
+            disabled={loading}
+            onClick={() => void onResend()}
+          >
+            {expired ? "Send a new code" : "Didn't get it? Send a new code"}
           </button>
         )}
+        <span className="text-muted"> · Check your spam folder too.</span>
       </p>
 
       <div className="mt-5 flex gap-2">
@@ -523,7 +650,7 @@ function CodeStep({
           type="submit"
           variant="primary"
           full
-          disabled={code.length !== 6 || loading}
+          disabled={code.length !== 6 || loading || expired}
         >
           {loading ? "Verifying…" : "Verify code"}
         </Button>

@@ -1,6 +1,7 @@
 from decimal import Decimal
 from django.conf import settings
 from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework import serializers
 from .models import (
     Organizer, Membership, GigApplication,
@@ -30,6 +31,22 @@ class OrganizerSerializer(serializers.ModelSerializer):
             "id", "kyc_status", "kyc_submitted_at", "kyc_verified_at", "kyc_rejection_reason",
             "is_verified", "can_book_artists", "created_at",
         ]
+        # Nobody picks a URL slug for the venue they just named; make one.
+        extra_kwargs = {"slug": {"required": False}}
+
+    def create(self, validated_data):
+        if not validated_data.get("slug"):
+            validated_data["slug"] = self._unique_slug(validated_data.get("name", ""))
+        return super().create(validated_data)
+
+    @staticmethod
+    def _unique_slug(name):
+        base = slugify(name)[:40] or "organizer"
+        slug, n = base, 2
+        while Organizer.objects.filter(slug=slug).exists():
+            slug = f"{base}-{n}"
+            n += 1
+        return slug
 
 
 class MembershipSerializer(serializers.ModelSerializer):
@@ -78,16 +95,25 @@ class BookingMessageSerializer(serializers.ModelSerializer):
 class BookingConversationSerializer(serializers.ModelSerializer):
     organizer_name = serializers.CharField(source="organizer.name", read_only=True)
     artist_name = serializers.CharField(source="artist.stage_name", read_only=True)
+    event_title = serializers.CharField(source="event.title", read_only=True, default=None)
     latest_message = serializers.SerializerMethodField()
+    # The offer currently waiting for an answer, if any. This is what an
+    # artist's inbox needs to show "₹X for 14 Mar" and offer Accept / Counter /
+    # Decline without a request per thread.
+    pending_offer = serializers.SerializerMethodField()
 
     class Meta:
         model = BookingConversation
         fields = [
             "id", "organizer", "organizer_name", "artist", "artist_name",
-            "event", "is_active", "last_message_at", "latest_message",
-            "contact_info_detected", "created_at",
+            "event", "event_title", "is_active", "last_message_at", "latest_message",
+            "pending_offer", "contact_info_detected", "created_at",
         ]
         read_only_fields = ["id", "last_message_at", "contact_info_detected", "created_at"]
+
+    def get_pending_offer(self, obj):
+        offer = obj.offers.filter(status=Offer.Status.PENDING).order_by("-created_at").first()
+        return OfferSerializer(offer).data if offer else None
 
     def get_latest_message(self, obj):
         msg = obj.messages.filter(is_deleted=False).last()

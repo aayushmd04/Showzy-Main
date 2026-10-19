@@ -1,3 +1,4 @@
+import { useCallback } from "react";
 import { Link } from "react-router-dom";
 import { ConsoleShell, ARTIST_NAV } from "@/components/naada/console-shell";
 import { StatTile } from "@/components/naada/stat-tile";
@@ -6,14 +7,31 @@ import { useStore } from "@/store/app-store";
 import { dateListing, money } from "@/lib/format";
 import { PLATFORM_FEE_RATE, TDS_RATE } from "@/data/fixtures";
 import { bookingEventTitle } from "@/lib/adapters";
+import { ApiError, getMyArtistProfile, getMyConversations, type ApiArtist } from "@/lib/api";
+import { ProfileNudge } from "@/components/naada/profile-nudge";
+import { useAsync } from "@/screens/home/home-kit";
 
 /** Section 7.16 — Artist console home. */
 export function ArtistHomeScreen() {
-  const { bookings, eventById, venueOf } = useStore();
+  const { bookings, eventById, venueOf, currentUser } = useStore();
 
-  const openOffers = bookings.filter(
-    (b) => b.state === "requested" || b.state === "negotiating",
+  const fetchInbox = useCallback(() => getMyConversations(), []);
+  const fetchProfile = useCallback(async (): Promise<ApiArtist | null> => {
+    try {
+      return await getMyArtistProfile();
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 404) return null;
+      throw err;
+    }
+  }, []);
+  const inbox = useAsync(fetchInbox, "load your offers");
+  const profile = useAsync(fetchProfile, "check your profile");
+
+  // Offers a host has put to you and you haven't answered yet.
+  const openOffers = (inbox.data?.results ?? []).filter(
+    (c) => c.pending_offer && c.pending_offer.proposed_by !== currentUser?.id,
   );
+  const gaps = profile.data?.profile_gaps ?? [];
   const confirmed = bookings.filter((b) => b.state === "accepted" || b.state === "funded");
   const inEscrow = bookings
     .filter((b) => b.state === "funded")
@@ -26,8 +44,29 @@ export function ArtistHomeScreen() {
     <ConsoleShell nav={ARTIST_NAV} breadcrumb={["Overview"]}>
       <h1 className="t-h1">Overview</h1>
 
+      {openOffers.length > 0 && (
+        <Link
+          to="/artist/offers"
+          className="mt-6 flex items-center justify-between gap-3 border border-signal bg-surface px-4 py-3 transition-colors hover:bg-paper/5"
+        >
+          <span className="t-small">
+            <span className="font-semibold">
+              {openOffers.length === 1 ? "A host sent you an offer." : `${openOffers.length} hosts sent you offers.`}
+            </span>{" "}
+            <span className="text-muted">Open it to accept, counter or decline.</span>
+          </span>
+          <span className="btn btn-secondary btn-sm shrink-0">View offers</span>
+        </Link>
+      )}
+
+      <ProfileNudge gaps={gaps} hasOffer={openOffers.length > 0} className="mt-4" />
+
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile value={String(openOffers.length)} label="Open offers" tone="signal" />
+        <StatTile
+          value={inbox.loading && !inbox.data ? "…" : inbox.error ? "—" : String(openOffers.length)}
+          label="Open offers"
+          tone="signal"
+        />
         <StatTile
           value={String(confirmed.length)}
           label={confirmed.length === 1 ? "Confirmed gig" : "Confirmed gigs"}

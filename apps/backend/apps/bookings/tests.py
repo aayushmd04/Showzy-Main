@@ -400,3 +400,54 @@ class FeeMathTests(TestCase):
             platform_fee, _tds, _payout, gross = compute_fees(Decimal("10000"))
         self.assertEqual(platform_fee, Decimal("800.00"))
         self.assertEqual(gross, Decimal("10800.00"))
+
+
+class ConversationInboxTests(TestCase):
+    """What an artist's inbox needs in one call, and a host's first offer."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.host = User.objects.create_user(email="newhost@naada.test", full_name="New Host")
+        self.artist_user = User.objects.create_user(email="newact@naada.test", full_name="New Act")
+        self.artist = Artist.objects.create(user=self.artist_user, stage_name="New Act")
+        self.host_client = APIClient()
+        self.host_client.force_authenticate(user=self.host)
+        self.artist_client = APIClient()
+        self.artist_client.force_authenticate(user=self.artist_user)
+        self.on = (timezone.now() + timezone.timedelta(days=30)).date().isoformat()
+
+    def make_organizer(self, name="Café Kaveri"):
+        return self.host_client.post(reverse("organizers-list"), {"name": name}, format="json")
+
+    def test_a_host_with_no_organiser_can_make_one_from_just_a_name(self):
+        resp = self.make_organizer()
+        self.assertEqual(resp.status_code, 201, resp.data)
+        self.assertEqual(resp.data["slug"], "cafe-kaveri")
+        # A second venue with the same name still gets a slug of its own.
+        other = self.make_organizer()
+        self.assertEqual(other.status_code, 201, other.data)
+        self.assertEqual(other.data["slug"], "cafe-kaveri-2")
+
+    def test_the_artists_inbox_carries_the_waiting_offer(self):
+        org = self.make_organizer().data
+        convo = self.host_client.post(
+            reverse("booking-conversations"),
+            {"organizer": org["id"], "artist": str(self.artist.id)}, format="json").data
+        resp = self.host_client.post(
+            reverse("booking-offer", args=[convo["id"]]),
+            {"fee_amount": "6500", "performance_date": self.on,
+             "performance_duration_minutes": 90, "set_count": 2},
+            format="json")
+        self.assertEqual(resp.status_code, 201, resp.data)
+
+        inbox = self.artist_client.get(reverse("booking-conversations")).data["results"]
+        self.assertEqual(len(inbox), 1)
+        offer = inbox[0]["pending_offer"]
+        self.assertEqual(offer["fee_amount"], "6500.00")
+        self.assertEqual(offer["performance_date"], self.on)
+        self.assertEqual(inbox[0]["organizer_name"], "Café Kaveri")
+
+        # Once answered it is no longer waiting.
+        self.artist_client.post(reverse("offer-reject", args=[offer["id"]]))
+        inbox = self.artist_client.get(reverse("booking-conversations")).data["results"]
+        self.assertIsNone(inbox[0]["pending_offer"])

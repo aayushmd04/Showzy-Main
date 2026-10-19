@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Pill, statusLabel } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
+import { OfferInbox } from "@/components/naada/offer-inbox";
 import { useStore } from "@/store/app-store";
 import { dateCompact, money } from "@/lib/format";
 import { PLATFORM_FEE_RATE } from "@/data/fixtures";
@@ -18,6 +19,9 @@ export function HostBookingsScreen() {
       <p className="t-body mt-2 max-w-[52ch] text-muted">
         Artists aren't charged a Showzy fee. Our {Math.round(PLATFORM_FEE_RATE * 100)}% is added on top of the agreed fee, and you pay it.
       </p>
+
+      {/* Offers still being negotiated — an artist's counter lands here. */}
+      <OfferInbox viewer="host" className="mt-6" />
 
       {rows.length > 0 ? (
         <ul className="mt-6 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">

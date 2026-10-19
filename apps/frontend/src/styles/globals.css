@@ -308,6 +308,7 @@
   }
   .field::placeholder { color: rgba(243,233,214,.32); }
   .field:focus { border-color: var(--color-signal); outline: none; }
+  .field[aria-invalid="true"] { border-color: var(--color-fault); }
 
   .pill {
     display: inline-flex;

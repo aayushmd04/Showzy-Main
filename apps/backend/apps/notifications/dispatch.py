@@ -15,6 +15,7 @@ from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.utils import timezone
 
+from apps.artists.completeness import join_gaps, profile_gaps
 from .models import Channel, Notification, NotificationPreference, NotificationType
 
 logger = logging.getLogger(__name__)
@@ -233,6 +234,15 @@ def _counterparty(conversation, actor):
     return _artist_user(conversation.artist), "artist"
 
 
+def _profile_gaps_for(artist):
+    """What the artist's profile lacks; never lets a lookup failure drop the notice."""
+    try:
+        return profile_gaps(artist)
+    except Exception:
+        logger.exception("Could not check profile completeness for artist %s", artist.pk)
+        return []
+
+
 def _offer_home(side):
     return "/artist/offers" if side == "artist" else "/host/bookings"
 
@@ -276,6 +286,23 @@ def offer_made(offer, actor):
     action_url = _offer_home(side)
     note_block = f"They added: {offer.notes.strip()}\n\n" if offer.notes.strip() else ""
 
+    # A host can send an offer to an artist who signed up but never finished
+    # their profile. Say so, and send them to the profile first: hosts book on a
+    # photo, a city and a fee range, and the artist cannot counter sensibly
+    # without their own fee range set.
+    gaps = _profile_gaps_for(convo.artist) if side == "artist" else []
+    call_to_action = f"Reply, counter or accept here: {settings.FRONTEND_URL}{action_url}"
+    if gaps:
+        body = (
+            f"{body} Your profile is missing {join_gaps(gaps)}. "
+            "Complete it, then open the offer to accept or counter."
+        )
+        action_url = "/artist/profile"
+        call_to_action = (
+            f"Complete your profile: {settings.FRONTEND_URL}{action_url}\n"
+            f"Then respond to the offer: {settings.FRONTEND_URL}{_offer_home(side)}"
+        )
+
     for user in recipients:
         record(
             user,
@@ -283,7 +310,11 @@ def offer_made(offer, actor):
             title=title,
             body=body,
             action_url=action_url,
-            data={"offer_id": str(offer.id), "conversation_id": str(convo.id)},
+            data={
+                "offer_id": str(offer.id),
+                "conversation_id": str(convo.id),
+                "profile_gaps": gaps,
+            },
         )
         if not _prefs(user).booking_activity_email:
             continue
@@ -294,7 +325,7 @@ def offer_made(offer, actor):
 
 {body}
 
-{note_block}Reply, counter or accept here: {settings.FRONTEND_URL}{action_url}
+{note_block}{call_to_action}
 
 — Showzy
 """,
@@ -358,7 +389,10 @@ def offer_answered(offer, actor):
             title=title,
             body=body,
             action_url=action_url,
-            data={"offer_id": str(offer.id), "conversation_id": str(convo.id)},
+            data={
+                "offer_id": str(offer.id),
+                "conversation_id": str(convo.id),
+            },
         )
         if not _prefs(user).booking_activity_email:
             continue

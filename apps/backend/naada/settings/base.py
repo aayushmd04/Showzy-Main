@@ -179,6 +179,9 @@ REST_FRAMEWORK = {
         # are capped separately, but asking for a fresh code resets that cap.
         "otp_verify": "20/hour",
         "otp_verify_email": "10/hour",
+        # Google sign-in: per caller IP. Each attempt costs a signature check
+        # and possibly a fetch of Google's keys.
+        "google_login": "30/hour",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
@@ -344,6 +347,14 @@ TURNSTILE_TIMEOUT = config("TURNSTILE_TIMEOUT", default=3, cast=int)
 TURNSTILE_ALLOWED_HOSTNAMES = [
     h.strip() for h in config("TURNSTILE_ALLOWED_HOSTNAMES", default="").split(",") if h.strip()
 ]
+
+# ── Google sign-in ────────────────────────────────────────────────────────────
+# OAuth *client ID* (Google Cloud Console → APIs & Services → Credentials →
+# OAuth client, type "Web application"). It is public and there is no secret in
+# this flow. Pair it with VITE_GOOGLE_CLIENT_ID in the frontend build. Empty =
+# the endpoint answers 503 and the button is hidden.
+GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
+GOOGLE_OAUTH_TIMEOUT = config("GOOGLE_OAUTH_TIMEOUT", default=5, cast=int)
 
 # When True the OTP request endpoint echoes the generated code back in the JSON
 # response so you can log in without a mail server. NEVER enable in production:

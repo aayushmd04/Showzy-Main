@@ -242,6 +242,19 @@ export async function verifyOtp(
   return data;
 }
 
+/** Sign in with the ID token Google's button returned. Same result as `verifyOtp`. */
+export async function googleLogin(
+  credential: string,
+): Promise<{ access: string; refresh: string; user: MeResponse }> {
+  const data = await post<{
+    access: string;
+    refresh: string;
+    user: MeResponse;
+  }>("/auth/google/", { credential }, false);
+  tokens.set(data.access, data.refresh);
+  return data;
+}
+
 export async function getMe(): Promise<MeResponse> {
   return get<MeResponse>("/auth/me/");
 }

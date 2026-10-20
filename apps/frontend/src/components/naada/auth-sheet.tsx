@@ -17,12 +17,13 @@ import { Field, Input, Label, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { useStore } from "@/store/app-store";
 import {
-  requestOtp, retryAfterSeconds, verifyOtp, updateMe, setUserRole, logout as apiLogout,
+  googleLogin, requestOtp, retryAfterSeconds, verifyOtp, updateMe, setUserRole, logout as apiLogout,
   getMyArtistProfile, updateArtist, createVenue, getCities, getGenres, post,
   recordConsent, ApiError,
 } from "@/lib/api";
 import type { ApiArtist, ApiCity, ApiGenre } from "@/lib/api";
 import type { Role } from "@/data/fixtures";
+import { googleEnabled, renderGoogleButton } from "@/lib/google";
 import { createTurnstile, turnstileEnabled } from "@/lib/turnstile";
 import type { TurnstileHandle } from "@/lib/turnstile";
 
@@ -276,25 +277,30 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
     if (await sendCode()) setStep("code");
   };
 
+  /** Everything after tokens are stored, whichever route got the user in. */
+  const completeSignIn = async (user: Awaited<ReturnType<typeof verifyOtp>>["user"]) => {
+    // Keep a record of what they agreed to (the notice under the email box).
+    // The server ignores repeats, so this only adds a row when the wording changed.
+    void recordConsent("terms_privacy", LEGAL_VERSION, "signin");
+    setCurrentUser({ id: user.id, email: user.email, full_name: user.full_name, role: user.role });
+    const nextRole: Role = ROLE_MAP[user.role] ?? "listener";
+    const preferred = optionsRef.current.preferRole;
+    if (user.is_new_user && preferred) {
+      setPendingRole(nextRole);
+      await handleRoleSelect(preferred);
+    } else if (user.is_new_user) {
+      setPendingRole(nextRole);
+      setStep("role");
+    } else {
+      finish("authed", nextRole);
+    }
+  };
+
   const handleVerifyOtp = async (otp: string) => {
     setLoading(true);
     try {
       const { user } = await verifyOtp(email.trim(), otp);
-      // Keep a record of what they agreed to (the notice under the email box).
-      // The server ignores repeats, so this only adds a row when the wording changed.
-      void recordConsent("terms_privacy", LEGAL_VERSION, "signin");
-      setCurrentUser({ id: user.id, email: user.email, full_name: user.full_name, role: user.role });
-      const nextRole: Role = ROLE_MAP[user.role] ?? "listener";
-      const preferred = optionsRef.current.preferRole;
-      if (user.is_new_user && preferred) {
-        setPendingRole(nextRole);
-        await handleRoleSelect(preferred);
-      } else if (user.is_new_user) {
-        setPendingRole(nextRole);
-        setStep("role");
-      } else {
-        finish("authed", nextRole);
-      }
+      await completeSignIn(user);
     } catch (err: unknown) {
       const tooMany = err instanceof ApiError && err.status === 429;
       const msg = tooMany
@@ -303,6 +309,24 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
           ? err.message
           : "Invalid code — try again";
       toast(msg, "fault");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleCredential = async (credential: string) => {
+    setLoading(true);
+    try {
+      const { user } = await googleLogin(credential);
+      await completeSignIn(user);
+    } catch (err: unknown) {
+      const tooMany = err instanceof ApiError && err.status === 429;
+      toast(
+        tooMany
+          ? "Too many attempts. Please wait a while, or use your email instead."
+          : "Couldn't sign you in with Google. Try again, or use your email.",
+        "fault",
+      );
     } finally {
       setLoading(false);
     }
@@ -347,6 +371,16 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
           <RoleStep loading={loading} error={stepError} onSelect={handleRoleSelect} />
         ) : step === "email" ? (
           <form onSubmit={handleSendOtp}>
+            {googleEnabled() && (
+              <>
+                <GoogleSignInButton onCredential={handleGoogleCredential} />
+                <div className="my-5 flex items-center gap-3" aria-hidden="true">
+                  <span className="h-px flex-1 bg-line" />
+                  <span className="t-micro">or use your email</span>
+                  <span className="h-px flex-1 bg-line" />
+                </div>
+              </>
+            )}
             <p className="t-small text-muted mb-4">
               Enter your email to sign in. No account yet? One will be created for you.
             </p>
@@ -406,6 +440,27 @@ export function AuthSheetProvider({ children }: { children: ReactNode }) {
       </Modal>
     </AuthContext.Provider>
   );
+}
+
+/** Google draws the button itself (in an iframe); we only give it a place. */
+function GoogleSignInButton({ onCredential }: { onCredential: (credential: string) => void }) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  // The button is drawn once; keep it pointing at the latest handler.
+  const handlerRef = useRef(onCredential);
+  handlerRef.current = onCredential;
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (!box) return;
+    // Google's button is 200–400px wide.
+    const width = Math.min(400, Math.max(200, Math.floor(box.clientWidth || 320)));
+    renderGoogleButton(box, (credential) => handlerRef.current(credential), { width }).catch(() => {
+      // Blocked or offline: the email form below still works, so say nothing.
+    });
+    return () => { box.replaceChildren(); };
+  }, []);
+
+  return <div ref={boxRef} className="flex min-h-[44px] justify-center" />;
 }
 
 const ROLE_OPTIONS: { role: Role; label: string; description: string; emoji: string }[] = [

@@ -849,6 +849,7 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `DEFAULT_FROM_EMAIL` | `Showzy <alerts@showzy.in>` | Fallback sender. Sign-in codes use `EMAIL_FROM_AUTH` (`auth@showzy.in`), tickets and refunds `EMAIL_FROM_TICKETS` (`tickets@`), everything else `EMAIL_FROM_ALERTS` (`alerts@`). All are aliases on the mailbox |
 | `EMAIL_USE_SSL` | `False` | `True` for port 465 (then set `EMAIL_USE_TLS=False`) |
 | `TURNSTILE_SECRET_KEY` | empty | Cloudflare Turnstile secret; pair with `VITE_TURNSTILE_SITE_KEY` in the frontend build. Empty = no bot check (`check --deploy` warns) |
+| `GOOGLE_OAUTH_CLIENT_ID` | empty | Google OAuth *client ID* (public, no secret) for "Continue with Google"; pair with `VITE_GOOGLE_CLIENT_ID` in the frontend build. Empty = Google sign-in off (endpoint answers 503). Cloud Console → Credentials → OAuth client (Web application); add the frontend origin(s) under *Authorized JavaScript origins*, leave redirect URIs empty, and **publish** the consent screen |
 | `OTP_PEPPER` | empty (falls back to `SECRET_KEY`) | Secret key protecting stored sign-in codes; set it separately |
 | `TRUSTED_PROXY_COUNT` | `1` | Proxies in front of Django (Render: 1; Cloudflare + Render: 2) |
 | `CLIENT_IP_HEADER` | empty | `CF-Connecting-IP` only once the origin accepts Cloudflare traffic exclusively |
@@ -867,6 +868,7 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | Variable | Example | Notes |
 |---|---|---|
 | `VITE_API_BASE` | `https://naada-api.onrender.com/api/v1` | Include `/api/v1`, no trailing slash. **Rebuild to change.** |
+| `VITE_GOOGLE_CLIENT_ID` | `1234-abc.apps.googleusercontent.com` | Same value as the backend's `GOOGLE_OAUTH_CLIENT_ID`. Empty hides the Google button. **Rebuild to change.** |
 | `VITE_SENTRY_DSN` | *(empty)* | |
 | `VITE_ANALYTICS_KEY` / `VITE_ANALYTICS_HOST` | *(empty)* | |
 

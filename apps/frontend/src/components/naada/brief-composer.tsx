@@ -42,7 +42,7 @@ function ownEventOf(e: ApiEvent): OwnEvent {
 }
 
 export function BriefComposerProvider({ children }: { children: ReactNode }) {
-  const { artists, sendBrief, toast, currentUser } = useStore();
+  const { artists, toast, currentUser } = useStore();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [artistId, setArtistId] = useState<string | null>(null);
@@ -91,10 +91,11 @@ export function BriefComposerProvider({ children }: { children: ReactNode }) {
     if (!artist || !event || sending) return;
     setSending(true);
     setSendError("");
+    let conversationId: string;
     try {
-      // Send it to the server first. The artist is notified from there, so a
-      // brief that only ever existed in this browser would reach nobody.
-      await sendOfferToArtist({
+      // The artist is notified from the server, so the offer has to land there.
+      // The thread we open is that same conversation, so both sides see it.
+      const sent = await sendOfferToArtist({
         artistId: artist.id,
         eventId: event.id,
         organizerName: event.venue || currentUser?.full_name || "My venue",
@@ -102,16 +103,16 @@ export function BriefComposerProvider({ children }: { children: ReactNode }) {
         performanceDate: event.date,
         notes: message.trim(),
       });
+      conversationId = sent.conversation;
     } catch (err) {
       setSendError(actionError(err, `send your offer to ${artist.name}`));
       setSending(false);
       return;
     }
-    const booking = sendBrief({ eventId, artistId: artist.id, amount: offer, message });
     setSending(false);
     setOpen(false);
     toast(`Offer sent to ${artist.name} — they've been notified`, "success");
-    navigate(`/bookings/${booking.id}`);
+    navigate(`/bookings/${conversationId}`);
   };
 
   return (

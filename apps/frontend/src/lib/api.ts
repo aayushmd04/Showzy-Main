@@ -621,15 +621,26 @@ export interface ApiConversation {
   event_title?: string | null;
   /** The offer currently waiting for an answer, if there is one. */
   pending_offer?: ApiOffer | null;
+  /** The booking an accepted offer in this thread produced. */
+  order_id?: string | null;
+  latest_message?: { content: string; sender: string } | null;
+  last_message_at?: string | null;
   created_at: string;
 }
 
 export interface ApiMessage {
   id: string;
-  conversation: string;
+  /** The author's user id. */
   sender: string;
+  sender_name?: string;
   content: string;
+  /** `offer` messages carry the offer they announce in `offer`. */
+  message_type: "text" | "offer" | "system";
+  linked_offer?: string | null;
+  offer?: ApiOffer | null;
   is_flagged: boolean;
+  flag_reason?: string;
+  conversation_id?: string;
   created_at: string;
 }
 
@@ -644,13 +655,15 @@ export interface ApiOffer {
   set_count: number;
   notes: string;
   status: string;
-  counter_of?: string;
+  counter_of_id?: string | null;
   expires_at: string;
   created_at: string;
 }
 
 export interface ApiOrder {
   id: string;
+  /** The thread this booking was negotiated in. */
+  conversation?: string;
   status: string;
   gross_amount: string;
   platform_fee: string;
@@ -920,6 +933,33 @@ export function reviewGigApplication(
   note = "",
 ): Promise<unknown> {
   return patch(`/gig-applications/${applicationId}/review/`, { status, note });
+}
+
+export interface ApiBookingReview {
+  id: string;
+  direction: "host_to_artist" | "artist_to_host";
+  rating: number;
+  body: string;
+  created_at: string;
+}
+
+export interface ApiBookingReviews {
+  count: number;
+  /** Which way a review from the signed-in person points. */
+  my_direction: ApiBookingReview["direction"];
+  results: ApiBookingReview[];
+}
+
+export function getOrderReviews(orderId: string): Promise<ApiBookingReviews> {
+  return get(`/orders/${orderId}/reviews/`);
+}
+
+/** One per side, once the gig is done; the server rejects a second. */
+export function reviewBooking(
+  orderId: string,
+  data: { rating: number; body: string },
+): Promise<ApiBookingReview> {
+  return post(`/orders/${orderId}/reviews/`, data);
 }
 
 export function cancelBookingOrder(orderId: string, reason = ""): Promise<ApiOrder> {

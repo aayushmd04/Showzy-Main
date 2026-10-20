@@ -385,7 +385,7 @@ export function ArtistHomeLandingScreen() {
                   <ul className="divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">
                     {d.results.slice(0, 5).map((c) => (
                       <li key={c.id} className="px-4 py-3">
-                        <Link to="/artist/offers" className="block">
+                        <Link to={`/bookings/${c.id}`} className="block">
                           <span className="block truncate text-[15px] text-paper">
                             {c.organizer_name}
                           </span>

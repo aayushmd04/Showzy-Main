@@ -3,6 +3,7 @@ import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Pill, statusLabel } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
 import { OfferInbox } from "@/components/naada/offer-inbox";
+import { ThreadList } from "@/components/naada/thread-list";
 import { useStore } from "@/store/app-store";
 import { dateCompact, money } from "@/lib/format";
 import { PLATFORM_FEE_RATE } from "@/data/fixtures";
@@ -22,6 +23,8 @@ export function HostBookingsScreen() {
 
       {/* Offers still being negotiated — an artist's counter lands here. */}
       <OfferInbox viewer="host" className="mt-6" />
+
+      <ThreadList viewer="host" className="mt-6" />
 
       {rows.length > 0 ? (
         <ul className="mt-6 divide-y divide-[var(--glass-border-soft)] glass-soft overflow-hidden rounded-xl">

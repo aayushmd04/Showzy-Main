@@ -411,6 +411,62 @@ See the thread: {settings.FRONTEND_URL}{action_url}
         )
 
 
+def new_message(message, actor):
+    """A chat message landed in a booking thread. Tell the other party.
+
+    A conversation is many short messages, so this must not be one email each:
+    while the recipient still has an unread notice for this thread it is
+    refreshed in place, and only the first message after they last looked sends
+    an email. Offers announce themselves (see `offer_made`), so only plain text
+    comes through here.
+    """
+    convo = message.conversation
+    recipients, side = _counterparty(convo, actor)
+    sender = _actor_label(convo, side)
+    action_url = f"/bookings/{convo.id}"
+    title = f"New message from {sender}"
+    # A flagged message is one the contact-info guard caught: never repeat its
+    # content outside the thread, where it would sidestep the guard.
+    if message.is_flagged:
+        body = "Open the thread to read it."
+    else:
+        text = message.content.strip()
+        body = text if len(text) <= 140 else text[:139] + "…"
+
+    for user in recipients:
+        unread = Notification.objects.filter(
+            user=user,
+            notification_type=NotificationType.NEW_MESSAGE,
+            is_read=False,
+            data__conversation_id=str(convo.id),
+        )
+        if unread.update(title=title, body=body, created_at=timezone.now()):
+            continue
+        record(
+            user,
+            notification_type=NotificationType.NEW_MESSAGE,
+            title=title,
+            body=body,
+            action_url=action_url,
+            data={"conversation_id": str(convo.id)},
+        )
+        if not _prefs(user).booking_activity_email:
+            continue
+        send_email(
+            user,
+            title,
+            f"""Hi {user.name or ''},
+
+{sender} sent you a message about your booking.
+
+Read and reply: {settings.FRONTEND_URL}{action_url}
+
+— Showzy
+""",
+            notification_type="new_message",
+        )
+
+
 def gig_application_reviewed(application):
     """A host made a call on an artist's gig-board application."""
     recipients = _artist_user(application.artist)

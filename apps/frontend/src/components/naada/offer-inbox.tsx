@@ -1,4 +1,5 @@
 import { useCallback, useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { Pill } from "@/components/ui/pill";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -165,6 +166,9 @@ export function OfferInbox({
                 </div>
 
                 <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Link to={`/bookings/${convo.id}`} className="btn btn-secondary btn-sm">
+                    Open thread
+                  </Link>
                   {mine ? (
                     <Button
                       size="sm"

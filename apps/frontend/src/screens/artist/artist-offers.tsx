@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { ConsoleShell, ARTIST_NAV } from "@/components/naada/console-shell";
 import { EmptyState } from "@/components/naada/empty-state";
 import { OfferInbox } from "@/components/naada/offer-inbox";
+import { ThreadList } from "@/components/naada/thread-list";
 import { ProfileNudge } from "@/components/naada/profile-nudge";
 import { ApiError, getMyArtistProfile, type ApiArtist } from "@/lib/api";
 import { useAsync } from "@/screens/home/home-kit";
@@ -41,6 +42,8 @@ export function ArtistOffersScreen() {
           />
         }
       />
+
+      <ThreadList viewer="artist" className="mt-6" />
     </ConsoleShell>
   );
 }

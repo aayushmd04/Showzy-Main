@@ -9,6 +9,7 @@ non-admin can't reach any of it.
 """
 
 from decimal import Decimal
+from unittest import mock
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.test import TestCase
@@ -17,7 +18,7 @@ from rest_framework.test import APIClient
 
 from apps.artists.models import Artist
 from .models import (
-    Organizer, BookingConversation, BookingMessage, Offer, BookingOrder,
+    Organizer, BookingConversation, BookingMessage, Offer, BookingOrder, BookingReview,
     Transfer, LedgerEntry, Dispute,
 )
 
@@ -451,3 +452,190 @@ class ConversationInboxTests(TestCase):
         self.artist_client.post(reverse("offer-reject", args=[offer["id"]]))
         inbox = self.artist_client.get(reverse("booking-conversations")).data["results"]
         self.assertIsNone(inbox[0]["pending_offer"])
+
+
+class ThreadTestBase(TestCase):
+    """A host, an artist and a stranger, with one open conversation between the first two."""
+
+    def setUp(self):
+        # Accepting an offer schedules a KYC nudge; with no broker in tests that
+        # would sit in Celery's reconnect loop for ~20s per acceptance.
+        nudge = mock.patch("apps.bookings.tasks.kyc_nudge.apply_async", side_effect=RuntimeError("no broker"))
+        nudge.start()
+        self.addCleanup(nudge.stop)
+        self.host = User.objects.create_user(email="thost@naada.test", full_name="Thread Host")
+        self.artist_user = User.objects.create_user(email="tact@naada.test", full_name="Thread Act")
+        self.stranger = User.objects.create_user(email="stranger@naada.test", full_name="Stranger")
+        self.artist = Artist.objects.create(user=self.artist_user, stage_name="Thread Act")
+        self.host_client = APIClient()
+        self.host_client.force_authenticate(user=self.host)
+        self.artist_client = APIClient()
+        self.artist_client.force_authenticate(user=self.artist_user)
+        self.stranger_client = APIClient()
+        self.stranger_client.force_authenticate(user=self.stranger)
+        self.on = (timezone.now() + timezone.timedelta(days=30)).date().isoformat()
+        org = self.host_client.post(reverse("organizers-list"), {"name": "Thread Hall"}, format="json").data
+        self.convo = self.host_client.post(
+            reverse("booking-conversations"),
+            {"organizer": org["id"], "artist": str(self.artist.id)}, format="json").data
+        self.messages_url = reverse("booking-messages", args=[self.convo["id"]])
+
+    def send_offer(self, client=None, **extra):
+        return (client or self.host_client).post(
+            reverse("booking-offer", args=[self.convo["id"]]),
+            {"fee_amount": "6500", "performance_date": self.on,
+             "performance_duration_minutes": 90, "set_count": 2, **extra},
+            format="json")
+
+
+class ConversationThreadTests(ThreadTestBase):
+    """The booking chat: both sides read and write one thread, offers included."""
+
+    def test_each_side_sees_what_the_other_wrote(self):
+        self.host_client.post(self.messages_url, {"content": "Is the 14th free?"}, format="json")
+        reply = self.artist_client.post(self.messages_url, {"content": "It is."}, format="json")
+        self.assertEqual(reply.status_code, 201, reply.data)
+        self.assertEqual(str(reply.data["sender"]), str(self.artist_user.id))
+
+        for client in (self.host_client, self.artist_client):
+            rows = client.get(self.messages_url).data["results"]
+            self.assertEqual([m["content"] for m in rows], ["Is the 14th free?", "It is."])
+            self.assertEqual([m["message_type"] for m in rows], ["text", "text"])
+
+    def test_an_offer_message_carries_the_offer_and_its_current_status(self):
+        offer_id = self.send_offer().data["id"]
+        rows = self.artist_client.get(self.messages_url).data["results"]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["message_type"], "offer")
+        self.assertEqual(str(rows[0]["linked_offer"]), str(offer_id))
+        self.assertEqual(rows[0]["offer"]["fee_amount"], "6500.00")
+        self.assertEqual(rows[0]["offer"]["status"], "pending")
+
+        self.artist_client.post(reverse("offer-reject", args=[offer_id]))
+        rows = self.host_client.get(self.messages_url).data["results"]
+        self.assertEqual(rows[0]["offer"]["status"], "rejected")
+
+    def test_a_counter_is_a_second_offer_card_in_the_same_thread(self):
+        first = self.send_offer().data["id"]
+        counter = self.send_offer(self.artist_client, fee_amount="8000", counter_of=first)
+        self.assertEqual(counter.status_code, 201, counter.data)
+        rows = self.host_client.get(self.messages_url).data["results"]
+        self.assertEqual([m["offer"]["status"] for m in rows], ["countered", "pending"])
+        self.assertEqual(str(rows[1]["offer"]["counter_of_id"]), str(first))
+
+    def test_a_stranger_can_neither_read_nor_write_the_thread(self):
+        self.assertEqual(self.stranger_client.get(self.messages_url).status_code, 403)
+        resp = self.stranger_client.post(self.messages_url, {"content": "hi"}, format="json")
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(BookingMessage.objects.count(), 0)
+
+    def test_an_accepted_offer_links_the_booking_and_the_thread_both_ways(self):
+        offer_id = self.send_offer().data["id"]
+        self.assertIsNone(self.host_client.get(reverse("booking-conversations")).data["results"][0]["order_id"])
+
+        order = self.artist_client.post(reverse("offer-accept", args=[offer_id]))
+        self.assertEqual(order.status_code, 201, order.data)
+        self.assertEqual(str(order.data["conversation"]), str(self.convo["id"]))
+
+        listed = self.host_client.get(reverse("booking-conversations")).data["results"][0]
+        self.assertEqual(str(listed["order_id"]), str(order.data["id"]))
+        orders = self.host_client.get(reverse("booking-orders")).data["results"]
+        self.assertEqual(str(orders[0]["conversation"]), str(self.convo["id"]))
+
+
+class MessageNotificationTests(ThreadTestBase):
+    """Chat tells the other party — once per burst, never repeating flagged text."""
+
+    def notices(self, user):
+        from apps.notifications.models import Notification, NotificationType
+        return Notification.objects.filter(user=user, notification_type=NotificationType.NEW_MESSAGE)
+
+    def test_a_message_notifies_the_other_side_and_links_the_thread(self):
+        self.host_client.post(self.messages_url, {"content": "Is the 14th free?"}, format="json")
+        got = self.notices(self.artist_user)
+        self.assertEqual(got.count(), 1)
+        self.assertEqual(got[0].body, "Is the 14th free?")
+        self.assertEqual(got[0].action_url, f"/bookings/{self.convo['id']}")
+        self.assertIn("Thread Hall", got[0].title)
+        # Not the sender.
+        self.assertEqual(self.notices(self.host).count(), 0)
+
+    def test_a_burst_of_messages_is_one_notice_and_one_email(self):
+        from django.core import mail
+        mail.outbox.clear()
+        for text in ["one", "two", "three"]:
+            self.host_client.post(self.messages_url, {"content": text}, format="json")
+        got = self.notices(self.artist_user)
+        self.assertEqual(got.count(), 1)
+        self.assertEqual(got[0].body, "three")
+        self.assertEqual(len([m for m in mail.outbox if m.to == [self.artist_user.email]]), 1)
+
+        # Once they have looked, the next message is a fresh notice.
+        got.update(is_read=True)
+        self.host_client.post(self.messages_url, {"content": "four"}, format="json")
+        self.assertEqual(self.notices(self.artist_user).count(), 2)
+
+    def test_the_reply_notifies_the_host(self):
+        self.artist_client.post(self.messages_url, {"content": "It is."}, format="json")
+        self.assertEqual(self.notices(self.host).count(), 1)
+
+    def test_a_flagged_message_never_leaks_its_contact_details_into_a_notice(self):
+        from django.core import mail
+        mail.outbox.clear()
+        resp = self.host_client.post(
+            self.messages_url, {"content": "call me on 9845011223"}, format="json")
+        self.assertTrue(resp.data["is_flagged"])
+        got = self.notices(self.artist_user)[0]
+        self.assertNotIn("9845011223", got.body)
+        for m in mail.outbox:
+            self.assertNotIn("9845011223", m.body)
+
+    def test_an_offer_does_not_also_send_a_message_notice(self):
+        self.send_offer()
+        self.assertEqual(self.notices(self.artist_user).count(), 0)
+
+
+class BookingReviewTests(ThreadTestBase):
+    """Each side rates the other once, after the gig, and both see both."""
+
+    def book(self, status=BookingOrder.Status.RELEASED):
+        offer_id = self.send_offer().data["id"]
+        order = self.artist_client.post(reverse("offer-accept", args=[offer_id])).data
+        BookingOrder.objects.filter(pk=order["id"]).update(status=status)
+        return reverse("booking-reviews", args=[order["id"]])
+
+    def test_nobody_can_review_before_the_gig_is_done(self):
+        url = self.book(BookingOrder.Status.ACCEPTED)
+        resp = self.host_client.post(url, {"rating": 5, "body": "Great"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_each_side_leaves_one_review_and_both_can_read_both(self):
+        url = self.book()
+        host = self.host_client.post(url, {"rating": 4, "body": "Smooth load-in."}, format="json")
+        self.assertEqual(host.status_code, 201, host.data)
+        self.assertEqual(host.data["direction"], "host_to_artist")
+        artist = self.artist_client.post(url, {"rating": 5, "body": "Lovely venue."}, format="json")
+        self.assertEqual(artist.data["direction"], "artist_to_host")
+
+        for client, mine in ((self.host_client, "host_to_artist"), (self.artist_client, "artist_to_host")):
+            data = client.get(url).data
+            self.assertEqual(data["my_direction"], mine)
+            self.assertEqual({r["direction"] for r in data["results"]}, {"host_to_artist", "artist_to_host"})
+
+    def test_a_second_review_in_the_same_direction_is_refused(self):
+        url = self.book()
+        self.host_client.post(url, {"rating": 4}, format="json")
+        again = self.host_client.post(url, {"rating": 1, "body": "Changed my mind"}, format="json")
+        self.assertEqual(again.status_code, 409)
+        self.assertEqual(BookingReview.objects.count(), 1)
+        self.assertEqual(BookingReview.objects.get().rating, 4)
+
+    def test_a_rating_outside_one_to_five_is_refused(self):
+        url = self.book()
+        for bad in (0, 6):
+            self.assertEqual(self.host_client.post(url, {"rating": bad}, format="json").status_code, 400)
+
+    def test_a_stranger_cannot_read_or_write_reviews(self):
+        url = self.book()
+        self.assertEqual(self.stranger_client.get(url).status_code, 404)
+        self.assertEqual(self.stranger_client.post(url, {"rating": 5}, format="json").status_code, 404)

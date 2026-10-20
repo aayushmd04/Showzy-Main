@@ -11,7 +11,6 @@ import type {
   ApiTicket,
   ApiOrder,
   ApiConversation,
-  ApiMessage,
   ApiOffer,
 } from "./api";
 import type {
@@ -20,7 +19,6 @@ import type {
   Venue,
   Ticket,
   Booking,
-  ChatMessage,
   Quote,
 } from "@/data/fixtures";
 
@@ -217,32 +215,18 @@ export function adaptOrder(
       },
     ],
     _orderId: order.id,
+    _conversationId: order.conversation,
     _eventTitle: order.event_title ?? undefined,
     _platformFee: parseFloat(order.platform_fee),
     _artistPayout: parseFloat(order.artist_payout),
     _performanceDate: order.performance_date,
   } as Booking & {
     _orderId: string;
+    _conversationId?: string;
     _eventTitle?: string;
     _platformFee: number;
     _artistPayout: number;
     _performanceDate: string;
-  };
-}
-
-// ─── Messages ─────────────────────────────────────────────────────────────────
-
-export function adaptMessage(
-  m: ApiMessage,
-  convoId: string,
-): ChatMessage {
-  return {
-    id: m.id,
-    bookingId: convoId,
-    sender: "host",
-    body: m.content,
-    at: m.created_at,
-    flagged: m.is_flagged,
   };
 }
 

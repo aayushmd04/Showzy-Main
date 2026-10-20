@@ -15,7 +15,7 @@ from rest_framework.response import Response
 
 from .models import (
     Organizer, Membership, GigApplication,
-    BookingConversation, BookingMessage, Offer, BookingOrder,
+    BookingConversation, BookingMessage, Offer, BookingOrder, BookingReview,
     Transfer, LedgerEntry, Dispute, BookingAuditLog,
 )
 from apps.payments.gateways.selector import has_live_credentials
@@ -23,7 +23,7 @@ from .serializers import (
     OrganizerSerializer, MembershipSerializer, GigApplicationSerializer,
     BookingConversationSerializer, BookingMessageSerializer, OfferSerializer,
     BookingOrderSerializer, LedgerEntrySerializer, AdminLedgerEntrySerializer, DisputeSerializer,
-    FundOrderSerializer, MakeOfferSerializer, compute_fees,
+    FundOrderSerializer, MakeOfferSerializer, BookingReviewSerializer, compute_fees,
 )
 
 logger = logging.getLogger(__name__)
@@ -233,7 +233,7 @@ def conversation_messages(request, convo_id):
     _assert_conversation_participant(request.user, convo)
 
     if request.method == "GET":
-        msgs = convo.messages.filter(is_deleted=False).select_related("sender")
+        msgs = convo.messages.filter(is_deleted=False).select_related("sender", "linked_offer")
         data = BookingMessageSerializer(msgs, many=True).data
         return Response({"count": len(data), "results": data})
 
@@ -248,6 +248,11 @@ def conversation_messages(request, convo_id):
     )
     convo.last_message_at = timezone.now()
     convo.save(update_fields=["last_message_at"])
+
+    from apps.notifications.dispatch import new_message
+
+    _notify(new_message, msg, request.user)
+
     return Response(BookingMessageSerializer(msg).data, status=201)
 
 
@@ -406,7 +411,7 @@ def booking_orders(request):
     from django.db.models import Q
     qs = BookingOrder.objects.filter(
         Q(organizer_id__in=org_ids) | Q(artist=artist)
-    ).select_related("organizer", "artist", "event").order_by("-created_at")
+    ).select_related("organizer", "artist", "event", "offer").order_by("-created_at")
     data = BookingOrderSerializer(qs, many=True).data
     return Response({"count": len(data), "results": data})
 
@@ -418,6 +423,45 @@ def booking_order_detail(request, pk):
     if not order:
         return Response({"detail": "Not found."}, status=404)
     return Response(BookingOrderSerializer(order).data)
+
+
+REVIEWABLE = {
+    BookingOrder.Status.COMPLETED,
+    BookingOrder.Status.RELEASED,
+    BookingOrder.Status.SETTLED,
+}
+
+
+def _review_direction(user, order):
+    """Which way this person's review points: the artist rates the venue, anyone
+    acting for the venue rates the artist."""
+    if order.artist.user_id == user.pk:
+        return BookingReview.Direction.ARTIST_TO_HOST
+    return BookingReview.Direction.HOST_TO_ARTIST
+
+
+@api_view(["GET", "POST"])
+@permission_classes([permissions.IsAuthenticated])
+def order_reviews(request, pk):
+    """Both sides' ratings for a finished booking; each side leaves one."""
+    order = _get_order_for_user(request.user, pk)
+    if not order:
+        return Response({"detail": "Not found."}, status=404)
+    direction = _review_direction(request.user, order)
+
+    if request.method == "GET":
+        data = BookingReviewSerializer(order.reviews.all(), many=True).data
+        return Response({"count": len(data), "my_direction": direction, "results": data})
+
+    if order.status not in REVIEWABLE:
+        return Response({"detail": "You can review a booking once the gig is done."}, status=400)
+    if order.reviews.filter(direction=direction).exists():
+        return Response({"detail": "You have already reviewed this booking."}, status=409)
+
+    ser = BookingReviewSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+    review = ser.save(booking_order=order, reviewer=request.user, direction=direction)
+    return Response(BookingReviewSerializer(review).data, status=201)
 
 
 @api_view(["POST"])

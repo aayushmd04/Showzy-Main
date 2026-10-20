@@ -124,26 +124,6 @@ export interface Booking {
   resolution?: DisputeResolution;
 }
 
-export interface Review {
-  id: string;
-  bookingId: string;
-  direction: "host_to_artist" | "artist_to_host";
-  rating: number;
-  body: string;
-  createdAt: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  bookingId: string;
-  sender: "host" | "artist";
-  body: string;
-  at: string;
-  /** Section 12 — the disintermediation guard flags a message; it is never blocked. */
-  flagged?: boolean;
-  flagReason?: string;
-}
-
 export interface Ticket {
   id: string;
   code: string;
@@ -466,17 +446,6 @@ export const bookings: Booking[] = [
   },
 ];
 
-export const reviews: Review[] = [
-  {
-    id: "rv1",
-    bookingId: "b3",
-    direction: "host_to_artist",
-    rating: 5,
-    body: "Tarana Collective were incredible — professional, on time, and the room loved them.",
-    createdAt: "2026-08-15T09:00:00",
-  },
-];
-
 export const gigApplications: GigApplication[] = [
   {
     id: "ga1",
@@ -487,53 +456,6 @@ export const gigApplications: GigApplication[] = [
     proposedRate: 3000,
     status: "pending",
     createdAt: "2026-08-12T09:00:00",
-  },
-];
-
-export const messages: ChatMessage[] = [
-  {
-    id: "m1",
-    bookingId: "b1",
-    sender: "host",
-    body: "Hey! Loved your set at Chamundi Sessions — any chance you're free the 28th?",
-    at: "2026-08-10T10:40:00",
-  },
-  {
-    id: "m2",
-    bookingId: "b1",
-    sender: "artist",
-    body: "Yeah, that works. What time are you thinking and what's the backline situation?",
-    at: "2026-08-10T10:58:00",
-  },
-  {
-    id: "m3",
-    bookingId: "b1",
-    sender: "host",
-    body: "Doors 8, you'd close around 10:30. We've got a full backline already.",
-    at: "2026-08-10T11:02:00",
-  },
-  {
-    id: "m4",
-    bookingId: "b5",
-    sender: "host",
-    body: "You were 40 minutes late and only played one set — that's not what we agreed.",
-    at: "2026-08-15T23:10:00",
-  },
-  {
-    id: "m5",
-    bookingId: "b5",
-    sender: "artist",
-    body: "Traffic on the ring road, I messaged the venue phone as soon as I could.",
-    at: "2026-08-15T23:22:00",
-  },
-  {
-    id: "m6",
-    bookingId: "b2",
-    sender: "host",
-    body: "Easier if you just WhatsApp me on 98450 11223 for the details",
-    at: "2026-08-18T18:40:00",
-    flagged: true,
-    flagReason: "mention of WhatsApp",
   },
 ];
 

@@ -45,12 +45,14 @@ describe("sendOfferToArtist", () => {
       json([]),
       json({ id: "org-1", name: "Fresh Hall" }, 201),
       json({ id: "convo-1" }, 201),
-      json({ id: "offer-1", fee_amount: "7500.00" }, 201),
+      json({ id: "offer-1", conversation: "convo-1", fee_amount: "7500.00" }, 201),
     ]);
 
     const offer = await sendOfferToArtist(input);
 
     expect(offer.id).toBe("offer-1");
+    // The brief composer opens this thread, so the offer has to say which it is.
+    expect(offer.conversation).toBe("convo-1");
     expect(calls(fetchFn)).toEqual([
       "GET /organizers/",
       "POST /organizers/",

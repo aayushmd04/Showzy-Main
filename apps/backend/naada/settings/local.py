@@ -29,4 +29,5 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     "otp_email_day": "500/day",
     "otp_verify": "500/hour",
     "otp_verify_email": "500/hour",
+    "google_login": "500/hour",
 }

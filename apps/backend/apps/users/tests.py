@@ -512,3 +512,136 @@ class DeployCheckTests(TestCase):
     @override_settings(DEBUG=True, EMAIL_BACKEND="django.core.mail.backends.console.EmailBackend")
     def test_says_nothing_in_development(self):
         self.assertEqual(email_must_actually_send(None), [])
+
+
+GOOGLE_CLIENT = "client-123.apps.googleusercontent.com"
+
+
+def _claims(**over):
+    return {
+        "iss": "https://accounts.google.com",
+        "aud": GOOGLE_CLIENT,
+        "email": "Singer@Gmail.com",
+        "email_verified": True,
+        "name": "Sing Er",
+        **over,
+    }
+
+
+@override_settings(GOOGLE_OAUTH_CLIENT_ID=GOOGLE_CLIENT)
+class GoogleLoginTests(TestCase):
+    """`POST /auth/google/` — sign in with a Google ID token.
+
+    Signature checking is google-auth's job; these pin what we do with the
+    result: only a verified address gets in, the account is the same one the
+    emailed-code route would use, and nothing here touches the mail budget.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient()
+        self.url = reverse("auth-google")
+
+    def tearDown(self):
+        cache.clear()
+
+    def _login(self, claims=None, credential="a.b.c"):
+        with patch("apps.users.google.id_token.verify_oauth2_token",
+                   return_value=claims or _claims()) as verify:
+            resp = self.client.post(self.url, {"credential": credential}, format="json")
+        return resp, verify
+
+    def test_new_address_is_signed_up_and_gets_tokens(self):
+        resp, _ = self._login()
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.data["created"])
+        self.assertTrue(resp.data["user"]["is_new_user"])
+        self.assertTrue(resp.data["access"] and resp.data["refresh"])
+        user = User.objects.get(email="singer@gmail.com")
+        self.assertEqual(user.full_name, "Sing Er")
+        self.assertTrue(user.is_verified)
+
+    def test_existing_otp_account_with_the_same_address_is_reused(self):
+        existing = User.objects.create_user(email="singer@gmail.com", full_name="Old Name")
+        resp, _ = self._login()
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.data["created"])
+        self.assertEqual(str(resp.data["user"]["id"]), str(existing.id))
+        self.assertEqual(User.objects.filter(email="singer@gmail.com").count(), 1)
+        existing.refresh_from_db()
+        self.assertEqual(existing.full_name, "Old Name")  # Google can't rename them
+
+    def test_the_token_is_checked_against_our_client_id(self):
+        _, verify = self._login()
+        self.assertEqual(verify.call_args.args[2], GOOGLE_CLIENT)
+
+    def test_unverified_google_email_is_refused(self):
+        resp, _ = self._login(_claims(email_verified=False))
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(User.objects.filter(email="singer@gmail.com").exists())
+
+    def test_a_missing_email_verified_claim_is_refused(self):
+        claims = _claims()
+        del claims["email_verified"]
+        resp, _ = self._login(claims)
+        self.assertEqual(resp.status_code, 400)
+
+    def test_wrong_issuer_is_refused(self):
+        resp, _ = self._login(_claims(iss="https://evil.example"))
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(User.objects.exists())
+
+    def test_a_token_google_rejects_is_a_400_not_a_crash(self):
+        with patch("apps.users.google.id_token.verify_oauth2_token",
+                   side_effect=ValueError("Token expired")):
+            resp = self.client.post(self.url, {"credential": "a.b.c"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertNotIn("expired", str(resp.data).lower())
+
+    def test_a_garbage_token_is_refused_by_the_real_verifier(self):
+        """Nothing patched: malformed input must die before any network call."""
+        resp = self.client.post(self.url, {"credential": "not.a.jwt"}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(User.objects.exists())
+
+    def test_no_credential_is_a_400(self):
+        resp = self.client.post(self.url, {}, format="json")
+        self.assertEqual(resp.status_code, 400)
+
+    def test_an_oversized_credential_is_refused_without_calling_google(self):
+        with patch("apps.users.google.id_token.verify_oauth2_token") as verify:
+            resp = self.client.post(self.url, {"credential": "x" * 5000}, format="json")
+        self.assertEqual(resp.status_code, 400)
+        verify.assert_not_called()
+
+    @override_settings(GOOGLE_OAUTH_CLIENT_ID="")
+    def test_off_when_no_client_id_is_configured(self):
+        with patch("apps.users.google.id_token.verify_oauth2_token") as verify:
+            resp = self.client.post(self.url, {"credential": "a.b.c"}, format="json")
+        self.assertEqual(resp.status_code, 503)
+        verify.assert_not_called()
+
+    def test_a_deactivated_account_cannot_sign_in(self):
+        User.objects.create_user(email="singer@gmail.com", full_name="X", is_active=False)
+        resp, _ = self._login()
+        self.assertEqual(resp.status_code, 403)
+        self.assertNotIn("access", resp.data)
+
+    def test_it_sends_no_mail(self):
+        from django.core import mail
+        self._login()
+        self.assertEqual(mail.outbox, [])
+
+    def test_the_issued_token_works_on_authenticated_routes(self):
+        resp, _ = self._login()
+        self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {resp.data['access']}")
+        me = self.client.get(reverse("auth-me"))
+        self.assertEqual(me.status_code, 200)
+        self.assertEqual(me.data["email"], "singer@gmail.com")
+
+    def test_the_route_is_rate_limited_per_caller(self):
+        from .views import GoogleLoginThrottle
+
+        with patch.object(GoogleLoginThrottle, "get_rate", return_value="2/hour"):
+            codes = [self._login()[0].status_code for _ in range(3)]
+        self.assertEqual(codes, [200, 200, 429])

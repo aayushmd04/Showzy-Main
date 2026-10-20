@@ -63,6 +63,10 @@ class OTPVerifySerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=120, required=False)
 
 
+class GoogleLoginSerializer(serializers.Serializer):
+    credential = serializers.CharField(max_length=4096)
+
+
 class UserDeviceSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserDevice

@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/input";
@@ -7,6 +7,8 @@ import { Select } from "@/components/ui/select";
 import { useStore } from "@/store/app-store";
 import { PLATFORM_FEE_RATE, TDS_RATE } from "@/data/fixtures";
 import { dateCompact, money } from "@/lib/format";
+import { getMyEvents, sendOfferToArtist, type ApiEvent } from "@/lib/api";
+import { actionError } from "./api-message";
 
 /**
  * Section 7.12. The fee breakdown is mandatory: the artist receives the full
@@ -20,30 +22,60 @@ interface BriefApi {
 
 const BriefContext = createContext<BriefApi | null>(null);
 
+interface OwnEvent {
+  id: string;
+  name: string;
+  /** Local `YYYY-MM-DD`. */
+  date: string;
+  venue: string;
+}
+
+function ownEventOf(e: ApiEvent): OwnEvent {
+  const d = new Date(e.start_datetime);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return {
+    id: e.id,
+    name: e.title,
+    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
+    venue: e.venue_name ?? (typeof e.venue === "object" ? e.venue?.name : "") ?? "",
+  };
+}
+
 export function BriefComposerProvider({ children }: { children: ReactNode }) {
-  const { artists, events, sendBrief, toast } = useStore();
+  const { artists, toast, currentUser } = useStore();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [artistId, setArtistId] = useState<string | null>(null);
   const [eventId, setEventId] = useState("");
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState("");
-
-  const bookable = useMemo(
-    () => events.filter((e) => e.status === "draft" || e.status === "published"),
-    [events],
-  );
+  const [sending, setSending] = useState(false);
+  const [sendError, setSendError] = useState("");
+  /** The host's own events — an offer is for a night the host is actually running. null = still loading. */
+  const [ownEvents, setOwnEvents] = useState<OwnEvent[] | null>(null);
 
   const openComposer = useCallback(
     (nextArtistId: string, nextEventId?: string) => {
       const artist = artists.find((a) => a.id === nextArtistId);
       setArtistId(nextArtistId);
-      setEventId(nextEventId ?? bookable[0]?.id ?? "");
-      setAmount(String(artist?.feeMin ?? 4000));
+      setEventId("");
+      setOwnEvents(null);
+      setAmount(String(artist?.feeMin || ""));
       setMessage("90 minute set, two halves. Backline provided, load-in from 6pm.");
+      setSendError("");
       setOpen(true);
+      getMyEvents()
+        .then((data) => {
+          const mine = data.results.filter((e) => e.status === "draft" || e.status === "published").map(ownEventOf);
+          setOwnEvents(mine);
+          setEventId(mine.find((e) => e.id === nextEventId)?.id ?? mine[0]?.id ?? "");
+        })
+        .catch((err: unknown) => {
+          setOwnEvents([]);
+          setSendError(actionError(err, "load your events"));
+        });
     },
-    [artists, bookable],
+    [artists],
   );
 
   const api = useMemo<BriefApi>(() => ({ open: openComposer }), [openComposer]);
@@ -53,13 +85,34 @@ export function BriefComposerProvider({ children }: { children: ReactNode }) {
   const tds = Math.round(offer * TDS_RATE);
   const firstName = artist?.name.split(" ")[0] ?? "the artist";
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!artist || !eventId) return;
-    const booking = sendBrief({ eventId, artistId: artist.id, amount: offer, message });
+    const event = ownEvents?.find((ev) => ev.id === eventId);
+    if (!artist || !event || sending) return;
+    setSending(true);
+    setSendError("");
+    let conversationId: string;
+    try {
+      // The artist is notified from the server, so the offer has to land there.
+      // The thread we open is that same conversation, so both sides see it.
+      const sent = await sendOfferToArtist({
+        artistId: artist.id,
+        eventId: event.id,
+        organizerName: event.venue || currentUser?.full_name || "My venue",
+        feeAmount: offer,
+        performanceDate: event.date,
+        notes: message.trim(),
+      });
+      conversationId = sent.conversation;
+    } catch (err) {
+      setSendError(actionError(err, `send your offer to ${artist.name}`));
+      setSending(false);
+      return;
+    }
+    setSending(false);
     setOpen(false);
-    toast(`Brief sent to ${artist.name}`, "success");
-    navigate(`/bookings/${booking.id}`);
+    toast(`Offer sent to ${artist.name} — they've been notified`, "success");
+    navigate(`/bookings/${conversationId}`);
   };
 
   return (
@@ -72,15 +125,29 @@ export function BriefComposerProvider({ children }: { children: ReactNode }) {
       >
         <form onSubmit={submit}>
           <Label htmlFor="brief-event">For which event?</Label>
-          <Select
-            id="brief-event"
-            value={eventId}
-            onChange={setEventId}
-            options={bookable.map((e) => ({
-              value: e.id,
-              label: `${e.name} · ${dateCompact(e.date)}`,
-            }))}
-          />
+          {ownEvents !== null && ownEvents.length === 0 ? (
+            <p className="t-small border border-dashed border-line px-3 py-3 text-muted">
+              You don't have an upcoming event to book for yet.{" "}
+              <Link to="/host/events/new" className="underline" onClick={() => setOpen(false)}>
+                Create one first
+              </Link>
+              .
+            </p>
+          ) : (
+            <Select
+              id="brief-event"
+              value={eventId}
+              onChange={setEventId}
+              options={
+                ownEvents === null
+                  ? [{ value: "", label: "Loading your events…" }]
+                  : ownEvents.map((e) => ({
+                      value: e.id,
+                      label: `${e.name} · ${dateCompact(e.date)}`,
+                    }))
+              }
+            />
+          )}
 
           <div className="mt-5">
             <Label htmlFor="brief-amount">Your offer</Label>
@@ -97,7 +164,7 @@ export function BriefComposerProvider({ children }: { children: ReactNode }) {
                 required
               />
             </div>
-            {artist && (
+            {artist && artist.feeMax > 0 && (
               <p className="t-small mt-2 text-muted">
                 Their usual range is{" "}
                 <span className="t-mono">
@@ -123,8 +190,20 @@ export function BriefComposerProvider({ children }: { children: ReactNode }) {
             <Row label={`${firstName} receives, after ${Math.round(TDS_RATE * 100)}% TDS`} value={money(offer - tds)} tone="live" />
           </dl>
 
-          <Button type="submit" variant="primary" full className="mt-5" disabled={offer <= 0}>
-            Send brief
+          {sendError && (
+            <p className="t-small mt-4 border border-fault bg-surface px-3 py-2 text-fault" role="alert">
+              {sendError}
+            </p>
+          )}
+
+          <Button
+            type="submit"
+            variant="primary"
+            full
+            className="mt-5"
+            disabled={offer <= 0 || !eventId || sending}
+          >
+            {sending ? "Sending…" : "Send brief"}
           </Button>
           <p className="t-small mt-3 text-center text-muted">
             You pay Showzy's {Math.round(PLATFORM_FEE_RATE * 100)}% fee on top; the artist is not charged.

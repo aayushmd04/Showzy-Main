@@ -24,7 +24,7 @@ from django.urls import reverse
 from django.utils import timezone
 from rest_framework.test import APIClient
 
-from apps.artists.models import Artist
+from apps.artists.models import Artist, ArtistPhoto
 from apps.bookings.models import (
     BookingConversation,
     BookingOrder,
@@ -33,7 +33,7 @@ from apps.bookings.models import (
     Offer,
     Organizer,
 )
-from apps.core.models import City
+from apps.core.models import City, Genre
 from apps.events.models import Event, EventStatus
 from apps.tickets.models import Order, OrderItem, Ticket, TicketTier
 from apps.venues.models import Venue
@@ -105,6 +105,15 @@ class NotificationsTestCase(TestCase):
         self.assertEqual(resp.status_code, 201, resp.data)
         return Offer.objects.get(pk=resp.data["id"])
 
+    def complete_artist_profile(self):
+        """Give the artist everything a host looks for, so they are 'ready'."""
+        ArtistPhoto.objects.create(artist=self.artist, image="artists/2026/10/rahul.jpg", is_primary=True)
+        self.artist.genres.add(Genre.objects.create(name="Carnatic", slug="carnatic"))
+        self.artist.bio = "Carnatic vocalist with twelve years on stage across Karnataka."
+        self.artist.booking_fee_min = Decimal("5000")
+        self.artist.booking_fee_max = Decimal("12000")
+        self.artist.save()
+
     def notes_for(self, user, kind=None):
         qs = Notification.objects.filter(user=user)
         if kind:
@@ -129,6 +138,7 @@ class NotificationsTestCase(TestCase):
 class OfferNotificationTests(NotificationsTestCase):
 
     def test_offer_reaches_the_artist_not_the_sender(self):
+        self.complete_artist_profile()
         self.make_offer()
 
         received = self.notes_for(self.artist_user, NotificationType.BOOKING_OFFER)
@@ -142,6 +152,31 @@ class OfferNotificationTests(NotificationsTestCase):
         self.assertEqual(self.notes_for(self.host), [])
         self.assertEqual(len(mail.outbox), 1)
         self.assertEqual(mail.outbox[0].to, ["artist@naada.test"])
+
+    def test_offer_to_an_unfinished_profile_says_to_finish_it_first(self):
+        # The setUp artist has a name and a city and nothing else.
+        self.make_offer()
+
+        note = self.notes_for(self.artist_user, NotificationType.BOOKING_OFFER)[0]
+        self.assertIn("8,000", note.body)
+        self.assertIn("Complete it", note.body)
+        for missing in ("a photo", "your genres", "a short bio", "your fee range"):
+            self.assertIn(missing, note.body)
+        self.assertNotIn("your city", note.body)
+        self.assertEqual(note.action_url, "/artist/profile")
+        self.assertEqual(note.data["profile_gaps"][0], "a photo")
+        # The email carries the same instruction and both links.
+        body = mail.outbox[0].body
+        self.assertIn("Complete your profile: ", body)
+        self.assertIn("/artist/profile", body)
+        self.assertIn("/artist/offers", body)
+
+    def test_a_counter_to_the_host_never_mentions_the_artists_profile(self):
+        self.make_offer(client=self.artist_client)
+
+        note = self.notes_for(self.host, NotificationType.BOOKING_OFFER)[0]
+        self.assertNotIn("profile", note.body)
+        self.assertEqual(note.action_url, "/host/bookings")
 
     def test_artist_offer_reaches_every_active_organiser_member(self):
         User = get_user_model()

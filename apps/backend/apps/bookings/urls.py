@@ -27,6 +27,7 @@ urlpatterns = [
     path("orders/<uuid:pk>/complete/", views.complete_order, name="booking-complete"),
     path("orders/<uuid:pk>/cancel/", views.cancel_order, name="booking-cancel"),
     path("orders/<uuid:pk>/dispute/", views.raise_dispute, name="booking-dispute"),
+    path("orders/<uuid:pk>/reviews/", views.order_reviews, name="booking-reviews"),
     path("orders/<uuid:pk>/ledger/", views.order_ledger, name="booking-ledger"),
 
     # Admin

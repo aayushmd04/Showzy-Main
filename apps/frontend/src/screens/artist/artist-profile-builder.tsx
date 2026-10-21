@@ -6,7 +6,7 @@ import { Field, Input, Label, Textarea } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { useStore } from "@/store/app-store";
-import { getCities, getGenres, getMyArtistProfile } from "@/lib/api";
+import { ApiError, getCities, getGenres, getMyArtistProfile } from "@/lib/api";
 import type { ApiCity, ApiGenre } from "@/lib/api";
 import { money } from "@/lib/format";
 import {
@@ -133,6 +133,50 @@ function toPayload(draft: Draft): ArtistProfileWrite {
   };
 }
 
+/** DRF answers a bad field with `{ website: ["That doesn't look like…"] }`. */
+function fieldErrorsOf(err: unknown): Record<string, string> {
+  if (!(err instanceof ApiError) || err.status !== 400) return {};
+  const body = err.body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
+    const first = Array.isArray(value) ? value[0] : value;
+    if (typeof first === "string") out[key] = first;
+  }
+  return out;
+}
+
+/** The field's own message, right under it — the Save button is a long scroll away. */
+function FieldError({ message }: { message?: string }) {
+  if (!message) return null;
+  return (
+    <p className="t-small mt-2 text-fault" role="alert">
+      {message}
+    </p>
+  );
+}
+
+/**
+ * A photo the artist uploaded. If the file can't be fetched (a deleted upload,
+ * a storage hiccup) say so, rather than the browser's blue broken-image icon.
+ */
+function PhotoTile({ src, alt, className }: { src: string; alt: string; className: string }) {
+  const [failed, setFailed] = useState(false);
+  useEffect(() => setFailed(false), [src]);
+  if (failed) {
+    return (
+      <span
+        role="img"
+        aria-label="Photo couldn't be loaded"
+        className={`${className} grid place-items-center bg-surface-2 px-1 text-center text-[11px] leading-tight text-muted`}
+      >
+        Couldn't load photo
+      </span>
+    );
+  }
+  return <img src={src} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} />;
+}
+
 const KYC_TONE: Record<string, PillTone> = {
   pending: "muted",
   submitted: "brass",
@@ -163,6 +207,7 @@ export function ArtistProfileBuilderScreen() {
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
   const [genreToAdd, setGenreToAdd] = useState("");
@@ -219,6 +264,13 @@ export function ArtistProfileBuilderScreen() {
   const patch = (changes: Partial<Draft>) => {
     setDraft((d) => (d ? { ...d, ...changes } : d));
     setSaveError("");
+    setFieldErrors((errs) => {
+      const touched = Object.keys(changes).filter((k) => k in errs);
+      if (touched.length === 0) return errs;
+      const next = { ...errs };
+      for (const k of touched) delete next[k];
+      return next;
+    });
   };
 
   const genreName = useCallback(
@@ -235,6 +287,8 @@ export function ArtistProfileBuilderScreen() {
   const photos = artist?.photos ?? [];
   const cover = photos.find((p) => p.is_primary) ?? photos[0];
 
+  // The same five things the server counts (see artists/completeness.py). A
+  // website is not one of them — plenty of working musicians don't have one.
   const completeness = useMemo(() => {
     if (!draft) return 0;
     const min = feeNumber(draft.fee_range_min);
@@ -246,7 +300,6 @@ export function ArtistProfileBuilderScreen() {
       draft.city !== "",
       draft.bio.trim().length >= 40,
       min !== null && max !== null && max >= min && max > 0,
-      Boolean(draft.instagram.trim() || draft.youtube.trim() || draft.website.trim()),
     ];
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
   }, [draft, photos.length]);
@@ -259,6 +312,7 @@ export function ArtistProfileBuilderScreen() {
     }
     setSaving(true);
     setSaveError("");
+    setFieldErrors({});
     try {
       const updated = await saveArtistProfile(artist.id, toPayload(draft));
       // Re-read from the response, not the draft: the server normalises fees,
@@ -271,7 +325,20 @@ export function ArtistProfileBuilderScreen() {
       setSavedAt(clockStamp());
       toast("Profile saved", "success");
     } catch (err) {
-      setSaveError(apiMessage(err, "Your profile didn't save. Try again."));
+      const fields = fieldErrorsOf(err);
+      if (Object.keys(fields).length > 0) {
+        // Point at the field instead of leaving a message at the top of a long
+        // page the artist has already scrolled away from.
+        setFieldErrors(fields);
+        setSaveError("Nothing was saved yet — fix the highlighted fields and save again.");
+        window.setTimeout(() => {
+          const bad = document.querySelector<HTMLElement>('[aria-invalid="true"]');
+          bad?.scrollIntoView({ block: "center", behavior: "smooth" });
+          bad?.focus({ preventScroll: true });
+        }, 50);
+      } else {
+        setSaveError(apiMessage(err, "Your profile didn't save. Try again."));
+      }
     } finally {
       setSaving(false);
     }
@@ -469,7 +536,7 @@ export function ArtistProfileBuilderScreen() {
           <h1 className="t-h1">Your profile</h1>
           <p className="t-body mt-2 max-w-[52ch] text-muted">
             Hosts search this. A photo, a filled-in fee range and your blocked dates are what turn a
-            search result into an offer.
+            search result into an offer. Everything with “optional” beside it can be left empty.
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-2">
@@ -504,11 +571,10 @@ export function ArtistProfileBuilderScreen() {
               <ul className="mb-3 flex flex-wrap gap-3">
                 {photos.map((photo) => (
                   <li key={photo.id} className="w-[132px]">
-                    <img
+                    <PhotoTile
                       src={photo.image}
                       alt={photo.caption || `Photo of ${draft.stage_name || "you"}`}
                       className="h-[88px] w-[132px] border border-line object-cover"
-                      loading="lazy"
                     />
                     <div className="mt-1 flex items-center justify-between gap-1">
                       {photo.is_primary ? (
@@ -570,7 +636,9 @@ export function ArtistProfileBuilderScreen() {
               id="ap-name"
               value={draft.stage_name}
               onChange={(e) => patch({ stage_name: e.target.value })}
+              aria-invalid={fieldErrors.stage_name ? true : undefined}
             />
+            <FieldError message={fieldErrors.stage_name} />
           </Field>
 
           <div>
@@ -648,7 +716,9 @@ export function ArtistProfileBuilderScreen() {
               rows={4}
               value={draft.bio}
               onChange={(e) => patch({ bio: e.target.value })}
+              aria-invalid={fieldErrors.bio ? true : undefined}
             />
+            <FieldError message={fieldErrors.bio} />
           </Field>
 
           <div>
@@ -673,6 +743,7 @@ export function ArtistProfileBuilderScreen() {
             <p className="t-small mt-2 text-muted">
               Only hosts see this, in artist search. It never appears on your public page.
             </p>
+            <FieldError message={fieldErrors.fee_range_min ?? fieldErrors.fee_range_max} />
             {feeMin !== null && feeMax !== null && feeMax < feeMin && (
               <p className="t-small mt-2 text-fault">
                 The top of the range needs to be at least the bottom.
@@ -742,31 +813,49 @@ export function ArtistProfileBuilderScreen() {
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
-            <Field label="Instagram" htmlFor="ap-instagram">
+            <Field label="Instagram (optional)" htmlFor="ap-instagram">
               <Input
                 id="ap-instagram"
                 value={draft.instagram}
                 onChange={(e) => patch({ instagram: e.target.value })}
                 placeholder="handle"
+                autoCapitalize="none"
+                autoCorrect="off"
+                aria-invalid={fieldErrors.instagram ? true : undefined}
               />
+              <FieldError message={fieldErrors.instagram} />
             </Field>
-            <Field label="YouTube" htmlFor="ap-youtube">
+            <Field label="YouTube (optional)" htmlFor="ap-youtube">
               <Input
                 id="ap-youtube"
-                type="url"
+                type="text"
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
                 value={draft.youtube}
                 onChange={(e) => patch({ youtube: e.target.value })}
-                placeholder="https://…"
+                placeholder="youtube.com/@you"
+                aria-invalid={fieldErrors.youtube ? true : undefined}
               />
+              <FieldError message={fieldErrors.youtube} />
             </Field>
-            <Field label="Website" htmlFor="ap-website">
+            <Field
+              label="Website (optional)"
+              htmlFor="ap-website"
+              hint={fieldErrors.website ? undefined : "Don't have one? Leave it empty."}
+            >
               <Input
                 id="ap-website"
-                type="url"
+                type="text"
+                inputMode="url"
+                autoCapitalize="none"
+                autoCorrect="off"
                 value={draft.website}
                 onChange={(e) => patch({ website: e.target.value })}
-                placeholder="https://…"
+                placeholder="yourband.com"
+                aria-invalid={fieldErrors.website ? true : undefined}
               />
+              <FieldError message={fieldErrors.website} />
             </Field>
           </div>
 
@@ -795,7 +884,9 @@ export function ArtistProfileBuilderScreen() {
                   placeholder="22AAAAA0000A1Z5"
                   className="tabular-nums font-semibold"
                   maxLength={15}
+                  aria-invalid={fieldErrors.gst_number ? true : undefined}
                 />
+                <FieldError message={fieldErrors.gst_number} />
               </Field>
               <Field label="PAN" htmlFor="ap-pan" hint="Needed for TDS on payouts">
                 <Input
@@ -805,7 +896,9 @@ export function ArtistProfileBuilderScreen() {
                   placeholder="ABCDE1234F"
                   className="tabular-nums font-semibold"
                   maxLength={10}
+                  aria-invalid={fieldErrors.pan_number ? true : undefined}
                 />
+                <FieldError message={fieldErrors.pan_number} />
               </Field>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
@@ -839,7 +932,9 @@ export function ArtistProfileBuilderScreen() {
                   onChange={(e) => patch({ bank_account_number: e.target.value.replace(/\D/g, "") })}
                   placeholder={artist.has_bank_details ? "Enter a new number to replace it" : ""}
                   className="tabular-nums font-semibold"
+                  aria-invalid={fieldErrors.bank_account_number ? true : undefined}
                 />
+                <FieldError message={fieldErrors.bank_account_number} />
               </Field>
               <Field label="IFSC code" htmlFor="ap-bank-ifsc">
                 <Input
@@ -849,15 +944,22 @@ export function ArtistProfileBuilderScreen() {
                   placeholder="HDFC0001234"
                   className="tabular-nums font-semibold"
                   maxLength={11}
+                  aria-invalid={fieldErrors.bank_ifsc_code ? true : undefined}
                 />
+                <FieldError message={fieldErrors.bank_ifsc_code} />
               </Field>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 border-t border-line pt-5">
+          <div className="flex flex-wrap items-center gap-3 border-t border-line pt-5">
             <Button variant="primary" onClick={() => void save()} disabled={saving || !dirty}>
               {saving ? "Saving…" : "Save changes"}
             </Button>
+            {saveError && (
+              <span className="t-small text-fault" role="alert">
+                {saveError}
+              </span>
+            )}
             {dirty && (
               <Button
                 onClick={() => {
@@ -878,7 +980,7 @@ export function ArtistProfileBuilderScreen() {
           <div className="mt-3 glass-soft rounded-xl p-4">
             <div className="flex items-center gap-3">
               {cover ? (
-                <img
+                <PhotoTile
                   src={cover.image}
                   alt=""
                   className="size-12 shrink-0 border border-line object-cover"
@@ -927,7 +1029,7 @@ export function ArtistProfileBuilderScreen() {
 
           <p className="t-small mt-3 text-muted">
             {completeness < 100
-              ? "Photos, a fee range and a link fill the rest of the meter — complete profiles get more offers."
+              ? "A photo, genres, city, a short bio and a fee range fill the meter — complete profiles get more offers. A website is optional."
               : "Complete. You'll show up higher in artist search."}
           </p>
           {dirty && (

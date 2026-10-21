@@ -2,6 +2,7 @@ from datetime import date
 
 from rest_framework import serializers
 
+from .completeness import profile_gaps
 from .models import Artist, ArtistPhoto, ArtistFollower
 from apps.core.serializers import GenreSerializer
 from apps.core.urlfields import ForgivingURLField, SocialHandleField
@@ -146,10 +147,16 @@ class ArtistDetailSerializer(PayoutDetailReadMixin, serializers.ModelSerializer)
     bank_account_last4 = serializers.ReadOnlyField()
     has_bank_details = serializers.ReadOnlyField()
     can_receive_payouts = serializers.ReadOnlyField()
+    # What a host would look for and this profile still lacks — empty once the
+    # profile is complete. Drives the dashboard nudge and the profile meter.
+    profile_gaps = serializers.SerializerMethodField()
 
     class Meta:
         model = Artist
         exclude = ["is_deleted", "deleted_at", "bank_account_number"]
+
+    def get_profile_gaps(self, obj):
+        return profile_gaps(obj)
 
     def _is_payout_owner(self, instance, user):
         return instance.user_id == user.id

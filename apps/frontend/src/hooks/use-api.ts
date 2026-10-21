@@ -7,6 +7,7 @@ import { swrFetcher, tokens } from "@/lib/api";
 import type {
   ApiEventList,
   ApiArtistList,
+  ApiBookingReviews,
   ApiConversation,
   ApiMessage,
   ApiOrder,
@@ -58,5 +59,12 @@ export function useOrderLedger(orderId: string | null) {
   return useSWR<{ results: Array<{ entry_type: string; amount: string; description: string }> }>(
     orderId ? `/orders/${orderId}/ledger/` : null,
     swrFetcher as (path: string) => Promise<{ results: Array<{ entry_type: string; amount: string; description: string }> }>,
+  );
+}
+
+export function useOrderReviews(orderId: string | null) {
+  return useSWR<ApiBookingReviews>(
+    orderId ? `/orders/${orderId}/reviews/` : null,
+    (path: string) => swrFetcher<ApiBookingReviews>(path),
   );
 }

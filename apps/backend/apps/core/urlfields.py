@@ -19,6 +19,10 @@ from rest_framework import serializers
 # domain from a sentence, without trying to out-guess the URL validator after.
 _BARE_HOST = re.compile(r"^[\w-]+(\.[\w-]+)+(/.*)?$", re.UNICODE)
 
+# What someone types into an optional website box when they simply don't have
+# one. Treated as "left blank" instead of an error they cannot get past.
+_NO_WEBSITE = {"none", "no", "nil", "na", "n/a", "n.a", "n.a.", "not applicable", "-", "--", "—"}
+
 
 class ForgivingURLField(serializers.CharField):
     """A URL field that adds the scheme a person didn't type."""
@@ -31,7 +35,7 @@ class ForgivingURLField(serializers.CharField):
 
     def to_internal_value(self, data):
         value = str(super().to_internal_value(data)).strip()
-        if not value:
+        if not value or value.lower() in _NO_WEBSITE:
             return ""
 
         # Someone pasting from a browser bar often brings a trailing slash and

@@ -43,9 +43,7 @@ const fixtureSeed = () => ({
   bookings: fixtures.bookings.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),
   tickets: fixtures.tickets.map((t) => ({ ...t })),
   settlements: fixtures.settlements.map((s) => ({ ...s })),
-  messages: fixtures.messages.map((m) => ({ ...m })),
   applications: fixtures.gigApplications.map((a) => ({ ...a })),
-  reviews: fixtures.reviews.map((r) => ({ ...r })),
 });
 
 const dispute = (over: Partial<ApiDispute> = {}): ApiDispute => ({

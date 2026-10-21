@@ -859,7 +859,7 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `DB_CONN_MAX_AGE` | `60` | Seconds, non-pooled connections only. |
 | `DB_POOLED` | auto (port 6543) | Force pooled behaviour on another port. |
 | `AWS_STORAGE_BUCKET_NAME` + `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_S3_REGION_NAME` / `AWS_S3_ENDPOINT_URL` / `AWS_S3_CUSTOM_DOMAIN` | *(empty)* | Object storage activates only when the bucket name is set. |
-| `MEDIA_URL` / `MEDIA_ROOT` | `/media/` / `media/` | |
+| `MEDIA_URL` / `MEDIA_ROOT` | `/media/` / `media/` | Without a bucket, uploaded photos are served by the backend itself from `MEDIA_ROOT` — keep that folder on a persistent volume (the Oracle compose file does), or photos vanish on redeploy. Use the `AWS_*` bucket on hosts with a disposable disk. |
 | `OTP_LENGTH` / `OTP_EXPIRY_MINUTES` / `OTP_MAX_ATTEMPTS` | `6` / `10` / `5` | |
 | `OTP_DEBUG_RESPONSE` | forced `False` in production | Cannot be enabled in production. Good. |
 

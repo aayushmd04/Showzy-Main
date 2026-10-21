@@ -495,6 +495,8 @@ export interface ApiArtist {
   bank_account_last4?: string;
   has_bank_details?: boolean;
   can_receive_payouts?: boolean;
+  /** What a host looks for that this profile lacks ("a photo", "your city"…). Detail endpoint only; empty when complete. */
+  profile_gaps?: string[];
 }
 
 export interface ApiArtistList {
@@ -623,20 +625,35 @@ export interface ApiOrganizer {
 
 export interface ApiConversation {
   id: string;
-  organizer: ApiOrganizer;
+  /** The list endpoint sends the id; older shapes nested the whole organiser. */
+  organizer: string | ApiOrganizer;
   organizer_name: string;
   artist_name: string;
   artist: string; // artist id
-  event?: string; // event id
+  event?: string | null; // event id
+  event_title?: string | null;
+  /** The offer currently waiting for an answer, if there is one. */
+  pending_offer?: ApiOffer | null;
+  /** The booking an accepted offer in this thread produced. */
+  order_id?: string | null;
+  latest_message?: { content: string; sender: string } | null;
+  last_message_at?: string | null;
   created_at: string;
 }
 
 export interface ApiMessage {
   id: string;
-  conversation: string;
+  /** The author's user id. */
   sender: string;
+  sender_name?: string;
   content: string;
+  /** `offer` messages carry the offer they announce in `offer`. */
+  message_type: "text" | "offer" | "system";
+  linked_offer?: string | null;
+  offer?: ApiOffer | null;
   is_flagged: boolean;
+  flag_reason?: string;
+  conversation_id?: string;
   created_at: string;
 }
 
@@ -644,19 +661,22 @@ export interface ApiOffer {
   id: string;
   conversation: string;
   proposed_by: string;
+  proposed_by_name?: string;
   fee_amount: string;
   performance_date: string;
   performance_duration_minutes: number;
   set_count: number;
   notes: string;
   status: string;
-  counter_of?: string;
+  counter_of_id?: string | null;
   expires_at: string;
   created_at: string;
 }
 
 export interface ApiOrder {
   id: string;
+  /** The thread this booking was negotiated in. */
+  conversation?: string;
   status: string;
   gross_amount: string;
   platform_fee: string;
@@ -699,6 +719,23 @@ export function getMyConversations(): Promise<{ results: ApiConversation[] }> {
   return get("/conversations/");
 }
 
+/** Organisations the signed-in host can book artists for. */
+export function getMyOrganizers(): Promise<ApiOrganizer[]> {
+  return get("/organizers/");
+}
+
+export function createOrganizer(name: string): Promise<ApiOrganizer> {
+  return post("/organizers/", { name, organizer_type: "venue" });
+}
+
+export function openConversation(data: {
+  organizer: string;
+  artist: string;
+  event?: string | null;
+}): Promise<ApiConversation> {
+  return post("/conversations/", data);
+}
+
 export function getConversationMessages(
   convoId: string,
 ): Promise<{ results: ApiMessage[] }> {
@@ -730,8 +767,40 @@ export function acceptOffer(offerId: string): Promise<ApiOrder> {
   return post(`/offers/${offerId}/accept/`);
 }
 
-export function rejectOffer(offerId: string): Promise<void> {
+export function rejectOffer(offerId: string): Promise<ApiOffer> {
   return post(`/offers/${offerId}/reject/`);
+}
+
+/**
+ * Put a host's offer in front of an artist for real: find (or create) the
+ * organisation the host books under, open the thread, and send the terms. The
+ * artist is notified by the server the moment this returns.
+ */
+export async function sendOfferToArtist(input: {
+  artistId: string;
+  eventId?: string | null;
+  /** Used only when the host has no organisation yet. */
+  organizerName: string;
+  feeAmount: number;
+  performanceDate: string;
+  durationMinutes?: number;
+  setCount?: number;
+  notes?: string;
+}): Promise<ApiOffer> {
+  const organizers = await getMyOrganizers();
+  const organizer = organizers[0] ?? (await createOrganizer(input.organizerName));
+  const convo = await openConversation({
+    organizer: organizer.id,
+    artist: input.artistId,
+    event: input.eventId ?? null,
+  });
+  return makeOffer(convo.id, {
+    fee_amount: String(input.feeAmount),
+    performance_date: input.performanceDate,
+    performance_duration_minutes: input.durationMinutes ?? 90,
+    set_count: input.setCount ?? 2,
+    notes: input.notes,
+  });
 }
 
 export function getMyOrders(): Promise<{ results: ApiOrder[] }> {
@@ -877,6 +946,33 @@ export function reviewGigApplication(
   note = "",
 ): Promise<unknown> {
   return patch(`/gig-applications/${applicationId}/review/`, { status, note });
+}
+
+export interface ApiBookingReview {
+  id: string;
+  direction: "host_to_artist" | "artist_to_host";
+  rating: number;
+  body: string;
+  created_at: string;
+}
+
+export interface ApiBookingReviews {
+  count: number;
+  /** Which way a review from the signed-in person points. */
+  my_direction: ApiBookingReview["direction"];
+  results: ApiBookingReview[];
+}
+
+export function getOrderReviews(orderId: string): Promise<ApiBookingReviews> {
+  return get(`/orders/${orderId}/reviews/`);
+}
+
+/** One per side, once the gig is done; the server rejects a second. */
+export function reviewBooking(
+  orderId: string,
+  data: { rating: number; body: string },
+): Promise<ApiBookingReview> {
+  return post(`/orders/${orderId}/reviews/`, data);
 }
 
 export function cancelBookingOrder(orderId: string, reason = ""): Promise<ApiOrder> {

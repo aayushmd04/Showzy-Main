@@ -14,21 +14,16 @@ import {
   type ApplicationStatus,
   type Artist,
   type Booking,
-  type BookingState,
-  type ChatMessage,
   type DisputeOutcome,
   type EventStatus,
   type GigApplication,
   type KycStatus,
   type NaadaEvent,
-  type Quote,
-  type Review,
   type Role,
   type Ticket,
   type Tier,
   type Venue,
 } from "@/data/fixtures";
-import { detectContactInfo } from "@/lib/contact-filter";
 import { readPref, useConsent, writePref } from "@/lib/consent";
 
 import * as api from "@/lib/api";
@@ -116,9 +111,7 @@ interface AppStore {
   artists: Artist[];
   bookings: Booking[];
   tickets: Ticket[];
-  messages: ChatMessage[];
   applications: GigApplication[];
-  reviews: Review[];
   venues: Venue[];
   users: typeof users;
 
@@ -136,8 +129,6 @@ interface AppStore {
   venueById: (id: string) => Venue | undefined;
   bookingById: (id: string) => Booking | undefined;
   ticketByCode: (code: string) => Ticket | undefined;
-  messagesFor: (bookingId: string) => ChatMessage[];
-  reviewsFor: (bookingId: string) => Review[];
   venueOf: (event: NaadaEvent) => Venue | undefined;
   soldOf: (event: NaadaEvent) => number;
   capacityOf: (event: NaadaEvent) => number;
@@ -155,21 +146,7 @@ interface AppStore {
   addTier: (id: string, tier: Tier) => void;
   removeTier: (id: string, tierName: string) => void;
 
-  sendBrief: (input: {
-    eventId: string;
-    artistId: string;
-    amount: number;
-    message: string;
-  }) => Booking;
-  counterBooking: (id: string, by: "host" | "artist", amount: number) => void;
-  acceptBooking: (id: string, by: "host" | "artist") => void;
-  declineBooking: (id: string) => void;
-  fundBooking: (id: string) => void;
-  setBookingState: (id: string, state: BookingState) => void;
   updateArtistProfile: (patch: Partial<ArtistProfileDraft>) => void;
-  countersUsed: (booking: Booking) => number;
-
-  sendMessage: (bookingId: string, sender: "host" | "artist", body: string) => ChatMessage;
 
   applyToGig: (
     eventId: string,
@@ -181,17 +158,9 @@ interface AppStore {
 
   setArtistKycStatus: (artistId: string, status: KycStatus) => void;
   resolveDispute: (bookingId: string, outcome: DisputeOutcome, note: string) => void;
-  reviewFlaggedMessage: (messageId: string) => void;
 
-  submitReview: (
-    bookingId: string,
-    direction: Review["direction"],
-    rating: number,
-    body: string,
-  ) => Review;
 
   /* API-backed booking actions */
-  apiSendMessage: (convoId: string, body: string) => Promise<ChatMessage>;
   apiFundOrder: (orderId: string) => Promise<void>;
   apiCompleteOrder: (orderId: string) => Promise<void>;
 }
@@ -200,8 +169,6 @@ const StoreContext = createContext<AppStore | null>(null);
 
 let toastSeq = 0;
 
-const HELD_STATES: BookingState[] = ["accepted", "funded", "performed", "released"];
-
 /** Test-only hook for seeding the store; production always starts empty. */
 export interface StoreSeed {
   events?: NaadaEvent[];
@@ -209,14 +176,12 @@ export interface StoreSeed {
   venues?: Venue[];
   bookings?: Booking[];
   tickets?: Ticket[];
-  messages?: ChatMessage[];
   applications?: GigApplication[];
-  reviews?: Review[];
 }
 
 const EMPTY_SEED: Required<StoreSeed> = {
   events: [], artists: [], venues: [], bookings: [], tickets: [],
-  messages: [], applications: [], reviews: [],
+  applications: [],
 };
 
 export function AppStoreProvider({
@@ -291,9 +256,7 @@ export function AppStoreProvider({
   const [venues, setVenues] = useState<Venue[]>(seed.venues);
   const [bookings, setBookings] = useState<Booking[]>(seed.bookings);
   const [tickets, setTickets] = useState<Ticket[]>(seed.tickets);
-  const [messages, setMessages] = useState<ChatMessage[]>(seed.messages);
   const [applications, setApplications] = useState<GigApplication[]>(seed.applications);
-  const [reviews, setReviews] = useState<Review[]>(seed.reviews);
   const [checkout, setCheckout] = useState<CheckoutDraft>(EMPTY_CHECKOUT);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [emptyLists, setEmptyLists] = useState(false);
@@ -428,15 +391,6 @@ export function AppStoreProvider({
     (code: string) => tickets.find((t) => t.code === code),
     [tickets],
   );
-  const messagesFor = useCallback(
-    (bookingId: string) =>
-      messages.filter((m) => m.bookingId === bookingId).sort((a, b) => a.at.localeCompare(b.at)),
-    [messages],
-  );
-  const reviewsFor = useCallback(
-    (bookingId: string) => reviews.filter((r) => r.bookingId === bookingId),
-    [reviews],
-  );
   const venueOf = useCallback(
     (event: NaadaEvent) => venues.find((v) => v.id === event.venueId),
     [venues],
@@ -511,155 +465,9 @@ export function AppStoreProvider({
   /* ---- bookings ---- */
   const now = () => new Date().toISOString().slice(0, 19);
 
-  const countersUsed = useCallback((booking: Booking) => booking.quotes.length, []);
-
-  const sendBrief = useCallback(
-    (input: { eventId: string; artistId: string; amount: number; message: string }) => {
-      const created: Booking = {
-        id: `b${Date.now()}`,
-        eventId: input.eventId,
-        artistId: input.artistId,
-        hostId: "h1",
-        state: "requested",
-        agreedFee: null,
-        message: input.message,
-        quotes: [{ by: "host", amount: input.amount, at: now() }],
-      };
-      setBookings((prev) => [created, ...prev]);
-      setEvents((prev) =>
-        prev.map((e) =>
-          e.id === input.eventId && !e.lineup.includes(input.artistId)
-            ? { ...e, lineup: [...e.lineup, input.artistId] }
-            : e,
-        ),
-      );
-      setApplications((prev) =>
-        prev.map((a) =>
-          a.eventId === input.eventId &&
-          a.artistId === input.artistId &&
-          (a.status === "pending" || a.status === "shortlisted")
-            ? { ...a, status: "converted" }
-            : a,
-        ),
-      );
-      return created;
-    },
-    [],
-  );
-
-  const counterBooking = useCallback(
-    (id: string, by: "host" | "artist", amount: number) => {
-      setBookings((prev) =>
-        prev.map((b) => {
-          if (b.id !== id) return b;
-          const quote: Quote = { by, amount, at: now() };
-          return { ...b, state: "negotiating", quotes: [...b.quotes, quote] };
-        }),
-      );
-    },
-    [],
-  );
-
-  const acceptBooking = useCallback(
-    (id: string, by: "host" | "artist") => {
-      const target = bookings.find((b) => b.id === id);
-      const targetEvent = target && events.find((e) => e.id === target.eventId);
-      if (target && targetEvent) {
-        const conflict = bookings.some((b) => {
-          if (b.id === target.id || b.artistId !== target.artistId) return false;
-          if (!HELD_STATES.includes(b.state)) return false;
-          return events.find((e) => e.id === b.eventId)?.date === targetEvent.date;
-        });
-        if (conflict) {
-          const name = artists.find((a) => a.id === target.artistId)?.name ?? "This artist";
-          toast(`${name} already has a gig that date`, "fault");
-          return;
-        }
-      }
-      setBookings((prev) =>
-        prev.map((b) => {
-          if (b.id !== id) return b;
-          const last = b.quotes[b.quotes.length - 1];
-          const amount = last?.amount ?? 0;
-          return {
-            ...b,
-            state: "accepted",
-            agreedFee: amount,
-            quotes: [...b.quotes, { by, amount, at: now(), accepted: true }],
-          };
-        }),
-      );
-    },
-    [bookings, events, artists, toast],
-  );
-
-  const declineBooking = useCallback((id: string) => {
-    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, state: "declined" } : b)));
-  }, []);
-
-  const fundBooking = useCallback((id: string) => {
-    setBookings((prev) => prev.map((b) => (b.id === id ? { ...b, state: "funded" } : b)));
-  }, []);
-
-  const setBookingState = useCallback((id: string, state: BookingState) => {
-    setBookings((prev) =>
-      prev.map((b) => {
-        if (b.id !== id) return b;
-        const last = b.quotes[b.quotes.length - 1];
-        const settled: BookingState[] = ["accepted", "funded", "performed", "released"];
-        const agreedFee = settled.includes(state)
-          ? (b.agreedFee ?? last?.amount ?? 0)
-          : b.agreedFee;
-        return { ...b, state, agreedFee };
-      }),
-    );
-  }, []);
-
   const updateArtistProfile = useCallback(
     (patch: Partial<ArtistProfileDraft>) => setArtistProfile((prev) => ({ ...prev, ...patch })),
     [],
-  );
-
-  /* ---- chat (local) ---- */
-  const sendMessage = useCallback(
-    (bookingId: string, sender: "host" | "artist", body: string): ChatMessage => {
-      const flag = detectContactInfo(body);
-      const created: ChatMessage = {
-        id: `m${Date.now()}`,
-        bookingId,
-        sender,
-        body,
-        at: now(),
-        flagged: Boolean(flag),
-        flagReason: flag?.reason,
-      };
-      setMessages((prev) => [...prev, created]);
-      return created;
-    },
-    [],
-  );
-
-  /* ---- API-backed chat ---- */
-  const apiSendMessage = useCallback(
-    async (convoId: string, body: string): Promise<ChatMessage> => {
-      try {
-        const msg = await api.sendMessage(convoId, body);
-        const adapted: ChatMessage = {
-          id: msg.id,
-          bookingId: convoId,
-          sender: "host",
-          body: msg.content,
-          at: msg.created_at,
-          flagged: msg.is_flagged,
-        };
-        setMessages((prev) => [...prev, adapted]);
-        return adapted;
-      } catch {
-        // Fall back to local if API fails
-        return sendMessage(convoId, "host", body);
-      }
-    },
-    [sendMessage],
   );
 
   /* ---- API-backed fund order ---- */
@@ -704,10 +512,6 @@ export function AppStoreProvider({
     [],
   );
 
-  const reviewFlaggedMessage = useCallback((messageId: string) => {
-    setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, flagged: false } : m)));
-  }, []);
-
   /* ---- gig board ---- */
   const applyToGig = useCallback(
     (eventId: string, artistId: string, message: string, proposedRate?: number): GigApplication => {
@@ -736,23 +540,6 @@ export function AppStoreProvider({
     setApplications((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
   }, []);
 
-  /* ---- reviews ---- */
-  const submitReview = useCallback(
-    (bookingId: string, direction: Review["direction"], rating: number, body: string): Review => {
-      const created: Review = {
-        id: `rv${Date.now()}`,
-        bookingId,
-        direction,
-        rating,
-        body,
-        createdAt: now(),
-      };
-      setReviews((prev) => [...prev, created]);
-      return created;
-    },
-    [],
-  );
-
   const value = useMemo<AppStore>(
     () => ({
       role,
@@ -769,9 +556,7 @@ export function AppStoreProvider({
       artists,
       bookings,
       tickets,
-      messages,
       applications,
-      reviews,
       venues,
       users,
       checkout,
@@ -785,8 +570,6 @@ export function AppStoreProvider({
       venueById,
       bookingById,
       ticketByCode,
-      messagesFor,
-      reviewsFor,
       venueOf,
       soldOf,
       capacityOf,
@@ -800,36 +583,24 @@ export function AppStoreProvider({
       setEventStatus,
       addTier,
       removeTier,
-      sendBrief,
-      counterBooking,
-      acceptBooking,
-      declineBooking,
-      fundBooking,
-      setBookingState,
       updateArtistProfile,
-      countersUsed,
-      sendMessage,
       setArtistKycStatus,
       resolveDispute,
-      reviewFlaggedMessage,
       applyToGig,
       setApplicationStatus,
-      submitReview,
-      apiSendMessage,
       apiFundOrder,
       apiCompleteOrder,
     }),
     [
       role, currentUser, theme, lang, hydrateFromApi, eventsLoaded,
-      events, artists, bookings, tickets, messages, applications, reviews, venues,
+      events, artists, bookings, tickets, applications, venues,
       checkout, artistProfile, emptyLists, toasts, toast, dismissToast,
-      eventById, artistById, venueById, bookingById, ticketByCode, messagesFor, reviewsFor,
+      eventById, artistById, venueById, bookingById, ticketByCode,
       venueOf, soldOf, capacityOf, startCheckout, setGuestDetails, clearCheckout,
       checkIn, updateEvent, setEventStatus, addTier, removeTier,
-      sendBrief, counterBooking, acceptBooking, declineBooking, fundBooking, setBookingState,
-      updateArtistProfile, countersUsed, sendMessage, setArtistKycStatus,
-      resolveDispute, reviewFlaggedMessage, applyToGig, setApplicationStatus, submitReview,
-      apiSendMessage, apiFundOrder, apiCompleteOrder,
+      updateArtistProfile, setArtistKycStatus,
+      resolveDispute, applyToGig, setApplicationStatus,
+      apiFundOrder, apiCompleteOrder,
     ],
   );
 

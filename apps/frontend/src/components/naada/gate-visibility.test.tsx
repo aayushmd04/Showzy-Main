@@ -148,6 +148,22 @@ describe("the gate pages", () => {
     expect(screen.queryByText("the door scanner")).not.toBeInTheDocument();
   });
 
+  it("wait for a saved session to be restored instead of answering 404 on a reload", () => {
+    api.tokens.set("access", "refresh");
+    try {
+      // No SignedInAs here: this is the instant after a reload, before getMe has answered.
+      render(
+        <MemoryRouter initialEntries={["/gate/ev-1/door"]}>
+          <AppStoreProvider seed={{}}>{gateRoutes()}</AppStoreProvider>
+        </MemoryRouter>,
+      );
+      expect(screen.getByRole("status")).toHaveTextContent("Loading");
+      expect(screen.queryByText("404 page not found")).not.toBeInTheDocument();
+    } finally {
+      api.tokens.clear();
+    }
+  });
+
   it("don't flash the page while the server is still being asked", async () => {
     vi.mocked(api.swrFetcher).mockReturnValue(new Promise(() => {}));
     mount(gateRoutes(), "listener", "/gate");

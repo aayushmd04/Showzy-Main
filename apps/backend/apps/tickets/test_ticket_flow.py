@@ -329,6 +329,23 @@ class TierManagementTests(TicketFlowBase):
                      {"name": "X", "price": "10", "total_quantity": 0}):
             self.assertEqual(h.post(self.url(), body, format="json").status_code, 400, body)
 
+    def test_cannot_put_more_on_sale_than_the_room_holds(self):
+        self.venue.capacity = 100
+        self.venue.save()
+        h = self.as_user(self.host)
+        # GateBase already put a 50-ticket tier on this event.
+        ok = h.post(self.url(), {"name": "A", "price": "10", "total_quantity": 50}, format="json")
+        self.assertEqual(ok.status_code, 201, ok.data)
+        over = h.post(self.url(), {"name": "B", "price": "10", "total_quantity": 1}, format="json")
+        self.assertEqual(over.status_code, 400)
+        self.assertIn("room holds 100", str(over.data))
+        # Raising an existing tier past the room is refused too.
+        a = TicketTier.objects.get(pk=ok.data["id"])
+        self.assertEqual(h.patch(self.url(a), {"total_quantity": 60}, format="json").status_code, 400)
+        # A paused tier doesn't count against the room.
+        h.patch(self.url(a), {"is_active": False}, format="json")
+        self.assertEqual(h.post(self.url(), {"name": "C", "price": "10", "total_quantity": 50}, format="json").status_code, 201)
+
     def test_cannot_shrink_below_what_is_sold_or_change_the_price_of_a_sold_tier(self):
         tier = self.sellable(total=10)
         self.pay(self.fan, self.order(self.fan, self.event, tier, qty=3).data["id"])

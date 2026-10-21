@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 import { useParams } from "react-router-dom";
 import { NotFoundScreen } from "@/screens/not-found";
 import { useGateAccess } from "@/lib/gate-access";
+import { useStore } from "@/store/app-store";
+import { RestoringSession } from "./require-role";
 
 /**
  * Guards the gate-duty pages. Anyone without an invitation or a door gets the
@@ -20,8 +22,12 @@ export function RequireGate({
   door?: boolean;
 }) {
   const { id } = useParams();
+  const { authReady } = useStore();
   const { loading, signedIn, hasGateWork, data } = useGateAccess();
 
+  // A reload at the door: wait for the saved session rather than answering
+  // "signed out" (a 404 for the scanner) while it is still being restored.
+  if (!authReady && !signedIn) return <RestoringSession />;
   if (!signedIn) return door ? <NotFoundScreen /> : <>{children}</>;
   if (loading) {
     return (

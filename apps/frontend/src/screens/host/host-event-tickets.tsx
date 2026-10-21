@@ -154,55 +154,33 @@ export function TierManager({
       {error && <ErrorNote className="mt-3" message={error} />}
 
       {tiers.length > 0 ? (
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full min-w-[520px] glass-soft rounded-xl text-left">
-            <thead>
-              <tr className="border-b border-line">
-                <th scope="col" className="t-micro px-4 py-3">Tier</th>
-                <th scope="col" className="t-micro px-4 py-3 text-right">Price</th>
-                <th scope="col" className="t-micro px-4 py-3 text-right">Sold</th>
-                <th scope="col" className="t-micro px-4 py-3 text-right">Revenue</th>
-                <th scope="col" className="px-4 py-3"><span className="sr-only">Actions</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              {tiers.map((t) => (
-                <tr key={t.id} className="border-b border-line last:border-0">
-                  <td className="px-4 py-3 text-[15px]">
-                    {t.name}
-                    {!t.is_active && <Pill tone="muted" className="ml-2">Off sale</Pill>}
-                  </td>
-                  <td className="t-mono px-4 py-3 text-right text-[14px]">
-                    {Number(t.price) === 0 ? "FREE" : money(Number(t.price))}
-                  </td>
-                  <td className="t-mono px-4 py-3 text-right text-[14px]">
-                    {t.sold_quantity}/{t.total_quantity}
-                  </td>
-                  <td className="t-mono px-4 py-3 text-right text-[14px]">
-                    {money(Number(t.price) * t.sold_quantity)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex justify-end gap-1">
-                      <Button size="sm" variant="ghost" aria-label={`Edit ${t.name}`} onClick={() => open(t)}>
-                        <Pencil className="size-4" aria-hidden="true" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => void setActive(t, !t.is_active)}
-                      >
-                        {t.is_active ? "Pause" : "Resume"}
-                      </Button>
-                      <Button size="sm" variant="ghost" aria-label={`Remove ${t.name}`} onClick={() => setRemoving(t)}>
-                        <Trash2 className="size-4" aria-hidden="true" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ul className="mt-3 space-y-2">
+          {tiers.map((t) => (
+            <li key={t.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 glass-soft rounded-xl px-4 py-3">
+              <div className="min-w-0 basis-[180px] flex-1">
+                <p className="text-[15px]">
+                  {t.name}
+                  {!t.is_active && <Pill tone="muted" className="ml-2">Off sale</Pill>}
+                </p>
+                <p className="t-mono mt-1 text-[13px] text-muted">
+                  {Number(t.price) === 0 ? "FREE" : money(Number(t.price))} · {t.sold_quantity}/{t.total_quantity} sold
+                  {t.sold_quantity > 0 && ` · ${money(Number(t.price) * t.sold_quantity)}`}
+                </p>
+              </div>
+              <div className="flex shrink-0 items-center gap-1">
+                <Button size="sm" variant="ghost" aria-label={`Edit ${t.name}`} onClick={() => open(t)}>
+                  <Pencil className="size-4" aria-hidden="true" />
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => void setActive(t, !t.is_active)}>
+                  {t.is_active ? "Pause" : "Resume"}
+                </Button>
+                <Button size="sm" variant="ghost" aria-label={`Remove ${t.name}`} onClick={() => setRemoving(t)}>
+                  <Trash2 className="size-4" aria-hidden="true" />
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
       ) : (
         <p className="t-small mt-3 border border-dashed border-line px-4 py-6 text-muted">
           Nothing on sale yet. Add at least one ticket — General, Front row, whatever you sell — before you

@@ -743,7 +743,7 @@ def event_tiers(request, event_id):
 
     if event.end_datetime <= timezone.now():
         return Response({"detail": "This event is over — tickets can't be added."}, status=400)
-    serializer = TierWriteSerializer(data=request.data)
+    serializer = TierWriteSerializer(data=request.data, context={"event": event})
     serializer.is_valid(raise_exception=True)
     tier = serializer.save(event=event)
     return Response(TicketTierLightSerializer(tier).data, status=status.HTTP_201_CREATED)
@@ -756,7 +756,7 @@ def event_tier_detail(request, event_id, tier_id):
     tier = generics.get_object_or_404(TicketTier, pk=tier_id, event=event)
 
     if request.method == "PATCH":
-        serializer = TierWriteSerializer(tier, data=request.data, partial=True)
+        serializer = TierWriteSerializer(tier, data=request.data, partial=True, context={"event": event})
         serializer.is_valid(raise_exception=True)
         # A price change must not reach people who already hold a ticket at the
         # old price: their order, refund and invoice are all priced from it.

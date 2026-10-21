@@ -53,11 +53,40 @@ class TierWriteSerializer(serializers.ModelSerializer):
         hi = attrs.get("max_per_order", inst.max_per_order if inst else 10)
         if lo > hi:
             raise serializers.ValidationError({"max_per_order": "Maximum can't be below the minimum."})
+        self._check_room(attrs, inst, total)
         start = attrs.get("sale_start_datetime", inst.sale_start_datetime if inst else None)
         end = attrs.get("sale_end_datetime", inst.sale_end_datetime if inst else None)
         if start and end and end <= start:
             raise serializers.ValidationError({"sale_end_datetime": "Sales must end after they start."})
         return attrs
+
+
+    def _check_room(self, attrs, inst, total):
+        """Don't put more tickets on sale than the room can hold.
+
+        Counted across every tier that is on sale, against the event's own cap
+        if it has one, otherwise the venue's capacity. A venue with no
+        capacity recorded is not policed.
+        """
+        event = self.context.get("event") or (inst.event if inst else None)
+        if event is None or total is None:
+            return
+        active = attrs.get("is_active", inst.is_active if inst else True)
+        if not active:
+            return
+        limit = event.max_capacity or getattr(event.venue, "capacity", None)
+        if not limit:
+            return
+        others = sum(
+            t.total_quantity for t in event.ticket_tiers.filter(is_active=True)
+            if not inst or t.pk != inst.pk
+        )
+        if others + total > limit:
+            room = max(0, limit - others)
+            raise serializers.ValidationError({
+                "total_quantity": f"The room holds {limit} and {others} are already on sale in other "
+                                  f"tickets, so this one can have at most {room}."
+            })
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

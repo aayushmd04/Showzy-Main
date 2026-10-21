@@ -119,7 +119,7 @@ const ROLE_MAP: Record<string, import("@/data/fixtures").Role> = {
 
 /** Loads public event/artist data on mount and restores session if a token exists. */
 function AppBootstrap() {
-  const { hydrateFromApi, setRole, setCurrentUser } = useStore();
+  const { hydrateFromApi, setRole, setCurrentUser, setAuthReady } = useStore();
 
   useEffect(() => {
     hydrateFromApi().catch(() => {
@@ -140,7 +140,8 @@ function AppBootstrap() {
         })
         .catch(() => {
           tokens.clear();
-        });
+        })
+        .finally(() => setAuthReady(true));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

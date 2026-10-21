@@ -464,7 +464,10 @@ export function getMyEvents(): Promise<ApiEventList> {
 }
 
 export function getEvent(id: string): Promise<ApiEvent> {
-  return get<ApiEvent>(`/events/${id}/`, false);
+  // The token goes along when there is one: the host console reads its own
+  // draft events and every ticket tier (paused ones too) through this, and the
+  // server shows those only to the organiser. Anonymous readers are unchanged.
+  return get<ApiEvent>(`/events/${id}/`, Boolean(tokens.access));
 }
 
 // ─── Artists ──────────────────────────────────────────────────────────────────

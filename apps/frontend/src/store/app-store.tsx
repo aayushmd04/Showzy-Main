@@ -96,6 +96,13 @@ interface AppStore {
 
   currentUser: CurrentUser | null;
   setCurrentUser: (user: CurrentUser | null) => void;
+  /**
+   * False only while a saved session is being restored on page load. Until it
+   * is true, "signed out" may just mean "not asked yet" — so guarded pages wait
+   * instead of flashing a sign-in prompt or a 404 at someone who is signed in.
+   */
+  authReady: boolean;
+  setAuthReady: (ready: boolean) => void;
 
   theme: Theme;
   setTheme: (theme: Theme) => void;
@@ -194,6 +201,7 @@ export function AppStoreProvider({
   const seed = { ...EMPTY_SEED, ...seedProp };
   const [role, setRole] = useState<Role>("out");
   const [currentUser, setCurrentUser] = useState<CurrentUser | null>(null);
+  const [authReady, setAuthReady] = useState(() => !api.tokens.access);
   /*
    * Theme and language are read back from the browser so a choice survives a
    * reload. Both were in-memory only, so every refresh silently reset to dark
@@ -546,6 +554,8 @@ export function AppStoreProvider({
       setRole,
       currentUser,
       setCurrentUser,
+      authReady,
+      setAuthReady,
       theme,
       setTheme,
       lang,
@@ -592,7 +602,7 @@ export function AppStoreProvider({
       apiCompleteOrder,
     }),
     [
-      role, currentUser, theme, lang, hydrateFromApi, eventsLoaded,
+      role, currentUser, authReady, theme, lang, hydrateFromApi, eventsLoaded,
       events, artists, bookings, tickets, applications, venues,
       checkout, artistProfile, emptyLists, toasts, toast, dismissToast,
       eventById, artistById, venueById, bookingById, ticketByCode,

@@ -5,7 +5,7 @@ import { StubGlyph } from "@/components/naada/ticket-stub";
 import { Pill } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
 import { useStore } from "@/store/app-store";
-import { dateListing } from "@/lib/format";
+import { dateListing, daysFromNow } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { usePageMeta } from "@/lib/use-meta";
 
@@ -18,12 +18,20 @@ export function MyTicketsScreen() {
 
   const hasAnyTickets = !emptyLists && tickets.length > 0;
 
+  // Nothing in the system flips an event to "completed" once its night has
+  // gone, so a ticket for last month's gig sat under "Upcoming" for good. Go by
+  // the date as well — with a day's grace, so a late show that runs past
+  // midnight is still "upcoming" for the person holding the ticket at its door.
+  const yesterday = daysFromNow(-1);
   const rows = emptyLists
     ? []
     : tickets.filter((t) => {
         const event = eventById(t.eventId);
         if (!event) return false;
-        const isPast = event.status === "completed" || t.status === "checked_in";
+        const isPast =
+          event.status === "completed" ||
+          t.status === "checked_in" ||
+          (!!event.date && event.date < yesterday);
         return tab === "past" ? isPast : !isPast;
       });
 

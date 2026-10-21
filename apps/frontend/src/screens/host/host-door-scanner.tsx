@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowLeft, Camera, CameraOff, Check, X } from "lucide-re
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStore } from "@/store/app-store";
-import { scanTicket, getEventAttendees, getMyGate, type ApiAttendee } from "@/lib/api";
+import { scanTicket, getEvent, getEventAttendees, getMyGate, type ApiAttendee } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { NotFoundScreen } from "../not-found";
 
@@ -92,7 +92,7 @@ function buzz(ok: boolean) {
 
 export function HostDoorScannerScreen({ variant = "host" }: { variant?: "host" | "gate" }) {
   const { id = "" } = useParams();
-  const { eventById, capacityOf, toast } = useStore();
+  const { eventById, toast } = useStore();
 
   const [overlay, setOverlay] = useState<Overlay>(null);
   const [cameraOn, setCameraOn] = useState(false);
@@ -118,26 +118,26 @@ export function HostDoorScannerScreen({ variant = "host" }: { variant?: "host" |
   const reduce = useReducedMotion();
 
   const isGate = variant === "gate";
-  // A gatekeeper's event may not be in the host-oriented store, so the title
-  // comes from their own assignment instead.
-  const [gateTitle, setGateTitle] = useState<string | null>(null);
+  /*
+   * The event's name for the header. A gatekeeper's event is not in the public
+   * list the store holds, so theirs comes from their own assignment; a host's
+   * comes from the store when it has it, and from the server when it doesn't
+   * (opening the scanner straight from a bookmark, before the list has loaded,
+   * used to flash "page not found").
+   */
+  const storeName = isGate ? undefined : eventById(id)?.name;
+  const [fetchedTitle, setFetchedTitle] = useState<string | null>(null);
   useEffect(() => {
-    if (!isGate) return;
+    if (storeName) return;
     let alive = true;
-    getMyGate()
-      .then((g) => {
-        const a = g.assignments.find((x) => x.event.id === id);
-        if (alive) setGateTitle(a ? a.event.title : "");
-      })
-      .catch(() => alive && setGateTitle(""));
+    const lookup = isGate
+      ? getMyGate().then((g) => g.assignments.find((x) => x.event.id === id)?.event.title ?? "")
+      : getEvent(id).then((e) => e.title);
+    lookup.then((t) => alive && setFetchedTitle(t)).catch(() => alive && setFetchedTitle(""));
     return () => { alive = false; };
-  }, [isGate, id]);
-  const storeEvent = eventById(id);
-  const event = isGate
-    ? gateTitle
-      ? { id, name: gateTitle, checkedIn: 0 }
-      : undefined
-    : storeEvent;
+  }, [isGate, id, storeName]);
+  const title = storeName ?? fetchedTitle;
+  const event = title ? { id, name: title } : undefined;
 
   useEffect(() => {
     if (!id) return;
@@ -337,13 +337,16 @@ export function HostDoorScannerScreen({ variant = "host" }: { variant?: "host" |
     [],
   );
 
-  if (isGate && gateTitle === null) {
+  if (title === null) {
     return <p className="t-small p-6 text-muted" role="status">Loading your door…</p>;
   }
   if (!event) return <NotFoundScreen />;
 
-  // For a gatekeeper the numbers come from the door list itself.
-  const capacity = isGate || !storeEvent ? doorList.length : capacityOf(storeEvent);
+  // Both numbers come from the door list itself, for host and gatekeeper alike:
+  // tickets issued (not the venue's capacity) and how many of them are already
+  // inside, whoever scanned them and whenever. The host's counter used to start
+  // at zero on every visit, because it counted only this page's own scans.
+  const capacity = doorList.length;
   const query = search.trim().toLowerCase();
   const matches = query
     ? doorList
@@ -353,9 +356,7 @@ export function HostDoorScannerScreen({ variant = "host" }: { variant?: "host" |
         .slice(0, 8)
     : [];
 
-  const checkedIn = isGate
-    ? doorList.filter((a) => a.status === "used").length
-    : (event.checkedIn ?? 0) + admitted;
+  const checkedIn = doorListError ? admitted : doorList.filter((a) => a.status === "used").length;
 
   return (
     <div className="relative min-h-dvh bg-ink">

@@ -14,6 +14,52 @@ class TicketTierSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class TierWriteSerializer(serializers.ModelSerializer):
+    """What an organiser may set on a ticket tier — never the stock counters."""
+
+    class Meta:
+        model = TicketTier
+        fields = [
+            "name", "description", "tier_type", "price", "total_quantity",
+            "min_per_order", "max_per_order", "sale_start_datetime",
+            "sale_end_datetime", "is_active", "is_visible", "sort_order",
+        ]
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Give the ticket a name.")
+        return value
+
+    def validate_price(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Price can't be negative.")
+        return value
+
+    def validate_total_quantity(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Offer at least one ticket.")
+        return value
+
+    def validate(self, attrs):
+        inst = self.instance
+        total = attrs.get("total_quantity", inst.total_quantity if inst else None)
+        # Never promise fewer tickets than are already sold or being held.
+        if inst and total is not None and total < inst.sold_quantity + inst.reserved_quantity:
+            raise serializers.ValidationError({
+                "total_quantity": f"{inst.sold_quantity + inst.reserved_quantity} are already sold "
+                                  "or being paid for, so you can't go below that."})
+        lo = attrs.get("min_per_order", inst.min_per_order if inst else 1)
+        hi = attrs.get("max_per_order", inst.max_per_order if inst else 10)
+        if lo > hi:
+            raise serializers.ValidationError({"max_per_order": "Maximum can't be below the minimum."})
+        start = attrs.get("sale_start_datetime", inst.sale_start_datetime if inst else None)
+        end = attrs.get("sale_end_datetime", inst.sale_end_datetime if inst else None)
+        if start and end and end <= start:
+            raise serializers.ValidationError({"sale_end_datetime": "Sales must end after they start."})
+        return attrs
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
     tier_name = serializers.CharField(source="tier.name", read_only=True)
     tier_price = serializers.DecimalField(source="tier.price", max_digits=10,

@@ -16,8 +16,9 @@ from . import zones as zone_map
 from .serializers import (
     OrderSerializer, TicketSerializer, CreateOrderSerializer,
     PromoCodeValidateSerializer, ZoneSerializer, TransferTicketSerializer,
-    AttendeeSerializer,
+    AttendeeSerializer, TierWriteSerializer,
 )
+from .serializers_light import TicketTierLightSerializer
 from apps.events.models import Event, EventStatus
 
 User = get_user_model()
@@ -33,6 +34,10 @@ class ZoneUnavailable(exceptions.APIException):
     """
 
     status_code = status.HTTP_400_BAD_REQUEST
+
+
+class SaleUnavailable(ZoneUnavailable):
+    """Same unwinding 400, for the ticket tier rather than the floor plan."""
 
 
 def generate_ticket_number(event):
@@ -67,6 +72,30 @@ def event_zones(request, event_id):
     })
 
 
+def _release_abandoned_checkouts(user, event):
+    """Give back this buyer's own checkouts whose payment already failed.
+
+    A declined card leaves the order holding its seats until the 15-minute
+    expiry, so "try again" would be turned away from seats the same person is
+    sitting on — on the last few tickets that reads as "sold out". Only orders
+    whose every payment failed are released; one with a payment still open or
+    paid, or with no payment attempt yet, is left alone.
+    """
+    from apps.payments.models import PaymentStatus
+    from .tasks import release_order
+
+    stale = Order.objects.filter(
+        user=user, event=event,
+        status__in=[Order.Status.INITIATED, Order.Status.PAYMENT_PENDING],
+        payments__status=PaymentStatus.FAILED,
+    ).exclude(
+        payments__status__in=[
+            PaymentStatus.INITIATED, PaymentStatus.PROCESSING, PaymentStatus.SUCCESS]
+    ).distinct()
+    for order_id in list(stale.values_list("pk", flat=True)):
+        release_order(order_id)
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def create_order(request):
@@ -82,6 +111,14 @@ def create_order(request):
     if event.status == EventStatus.CANCELLED:
         return Response(
             {"detail": "This event has been cancelled."},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    # Only a published event is on sale. A draft's id is guessable from the
+    # host console URL and its tiers exist, so without this a draft could be
+    # bought before the host had decided to open sales.
+    if event.status == EventStatus.DRAFT:
+        return Response(
+            {"detail": "Tickets for this event aren't on sale yet."},
             status=status.HTTP_400_BAD_REQUEST
         )
     if event.end_datetime <= timezone.now():
@@ -103,20 +140,35 @@ def create_order(request):
 
     requested_zone_id = (data.get("zone_id") or "").strip()
 
+    _release_abandoned_checkouts(request.user, event)
+
     with transaction.atomic():
         subtotal = Decimal("0")
         order_items_data = []
 
+        now = timezone.now()
         for item_data in data["items"]:
             tier = generics.get_object_or_404(
-                TicketTier, pk=item_data["tier_id"], event=event, is_active=True
+                TicketTier.objects.select_for_update(),
+                pk=item_data["tier_id"], event=event, is_active=True,
             )
             qty = item_data["quantity"]
+            if tier.sale_start_datetime and now < tier.sale_start_datetime:
+                raise SaleUnavailable(f"{tier.name} tickets aren't on sale yet.")
+            if tier.sale_end_datetime and now > tier.sale_end_datetime:
+                raise SaleUnavailable(f"Sales for {tier.name} have closed.")
+            if qty > tier.max_per_order:
+                raise SaleUnavailable(
+                    f"You can book at most {tier.max_per_order} {tier.name} tickets in one order.")
+            if qty < tier.min_per_order:
+                raise SaleUnavailable(
+                    f"{tier.name} tickets are sold in groups of at least {tier.min_per_order}.")
+            # Raised, not returned: the tiers already reserved earlier in this
+            # loop have been written, and only an exception rolls them back.
             if tier.available_quantity < qty:
-                return Response(
-                    {"detail": f"Only {tier.available_quantity} tickets left for {tier.name}."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
+                raise SaleUnavailable(
+                    f"Only {tier.available_quantity} tickets left for {tier.name}."
+                    if tier.available_quantity else f"{tier.name} is sold out.")
             tier.reserved_quantity += qty
             tier.save(update_fields=["reserved_quantity"])
             line_total = tier.price * qty
@@ -336,6 +388,31 @@ def _sync_order_cancellation_status(order: Order):
         order.save(update_fields=["status", "cancelled_at"])
 
 
+def cancel_valid_ticket(ticket: Ticket, reason: str = ""):
+    """Void one still-valid ticket and put its place back on sale.
+
+    The bookkeeping half of a cancellation, with no money in it — the buyer's
+    cancel and an organiser's refund both call this after settling the refund.
+    """
+    with transaction.atomic():
+        locked = Ticket.objects.select_for_update().select_related(
+            "order", "tier", "event").get(pk=ticket.pk)
+        if locked.status != Ticket.Status.VALID:
+            return locked
+        locked.status = Ticket.Status.CANCELLED
+        locked.cancelled_at = timezone.now()
+        locked.cancellation_reason = reason[:200]
+        locked.save(update_fields=["status", "cancelled_at", "cancellation_reason"])
+
+        tier = locked.tier
+        tier.sold_quantity = max(0, tier.sold_quantity - 1)
+        tier.save(update_fields=["sold_quantity"])
+
+        _release_ticket_allocation(locked)
+        _sync_order_cancellation_status(locked.order)
+    return locked
+
+
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def cancel_ticket(request, pk):
@@ -388,17 +465,7 @@ def cancel_ticket(request, pk):
             if error:
                 return error
 
-        locked.status = Ticket.Status.CANCELLED
-        locked.cancelled_at = timezone.now()
-        locked.cancellation_reason = reason_detail
-        locked.save(update_fields=["status", "cancelled_at", "cancellation_reason"])
-
-        tier = locked.tier
-        tier.sold_quantity = max(0, tier.sold_quantity - 1)
-        tier.save(update_fields=["sold_quantity"])
-
-        _release_ticket_allocation(locked)
-        _sync_order_cancellation_status(locked.order)
+        locked = cancel_valid_ticket(locked, reason_detail)
 
     return Response(TicketSerializer(locked, context={"request": request}).data)
 
@@ -645,7 +712,70 @@ def order_invoice(request, pk):
 def event_payout_summary_view(request, event_id):
     """Ticket money collected for an event and what Showzy still owes its organiser."""
     from apps.payments.payouts import event_payout_summary
+    from . import gate
+
     event = generics.get_object_or_404(Event, pk=event_id)
-    if not works_the_door(request.user, event):
+    # Organiser only. This used `works_the_door`, which also admits an invited
+    # gatekeeper — who is promised they can never see sales or revenue.
+    if not gate.is_organiser(request.user, event):
         raise exceptions.PermissionDenied("Only this event's organiser can see its payout summary.")
     return Response({k: str(v) for k, v in event_payout_summary(event).items()})
+
+
+# ── Ticket tiers (organiser) ─────────────────────────────────────────────────
+
+def _organiser_event(request, event_id):
+    from . import gate
+
+    event = generics.get_object_or_404(Event, pk=event_id, is_deleted=False)
+    if not gate.is_organiser(request.user, event):
+        raise exceptions.PermissionDenied("Only this event's organiser can manage its tickets.")
+    return event
+
+
+@api_view(["GET", "POST"])
+@permission_classes([permissions.IsAuthenticated])
+def event_tiers(request, event_id):
+    """List an event's ticket tiers (all of them, switched off or not), or add one."""
+    event = _organiser_event(request, event_id)
+    if request.method == "GET":
+        return Response(TicketTierLightSerializer(event.ticket_tiers.all(), many=True).data)
+
+    if event.end_datetime <= timezone.now():
+        return Response({"detail": "This event is over — tickets can't be added."}, status=400)
+    serializer = TierWriteSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+    tier = serializer.save(event=event)
+    return Response(TicketTierLightSerializer(tier).data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["PATCH", "DELETE"])
+@permission_classes([permissions.IsAuthenticated])
+def event_tier_detail(request, event_id, tier_id):
+    event = _organiser_event(request, event_id)
+    tier = generics.get_object_or_404(TicketTier, pk=tier_id, event=event)
+
+    if request.method == "PATCH":
+        serializer = TierWriteSerializer(tier, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        # A price change must not reach people who already hold a ticket at the
+        # old price: their order, refund and invoice are all priced from it.
+        new_price = serializer.validated_data.get("price")
+        if new_price is not None and new_price != tier.price and (
+            tier.sold_quantity or tier.reserved_quantity
+        ):
+            return Response(
+                {"price": ["This tier already has buyers, so its price is fixed. "
+                           "Add a new tier at the new price and switch this one off."]},
+                status=400)
+        tier = serializer.save()
+        return Response(TicketTierLightSerializer(tier).data)
+
+    # DELETE: a tier nobody ever ordered is removed; one with history is only
+    # switched off, because past orders and tickets still point at it.
+    if tier.order_items.exists():
+        tier.is_active = False
+        tier.save(update_fields=["is_active", "updated_at"])
+        return Response({"deactivated": True, **TicketTierLightSerializer(tier).data})
+    tier.delete()
+    return Response(status=status.HTTP_204_NO_CONTENT)

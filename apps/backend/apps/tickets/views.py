@@ -40,10 +40,24 @@ class SaleUnavailable(ZoneUnavailable):
     """Same unwinding 400, for the ticket tier rather than the floor plan."""
 
 
+#: No 0/O/1/I/L: a ticket number is read aloud and typed at the door.
+_TICKET_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+
 def generate_ticket_number(event):
-    count = Ticket.objects.filter(event=event).count() + 1
-    prefix = event.title[:3].upper().replace(" ", "")
-    return f"{prefix}-{count:05d}"
+    """``ABC-7K3QXM``: the event's initials plus six random characters.
+
+    These used to count up (``ABC-00001``, ``ABC-00002``…), which made every
+    other buyer's number guessable and, with ``count() + 1``, collided when two
+    tickets were issued at once. Random and checked for a clash instead.
+    """
+    import secrets
+
+    prefix = (event.title[:3].upper().replace(" ", "")) or "TKT"
+    while True:
+        number = prefix + "-" + "".join(secrets.choice(_TICKET_ALPHABET) for _ in range(6))
+        if not Ticket.objects.filter(ticket_number=number).exists():
+            return number
 
 
 @api_view(["GET"])
@@ -320,9 +334,6 @@ def my_tickets(request):
 @permission_classes([permissions.IsAuthenticated])
 def ticket_detail(request, pk):
     ticket = generics.get_object_or_404(Ticket, pk=pk, user=request.user)
-    if not ticket.qr_image:
-        ticket.generate_qr_image()
-        ticket.save(update_fields=["qr_image"])
     serializer = TicketSerializer(ticket, context={"request": request})
     return Response(serializer.data)
 

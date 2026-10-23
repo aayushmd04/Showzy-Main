@@ -87,3 +87,21 @@ def turnstile_should_be_on(app_configs, **kwargs):
             id="naada.W004",
         )
     ]
+
+
+@register(deploy=True)
+def mock_payments_must_be_deliberate(app_configs, **kwargs):
+    """The mock gateway issues tickets for no money; say so on every deploy check."""
+    if settings.DEBUG or getattr(settings, "PAYMENT_GATEWAY", "mock") == "razorpay":
+        return []
+    return [
+        CheckWarning(
+            "The MOCK payment gateway is live: anyone signed in can issue themselves free tickets.",
+            hint=(
+                "Set PAYMENT_GATEWAY=razorpay with real RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET / "
+                "RAZORPAY_WEBHOOK_SECRET, then remove ALLOW_MOCK_PAYMENTS. Acceptable only while "
+                "no real money or real ticketed event is involved."
+            ),
+            id="naada.W005",
+        )
+    ]

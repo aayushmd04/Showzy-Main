@@ -76,6 +76,12 @@ envVarGroups:
       # moved. See DEPLOY.md, "When Razorpay is approved".
       - key: PAYMENT_GATEWAY
         value: mock
+      # Production refuses to boot on the mock gateway unless this is set, because
+      # the mock lets any signed-in user issue themselves free tickets. This is the
+      # pre-launch opt-in. DELETE it (and switch PAYMENT_GATEWAY to razorpay) the
+      # day real money or a real ticketed event goes live.
+      - key: ALLOW_MOCK_PAYMENTS
+        value: "true"
 
       - key: SENTRY_DSN
         value: ""

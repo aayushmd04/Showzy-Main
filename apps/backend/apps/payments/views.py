@@ -72,8 +72,6 @@ def _confirm_order(order: Order):
                 original_purchaser=order.user,
                 **({"seat_label": seat_label} if seat_label else {}),
             )
-            t.generate_qr_image()
-            t.save(update_fields=["qr_image"])
         # Move reserved → sold
         tier.sold_quantity += item.quantity
         tier.reserved_quantity = max(0, tier.reserved_quantity - item.quantity)

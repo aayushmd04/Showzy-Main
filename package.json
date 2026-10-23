@@ -17,6 +17,6 @@
     "install:backend": "python3 -m pip install -r apps/backend/requirements.txt"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^10.0.6"
   }
 }

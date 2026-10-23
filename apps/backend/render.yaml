@@ -205,6 +205,25 @@ services:
     buildCommand: npm ci && npm run build --workspace apps/frontend
     staticPublishPath: ./apps/frontend/dist
     autoDeployTrigger: commit
+    # Response headers. The Content-Security-Policy is NOT here: it has to name this
+    # build's API address, so the build embeds it in index.html as a <meta> tag instead
+    # (apps/frontend/build/security-headers.ts). These are the ones a <meta> cannot carry.
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(self), geolocation=(self), microphone=(), usb=(), bluetooth=(), serial=(), hid=(), accelerometer=(), gyroscope=(), magnetometer=()
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000
     routes:
       # SPA history fallback. Without this, loading /host/events/<id> directly
       # (a refresh, or a pasted link) returns 404 because no such file exists

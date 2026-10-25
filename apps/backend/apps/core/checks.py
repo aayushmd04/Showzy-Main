@@ -4,6 +4,9 @@ Django's own deploy checks cover the framework's settings. These cover the
 handful of Showzy-specific ways a deploy can look healthy and quietly not be.
 """
 
+import ipaddress
+from urllib.parse import urlparse
+
 from django.conf import settings
 from django.core.checks import Warning as CheckWarning, register
 
@@ -108,7 +111,15 @@ def mock_payments_must_be_deliberate(app_configs, **kwargs):
 
 
 def _is_local(url):
-    return any(h in url for h in ("localhost", "127.0.0.1", "0.0.0.0"))
+    """True for localhost, loopback and "this machine" addresses, with or without a scheme."""
+    host = urlparse(url if "//" in url else f"//{url}").hostname or ""
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_unspecified
 
 
 @register(deploy=True)

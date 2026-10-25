@@ -31,3 +31,11 @@ class PublicUrlCheckTests(SimpleTestCase):
     @override_settings(DEBUG=True, FRONTEND_URL="http://localhost:5173", CORS_ALLOWED_ORIGINS=["http://localhost:5173"])
     def test_silent_in_development(self):
         self.assertEqual(ids(), [])
+
+    @override_settings(FRONTEND_URL="http://0.0.0.0:5173", CORS_ALLOWED_ORIGINS=["https://showzy.in"])
+    def test_the_unspecified_address_counts_as_local(self):
+        self.assertEqual(ids(), ["naada.W006"])
+
+    @override_settings(FRONTEND_URL="https://localhost.showzy.in", CORS_ALLOWED_ORIGINS=["https://showzy.in"])
+    def test_a_real_domain_that_merely_contains_localhost_is_not_local(self):
+        self.assertEqual(ids(), [])

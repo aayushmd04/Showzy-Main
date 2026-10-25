@@ -47,7 +47,7 @@ sentry-sdk==2.19.2            # no-op unless SENTRY_DSN_BACKEND is set
 drf-spectacular==0.28.0       # /api/v1/schema/ and /api/v1/docs/
 
 # ── Transitive security floors (pulled in by daphne/twisted) ────────────────
-twisted==26.4.0
+twisted==26.10.0rc1       # rc: the only release fixing CVE-2026-115877 (HTTP request smuggling) + 4 others; move to 26.10.0 final
 pyopenssl==26.4.0
 
 # ── Build ────────────────────────────────────────────────────────────────────

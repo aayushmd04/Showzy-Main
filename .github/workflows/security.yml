@@ -53,12 +53,16 @@ jobs:
         #                    HTTP/WebSocket engine, never its IMAP code, and no fix exists yet.
         #   PYSEC-2026-3447  setuptools sdist MANIFEST.in handling. Build-time only, and the
         #                    fix (83.0.0) would remove pkg_resources, which razorpay 1.x imports.
-        # Re-check both when bumping razorpay or Twisted, and delete a line once it is fixed.
+        #   GHSA-xmj3-9gf7-h52w  setuptools legacy wheel install path escape, Windows only and
+        #                    build-time only. The fix (84.1.0) also lacks pkg_resources, which
+        #                    razorpay 1.x imports.
+        # Re-check these when bumping razorpay or Twisted, and delete a line once it is fixed.
         run: |
           python -m pip install --disable-pip-version-check pip-audit==2.10.1
           pip-audit -r apps/backend/requirements.txt \
             --ignore-vuln CVE-2026-106454 \
-            --ignore-vuln PYSEC-2026-3447
+            --ignore-vuln PYSEC-2026-3447 \
+            --ignore-vuln GHSA-xmj3-9gf7-h52w
 
   python-sast:
     name: Python static analysis (bandit)

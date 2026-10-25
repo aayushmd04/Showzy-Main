@@ -25,7 +25,7 @@ pillow==13.0.0
 qrcode==8.0
 
 # ── Outbound HTTP (Cloudflare email; also a razorpay dependency)
-requests>=2.32.4,<3
+requests==2.34.2
 
 # ── Google sign-in (verifies the ID token's signature)
 google-auth==2.62.0
@@ -47,8 +47,8 @@ sentry-sdk==2.19.2            # no-op unless SENTRY_DSN is set
 drf-spectacular==0.28.0       # /api/v1/schema/ and /api/v1/docs/
 
 # ── Transitive security floors (pulled in by daphne/twisted) ────────────────
-twisted>=26.4.0
-pyopenssl>=26.0.0
+twisted==26.4.0
+pyopenssl==26.4.0
 
 # ── Build ────────────────────────────────────────────────────────────────────
 setuptools==80.9.0            # razorpay 1.x still imports pkg_resources (gone in setuptools >=81)

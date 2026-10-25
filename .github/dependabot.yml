@@ -1,0 +1,50 @@
+# Dependabot version updates. Weekly, grouped, so the bumps arrive as a few reviewable
+# pull requests instead of dozens. Security advisories raise their own immediate PRs
+# regardless of this schedule.
+version: 2
+
+updates:
+  # Backend (Django). Requirements are pinned, so updates are always an explicit PR.
+  - package-ecosystem: pip
+    directory: /apps/backend
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      python-minor-and-patch:
+        update-types: [minor, patch]
+
+  # Frontend + tooling (npm workspaces, lockfile at the repo root).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      npm-minor-and-patch:
+        update-types: [minor, patch]
+
+  # The SHA-pinned actions in .github/workflows. Dependabot rewrites the SHA and the
+  # version comment together.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Base images.
+  - package-ecosystem: docker
+    directory: /apps/backend
+    schedule:
+      interval: weekly
+      day: monday
+  - package-ecosystem: docker
+    directory: /apps/frontend
+    schedule:
+      interval: weekly
+      day: monday

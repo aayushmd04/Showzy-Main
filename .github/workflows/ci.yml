@@ -56,10 +56,11 @@ jobs:
       PIP_DISABLE_PIP_VERSION_CHECK: "1"
 
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           # 3.12 to match apps/backend/Dockerfile, so CI and the shipped image
           # resolve the same wheels.
@@ -159,10 +160,11 @@ jobs:
     timeout-minutes: 15
 
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           # 22 to match apps/frontend/Dockerfile.
           node-version: "22"
@@ -193,7 +195,7 @@ jobs:
       - name: Upload build output
         # Lets you download and inspect the exact bundle a commit produced.
         # `if: success()` is implicit; there is nothing to upload otherwise.
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: frontend-dist-${{ github.sha }}
           path: apps/frontend/dist
@@ -210,9 +212,10 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
@@ -229,7 +232,9 @@ jobs:
 
           yaml_files = ["docker-compose.yml",
                         "apps/backend/render.yaml",
-                        ".github/workflows/ci.yml"]
+                        ".github/workflows/ci.yml",
+                        ".github/workflows/security.yml",
+                        ".github/dependabot.yml"]
           json_files = ["apps/backend/railway.json",
                         "apps/frontend/vercel.json",
                         "package.json",
@@ -255,3 +260,13 @@ jobs:
                   print(f"FAIL {f}: {exc}"); failed = True
           sys.exit(1 if failed else 0)
           PY
+
+      - name: Every action is pinned to a full commit SHA
+        # A tag like @v4 can be moved to different code after we reviewed it; a SHA cannot.
+        # Dependabot keeps the SHAs current (.github/dependabot.yml).
+        run: |
+          bad=$(grep -rnE '^\s*(- )?uses: [^ ]+@' .github/workflows | grep -vE '@[0-9a-f]{40}( |$)' || true)
+          if [ -n "$bad" ]; then
+            echo "Unpinned actions:"; echo "$bad"; exit 1
+          fi
+          echo "all actions pinned"

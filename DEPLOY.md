@@ -735,8 +735,13 @@ Upgrade `naada-api` to Starter.
 
 ## When Razorpay is approved
 
-Until then, do nothing: `PAYMENT_GATEWAY` defaults to `mock` and the entire
-booking flow works.
+Until then the app runs on the `mock` gateway, and the entire booking flow
+works. Production no longer starts on the mock by default — **it lets any
+signed-in user issue themselves free tickets** — so keep
+`ALLOW_MOCK_PAYMENTS=true` (already in `render.yaml` and the Oracle `.env.example`)
+for as long as no real money or real ticketed event is involved. The deploy check
+prints warning `naada.W005` while it is on, as a reminder. When Razorpay is live,
+set `PAYMENT_GATEWAY=razorpay` and **delete `ALLOW_MOCK_PAYMENTS`**.
 
 The switch is deliberately strict. Setting `PAYMENT_GATEWAY=razorpay` **without**
 valid credentials makes the app raise an error rather than quietly fall back to
@@ -840,7 +845,8 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PAYMENT_GATEWAY` | `mock` | `razorpay` requires real credentials or it errors. |
+| `PAYMENT_GATEWAY` | `mock` | `razorpay` requires real credentials or it errors. Production refuses `mock` unless `ALLOW_MOCK_PAYMENTS=true`. |
+| `ALLOW_MOCK_PAYMENTS` | `false` | Pre-launch opt-in for the mock gateway. Remove it when going live. |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | placeholders | |
 | `SENTRY_DSN` | *(empty)* | Empty = cleanly disabled. |
 | `SENTRY_ENVIRONMENT` / `SENTRY_TRACES_SAMPLE_RATE` | `production` / `0.1` | |

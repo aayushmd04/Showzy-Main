@@ -95,6 +95,7 @@ jobs:
           DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
           ALLOWED_HOSTS: ci.example.com,127.0.0.1
           CORS_ALLOWED_ORIGINS: https://ci.example.com
+          ALLOW_MOCK_PAYMENTS: "true"
         run: python manage.py check --deploy
 
       - name: collectstatic succeeds
@@ -108,6 +109,7 @@ jobs:
           DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
           ALLOWED_HOSTS: ci.example.com,127.0.0.1
           CORS_ALLOWED_ORIGINS: https://ci.example.com
+          ALLOW_MOCK_PAYMENTS: "true"
         run: python manage.py collectstatic --noinput --clear
 
       - name: Production refuses to boot misconfigured
@@ -126,6 +128,16 @@ jobs:
             python manage.py check >/dev/null 2>&1
           if [ $? -eq 0 ]; then
             echo "FAIL: production booted against SQLite"; exit 1
+          fi
+          echo "ok"
+
+          echo "--- must refuse the mock payment gateway unless opted in ---"
+          SECRET_KEY=ci-only-key-not-used-anywhere-real-9f2a7c4e1b8d6053 \
+          DATABASE_URL=postgresql://ci:ci@127.0.0.1:5432/ci \
+          PAYMENT_GATEWAY=mock \
+            python manage.py check >/dev/null 2>&1
+          if [ $? -eq 0 ]; then
+            echo "FAIL: production booted on the mock gateway without ALLOW_MOCK_PAYMENTS"; exit 1
           fi
           echo "ok"
 

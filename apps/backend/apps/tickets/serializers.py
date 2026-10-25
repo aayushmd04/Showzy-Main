@@ -194,10 +194,18 @@ class TicketSerializer(serializers.ModelSerializer):
         ]
 
     def get_qr_image_url(self, obj):
+        """The QR as a ``data:`` URI, for the ticket's current holder only.
+
+        Not a media URL: anything with a URL can be fetched by someone who
+        guesses it, and the QR is the credential at the door. The field keeps
+        its old name so the app's ``<img src>`` keeps working. Door staff
+        scanning someone else's ticket get ``null``.
+        """
         request = self.context.get("request")
-        if obj.qr_image and request:
-            return request.build_absolute_uri(obj.qr_image.url)
-        return None
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated or obj.user_id != user.id:
+            return None
+        return obj.qr_data_uri()
 
 
 class TransferTicketSerializer(serializers.Serializer):

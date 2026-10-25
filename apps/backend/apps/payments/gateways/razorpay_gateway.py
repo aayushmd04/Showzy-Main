@@ -59,6 +59,18 @@ class RazorpayGateway(PaymentGateway):
             logger.exception("Razorpay order.create failed for order %s", order.id)
             raise GatewayError(f"Razorpay order creation failed: {exc}") from exc
 
+    def create_escrow_order(self, booking_order) -> dict:
+        try:
+            return self.client.order.create({
+                "amount": to_paise(booking_order.gross_amount),
+                "currency": booking_order.currency,
+                "receipt": f"bk-{booking_order.id}"[:40],
+                "notes": {"booking_order_id": str(booking_order.id)},
+            })
+        except Exception as exc:
+            logger.exception("Razorpay order.create failed for booking order %s", booking_order.id)
+            raise GatewayError(f"Razorpay order creation failed: {exc}") from exc
+
     def verify_signature(self, payload: dict) -> bool:
         """order_id|payment_id signed with the key secret — Razorpay's spec."""
         order_id = payload.get("order_id") or ""

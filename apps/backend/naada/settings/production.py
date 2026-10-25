@@ -47,6 +47,35 @@ if _looks_placeholder:
         "  python -c \"import secrets; print(secrets.token_urlsafe(64))\""
     )
 
+# ── Payments ──────────────────────────────────────────────────────────────────
+# The mock gateway signs its own "payments", so on a public site any signed-in
+# user can mint a valid payment for their own order and be issued tickets for
+# nothing. It used to be the silent default here: forget PAYMENT_GATEWAY on launch
+# day and real events sold free tickets with no error anywhere. Production now
+# refuses to boot on it unless somebody opts in on purpose (ALLOW_MOCK_PAYMENTS),
+# which is for pre-launch demos with no real money at stake.
+PAYMENT_GATEWAY = config("PAYMENT_GATEWAY", default="mock").strip().lower()
+ALLOW_MOCK_PAYMENTS = config("ALLOW_MOCK_PAYMENTS", default=False, cast=bool)
+if PAYMENT_GATEWAY != "razorpay" and not ALLOW_MOCK_PAYMENTS:
+    raise ImproperlyConfigured(
+        f"PAYMENT_GATEWAY={PAYMENT_GATEWAY!r} is not allowed in production: the mock gateway "
+        "lets anyone issue themselves free tickets. Set PAYMENT_GATEWAY=razorpay with real "
+        "RAZORPAY_* credentials, or, for a demo with no real money, set ALLOW_MOCK_PAYMENTS=true."
+    )
+
+if PAYMENT_GATEWAY == "mock":
+    # The built-in mock secrets are public (they are in the source). Derive private
+    # ones from SECRET_KEY so a stranger cannot forge a "payment" or a webhook.
+    import hashlib as _hashlib
+
+    def _derive(label):
+        return _hashlib.sha256(f"{SECRET_KEY}:{label}".encode()).hexdigest()  # noqa: F405
+
+    MOCK_PAYMENT_KEY_SECRET = config("MOCK_PAYMENT_KEY_SECRET", default="") or _derive("mock-payment-key")
+    MOCK_PAYMENT_WEBHOOK_SECRET = (
+        config("MOCK_PAYMENT_WEBHOOK_SECRET", default="") or _derive("mock-payment-webhook")
+    )
+
 # ── OTP ───────────────────────────────────────────────────────────────────────
 # Never leak the OTP in an API response, regardless of what .env says.
 OTP_DEBUG_RESPONSE = False

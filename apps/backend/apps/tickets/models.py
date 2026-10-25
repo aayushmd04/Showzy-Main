@@ -161,7 +161,9 @@ class Ticket(TimeStampedModel):
     ticket_number = models.CharField(max_length=20, unique=True, db_index=True)
     qr_data = models.UUIDField(default=uuid.uuid4, unique=True, db_index=True,
                                 help_text="Signed UUID embedded in QR code")
-    qr_image = models.ImageField(upload_to="tickets/qr/%Y/%m/", null=True, blank=True)
+    # Legacy: QR images are no longer stored (see ``qr_png_bytes``). The column
+    # stays so old rows can be cleaned by migration 0008 without a table rewrite.
+    qr_image = models.ImageField(upload_to="tickets/qr/%Y/%m/", null=True, blank=True, editable=False)
 
     holder_name = models.CharField(max_length=120, blank=True)
     holder_email = models.EmailField(blank=True)
@@ -213,23 +215,30 @@ class Ticket(TimeStampedModel):
                 self.seat_label = allocation.zone_label[:40]
         super().save(*args, **kwargs)
 
-    def generate_qr_image(self):
-        import qrcode
+    def qr_png_bytes(self) -> bytes:
+        """The entry QR, rendered on demand.
+
+        The QR *is* the credential the door accepts, so it must never be written
+        to public media: it used to be saved as ``tickets/qr/<yyyy>/<mm>/ticket_<number>.png``,
+        a guessable path served without authentication. Callers hand it only to
+        the ticket's current holder (see ``TicketSerializer.get_qr_image_url``).
+        """
         import io
-        from django.core.files.base import ContentFile
+
+        import qrcode
 
         qr = qrcode.QRCode(version=1, box_size=10, border=4,
-                            error_correction=qrcode.constants.ERROR_CORRECT_H)
+                           error_correction=qrcode.constants.ERROR_CORRECT_H)
         qr.add_data(str(self.qr_data))
         qr.make(fit=True)
-        img = qr.make_image(fill_color="black", back_color="white")
         buffer = io.BytesIO()
-        img.save(buffer, format="PNG")
-        self.qr_image.save(
-            f"ticket_{self.ticket_number}.png",
-            ContentFile(buffer.getvalue()),
-            save=False
-        )
+        qr.make_image(fill_color="black", back_color="white").save(buffer, format="PNG")
+        return buffer.getvalue()
+
+    def qr_data_uri(self) -> str:
+        import base64
+
+        return "data:image/png;base64," + base64.b64encode(self.qr_png_bytes()).decode("ascii")
 
 
 class ZoneAllocation(TimeStampedModel):

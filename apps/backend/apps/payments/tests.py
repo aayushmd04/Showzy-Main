@@ -248,7 +248,9 @@ class SignatureVerificationFlowTests(PaymentsTestCase):
         self.assertEqual(order.status, Order.Status.CONFIRMED)
         self.assertIsNotNone(order.confirmed_at)
         self.assertEqual(Ticket.objects.filter(order=order).count(), 2)
-        self.assertTrue(all(t.qr_image for t in Ticket.objects.filter(order=order)))
+        # The QR is rendered per request for the holder; no file is ever written to
+        # (public) media. See apps/tickets/test_qr.py.
+        self.assertFalse(any(t.qr_image for t in Ticket.objects.filter(order=order)))
 
         self.tier.refresh_from_db()
         self.assertEqual(self.tier.sold_quantity, 2)

@@ -1,6 +1,7 @@
 import logging
 
 from django.contrib import admin
+from django.http import Http404
 from django.urls import path, include, re_path
 from django.views.static import serve as serve_media
 from django.conf import settings
@@ -125,3 +126,19 @@ if not settings.DEBUG and settings.MEDIA_URL.startswith("/"):
             {"document_root": settings.MEDIA_ROOT},
         )
     ]
+
+
+
+def _qr_not_served(request, path=""):
+    raise Http404
+
+
+# Ticket QR codes are entry credentials and are rendered per request for the
+# holder (see Ticket.qr_png_bytes). Old files from before that change are deleted
+# by tickets migration 0008; this refuses to serve any that survive. Inserted
+# first so it wins over both media routes above.
+if settings.MEDIA_URL.startswith("/"):
+    urlpatterns.insert(
+        0,
+        re_path(r"^%stickets/qr/(?P<path>.*)$" % settings.MEDIA_URL.lstrip("/"), _qr_not_served),
+    )

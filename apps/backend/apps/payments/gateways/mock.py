@@ -111,6 +111,23 @@ class MockGateway(PaymentGateway):
             "created_at": int(time.time()),
         }
 
+    def create_escrow_order(self, booking_order) -> dict:
+        amount = to_paise(booking_order.gross_amount)
+        return {
+            "id": _rzp_id("order"),
+            "entity": "order",
+            "amount": amount,
+            "amount_paid": 0,
+            "amount_due": amount,
+            "currency": booking_order.currency,
+            "receipt": f"bk-{booking_order.id}"[:40],
+            "offer_id": None,
+            "status": "created",
+            "attempts": 0,
+            "notes": {"booking_order_id": str(booking_order.id)},
+            "created_at": int(time.time()),
+        }
+
     # -- the piece a real gateway does inside its hosted checkout -------------
     def new_payment_id(self) -> str:
         return _rzp_id("pay")

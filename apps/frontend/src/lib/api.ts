@@ -812,6 +812,23 @@ export function getMyOrders(): Promise<{ results: ApiOrder[] }> {
   return get("/orders/");
 }
 
+/**
+ * Step 1 of funding escrow: opens a gateway order for exactly this booking. The
+ * host pays against the order returned here, and `fundOrder` only accepts a
+ * payment made against it.
+ */
+export function startFunding(orderId: string): Promise<{
+  order_id: string;
+  gateway: string;
+  is_mock: boolean;
+  key: string;
+  gateway_order_id: string;
+  amount: number; // paise
+  currency: string;
+}> {
+  return post(`/orders/${orderId}/fund/start/`);
+}
+
 export function fundOrder(
   orderId: string,
   data: {

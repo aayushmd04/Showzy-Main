@@ -403,6 +403,8 @@ export interface ApiTier {
   total_quantity: number;
   sold_quantity: number;
   is_active: boolean;
+  description?: string;
+  max_per_order?: number;
 }
 
 export interface ApiEvent {
@@ -462,7 +464,10 @@ export function getMyEvents(): Promise<ApiEventList> {
 }
 
 export function getEvent(id: string): Promise<ApiEvent> {
-  return get<ApiEvent>(`/events/${id}/`, false);
+  // The token goes along when there is one: the host console reads its own
+  // draft events and every ticket tier (paused ones too) through this, and the
+  // server shows those only to the organiser. Anonymous readers are unchanged.
+  return get<ApiEvent>(`/events/${id}/`, Boolean(tokens.access));
 }
 
 // ─── Artists ──────────────────────────────────────────────────────────────────
@@ -1172,11 +1177,21 @@ export interface ScanResult {
  */
 export async function scanTicket(qrData: string): Promise<ScanResult> {
   try {
-    return await post<ScanResult>(`/tickets/scan/${qrData}/`);
+    // The code comes straight off a camera, so it can be anything printed on
+    // anything. Encoded, it can only ever address this one endpoint.
+    return await post<ScanResult>(`/tickets/scan/${encodeURIComponent(qrData)}/`);
   } catch (err) {
-    if (err instanceof ApiError && err.status === 400) {
+    // Any answer from the server — "already used", "not a ticket we know",
+    // "you're not allowed to scan this event" — is a result the door must show
+    // as a refusal. Only a lost connection or a server fault (5xx) throws, and
+    // those are the cases the scanner queues. Treating a 403/404 as "offline"
+    // used to flash a green "let them in" for a forged code or a revoked
+    // gatekeeper.
+    if (err instanceof ApiError && err.status >= 400 && err.status < 500 && err.status !== 401 && err.status !== 429) {
       const body = err.body as ScanResult | undefined;
-      return { valid: false, detail: body?.detail ?? err.detail };
+      const detail =
+        err.status === 404 ? "Not a Showzy ticket." : (body?.detail ?? err.detail);
+      return { valid: false, detail };
     }
     throw err;
   }
@@ -1206,6 +1221,24 @@ export function getEventAttendees(
 ): Promise<{ event: string; count: number; results: ApiAttendee[] }> {
   return get(`/events/${eventId}/attendees/`);
 }
+
+// ─── Ticket tiers (host) ─────────────────────────────────────────────────────
+
+export interface TierWritePayload {
+  name?: string;
+  description?: string;
+  price?: string;
+  total_quantity?: number;
+  max_per_order?: number;
+  is_active?: boolean;
+}
+
+export const createTier = (eventId: string, body: TierWritePayload) =>
+  post<ApiTier>(`/events/${eventId}/tiers/`, body);
+export const updateTier = (eventId: string, tierId: string, body: TierWritePayload) =>
+  patch<ApiTier>(`/events/${eventId}/tiers/${tierId}/`, body);
+export const deleteTier = (eventId: string, tierId: string) =>
+  del<{ deactivated?: boolean } | undefined>(`/events/${eventId}/tiers/${tierId}/`);
 
 // ─── Gatekeepers: invited, event-scoped ticket checkers ──────────────────────
 

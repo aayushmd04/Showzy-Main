@@ -262,6 +262,64 @@ describe("CheckoutPayScreen", () => {
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   });
 
+  it("retries a declined payment on the order that already holds the seats", async () => {
+    vi.mocked(api.completeMockPayment).mockResolvedValueOnce({
+      status: "failed",
+      error: { code: "BAD_CARD", description: "Your bank declined the payment." },
+    });
+    const user = userEvent.setup();
+    renderCheckout({ tierName: "General" });
+
+    await user.click(await screen.findByRole("button", { name: "Pay ₹518" }));
+    await user.click(await screen.findByRole("button", { name: "Decline payment" }));
+    await user.click(await screen.findByRole("button", { name: "Try again" }));
+
+    // No second reservation — it would sit beside the first and lock this
+    // buyer out of the last few tickets they were already holding.
+    await user.click(await screen.findByRole("button", { name: /^Pay ₹/ }));
+    await user.click(await screen.findByRole("button", { name: "Approve payment" }));
+
+    expect(await screen.findByText("Your ticket is ready")).toBeInTheDocument();
+    expect(api.createTicketOrder).toHaveBeenCalledTimes(1);
+    expect(api.initiatePayment).toHaveBeenCalledTimes(2);
+    expect(api.initiatePayment).toHaveBeenLastCalledWith({ order_id: "order-1" });
+  });
+
+  it("books afresh when the hold lapsed while the buyer was thinking", async () => {
+    vi.mocked(api.completeMockPayment).mockResolvedValueOnce({ status: "failed" });
+    vi.mocked(api.initiatePayment)
+      .mockResolvedValueOnce({
+        payment_id: "pay-1", order_id: "order-1", gateway: "mock", is_mock: true,
+        gateway_order_id: "gw_order_1", amount: 49900, currency: "INR",
+      })
+      .mockRejectedValueOnce(new api.ApiError(400, "Your seats were only held for 15 minutes."))
+      .mockResolvedValueOnce({
+        payment_id: "pay-2", order_id: "order-2", gateway: "mock", is_mock: true,
+        gateway_order_id: "gw_order_2", amount: 49900, currency: "INR",
+      });
+    vi.mocked(api.createTicketOrder)
+      .mockResolvedValueOnce({
+        id: "order-1", status: "pending", subtotal: "499.00", discount_amount: "0.00",
+        platform_fee: "0.00", taxes: "0.00", total_amount: "499.00", items: [], event: "ev-live-1",
+      })
+      .mockResolvedValueOnce({
+        id: "order-2", status: "pending", subtotal: "499.00", discount_amount: "0.00",
+        platform_fee: "0.00", taxes: "0.00", total_amount: "499.00", items: [], event: "ev-live-1",
+      });
+    const user = userEvent.setup();
+    renderCheckout({ tierName: "General" });
+
+    await user.click(await screen.findByRole("button", { name: "Pay ₹518" }));
+    await user.click(await screen.findByRole("button", { name: "Decline payment" }));
+    await user.click(await screen.findByRole("button", { name: "Try again" }));
+    await user.click(await screen.findByRole("button", { name: /^Pay ₹/ }));
+
+    await user.click(await screen.findByRole("button", { name: "Approve payment" }));
+    expect(await screen.findByText("Your ticket is ready")).toBeInTheDocument();
+    expect(api.createTicketOrder).toHaveBeenCalledTimes(2);
+    expect(api.initiatePayment).toHaveBeenLastCalledWith({ order_id: "order-2" });
+  });
+
   it("explains rather than throws when the tier has no server id to order against", async () => {
     const user = userEvent.setup();
     // Fixture event e2 "Fuzz & Filter Coffee" — its tiers were never created

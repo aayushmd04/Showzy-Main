@@ -230,6 +230,40 @@ describe("api client", () => {
 
       await expect(scanTicket("QR-123")).rejects.toBeInstanceOf(ApiError);
     });
+
+    it("refuses, rather than queues, a code the server does not know (404)", async () => {
+      mockFetch(async () => json({ detail: "Not found." }, 404));
+
+      await expect(scanTicket("QR-123")).resolves.toEqual({
+        valid: false,
+        detail: "Not a Showzy ticket.",
+      });
+    });
+
+    it("refuses, rather than queues, a scan the account may not make (403)", async () => {
+      mockFetch(async () => json({ detail: "Your gate access for this event closed." }, 403));
+
+      await expect(scanTicket("QR-123")).resolves.toEqual({
+        valid: false,
+        detail: "Your gate access for this event closed.",
+      });
+    });
+
+    it("throws on a dropped connection so the scanner can queue it", async () => {
+      mockFetch(async () => {
+        throw new TypeError("Failed to fetch");
+      });
+
+      await expect(scanTicket("QR-123")).rejects.toBeInstanceOf(TypeError);
+    });
+
+    it("encodes whatever the camera read, so it can only address the scan endpoint", async () => {
+      const fetchMock = mockFetch(async () => json({ valid: true }));
+
+      await scanTicket("a/b?c=d");
+
+      expect(url(fetchMock.mock.calls[0])).toBe(`${API_BASE}/tickets/scan/a%2Fb%3Fc%3Dd/`);
+    });
   });
 
   describe("error messages", () => {

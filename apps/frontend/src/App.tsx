@@ -8,6 +8,7 @@ import { BriefComposerProvider } from "@/components/naada/brief-composer";
 import { ErrorBoundary } from "@/components/naada/error-boundary";
 import { NearbyLoader } from "@/components/naada/nearby-loader";
 import { RequireRole } from "@/components/naada/require-role";
+import { RequireGate } from "@/components/naada/require-gate";
 import { Toaster } from "@/components/ui/toaster";
 import { CookieConsent } from "@/components/naada/cookie-consent";
 import { useStore } from "@/store/app-store";
@@ -118,7 +119,7 @@ const ROLE_MAP: Record<string, import("@/data/fixtures").Role> = {
 
 /** Loads public event/artist data on mount and restores session if a token exists. */
 function AppBootstrap() {
-  const { hydrateFromApi, setRole, setCurrentUser } = useStore();
+  const { hydrateFromApi, setRole, setCurrentUser, setAuthReady } = useStore();
 
   useEffect(() => {
     hydrateFromApi().catch(() => {
@@ -139,7 +140,8 @@ function AppBootstrap() {
         })
         .catch(() => {
           tokens.clear();
-        });
+        })
+        .finally(() => setAuthReady(true));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -244,9 +246,14 @@ export default function App() {
                     <Route path="/host/events/:id/edit" element={host(<HostEventEditorScreen />)} />
                     <Route path="/host/events/:id/door" element={host(<HostDoorScannerScreen />)} />
                     <Route path="/host/events/:id/gate" element={host(<HostGateTeamScreen />)} />
-                    {/* Gatekeepers are ordinary accounts: the server decides what each may scan. */}
-                    <Route path="/gate" element={<GateScreen />} />
-                    <Route path="/gate/:id/door" element={<HostDoorScannerScreen variant="gate" />} />
+                    {/* Gatekeepers are ordinary accounts, and the server decides what each may scan. These
+                        pages exist only for people holding an invitation or a door; to everyone else
+                        they are a plain 404 (see RequireGate). */}
+                    <Route path="/gate" element={<RequireGate><GateScreen /></RequireGate>} />
+                    <Route
+                      path="/gate/:id/door"
+                      element={<RequireGate door><HostDoorScannerScreen variant="gate" /></RequireGate>}
+                    />
                     <Route path="/host/artists" element={host(<HostArtistSearchScreen />)} />
                     <Route path="/host/bookings" element={host(<HostBookingsScreen />)} />
                     <Route path="/host/settlements" element={host(<HostSettlementsScreen />)} />

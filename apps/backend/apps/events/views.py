@@ -2,6 +2,7 @@ import logging
 
 from django.utils import timezone
 from rest_framework import generics, permissions, status, filters
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from .models import Event, EventStatus, EventSave, EventView, EventReview
@@ -114,7 +115,18 @@ class EventCreateView(generics.CreateAPIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def perform_create(self, serializer):
-        serializer.save(organizer=self.request.user, created_by=self.request.user)
+        user = self.request.user
+        # Any signed-in account used to be able to create an event — at someone
+        # else's venue, and already published. Hosting is a venue owner's
+        # job, at a venue they own (staff may act for any venue).
+        if not (user.is_staff or getattr(user, "role", "") in ("venue_owner", "admin")):
+            raise PermissionDenied("Only a venue account can create events.")
+        venue = serializer.validated_data.get("venue")
+        if venue is not None and not (user.is_staff or venue.owner_id == user.id):
+            raise PermissionDenied("You can only create events at a venue you own.")
+        # Always a draft: going live is the publish step, which checks there is
+        # something to sell.
+        serializer.save(organizer=user, created_by=user, status=EventStatus.DRAFT)
 
 
 class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
@@ -131,6 +143,13 @@ class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
+        # A draft is not public. Its id is in the host console URL, so without
+        # this anyone holding the link could read an unannounced event.
+        if instance.status == EventStatus.DRAFT and not (
+            request.user.is_authenticated
+            and (request.user.is_staff or instance.organizer_id == request.user.id)
+        ):
+            raise NotFound("Event not found.")
         # Record view
         EventView.objects.create(
             event=instance,
@@ -183,7 +202,14 @@ def saved_events(request):
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def publish_event(request, pk):
-    event = generics.get_object_or_404(Event, pk=pk, organizer=request.user)
+    event = generics.get_object_or_404(Event, pk=pk, organizer=request.user, is_deleted=False)
+    if event.status == EventStatus.CANCELLED:
+        return Response({"detail": "A cancelled event can't be published."},
+                        status=status.HTTP_400_BAD_REQUEST)
+    if not event.ticket_tiers.filter(is_active=True).exists():
+        return Response(
+            {"detail": "Add a ticket tier before publishing — there would be nothing to sell."},
+            status=status.HTTP_400_BAD_REQUEST)
     event.status = EventStatus.PUBLISHED
     event.published_at = timezone.now()
     event.save(update_fields=["status", "published_at"])

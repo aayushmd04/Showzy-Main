@@ -175,7 +175,9 @@ export function HostEventEditorScreen() {
     setRefError(null);
     try {
       const [venueRows, cityRows, genreRows] = await Promise.all([
-        getAllPages<ApiVenue>("/venues/"),
+        // Only the venues this host owns: the server refuses an event at
+        // anyone else's, so offering them here ended in a 403 on save.
+        getAllPages<ApiVenue>("/venues/?mine=true", true),
         getCities(),
         getGenres(),
       ]);

@@ -164,6 +164,16 @@ def initiate_payment(request):
         return Response({"detail": "Order not found."}, status=404)
     if order.status not in [Order.Status.INITIATED, Order.Status.PAYMENT_PENDING]:
         return Response({"detail": f"Order is already {order.status}."}, status=400)
+    # The seats are only held for 15 minutes. Past that the sweep may hand them
+    # to someone else at any moment, so taking money now could sell one seat
+    # twice. Release them here and ask the buyer to start again.
+    if order.expires_at and order.expires_at < timezone.now():
+        from apps.tickets.tasks import release_order
+        release_order(order.pk)
+        return Response(
+            {"detail": "Your seats were only held for 15 minutes and have been released. "
+                       "Go back and book again."},
+            status=400)
 
     requested = serializer.validated_data["gateway"]
 
@@ -568,10 +578,15 @@ def initiate_refund(request):
     serializer.is_valid(raise_exception=True)
     d = serializer.validated_data
 
-    payment = Payment.objects.filter(
-        pk=d["payment_id"], order__user=request.user
-    ).first()
-    if not payment:
+    payment = Payment.objects.filter(pk=d["payment_id"]).select_related(
+        "order", "order__event").first()
+    # A buyer gives a ticket back through `tickets/<id>/cancel/`, which refunds
+    # AND voids the ticket under the stated policy. This endpoint refunds
+    # without voiding anything, so it is for the organiser or staff only —
+    # open to a buyer it returned their money while leaving the QR valid.
+    if payment is None or not (
+        request.user.is_staff or payment.order.event.organizer_id == request.user.id
+    ):
         return Response({"detail": "Payment not found."}, status=404)
     if payment.status not in (PaymentStatus.SUCCESS, PaymentStatus.PARTIALLY_REFUNDED):
         return Response({"detail": "Only successful payments can be refunded."}, status=400)
@@ -579,9 +594,14 @@ def initiate_refund(request):
     ticket = None
     amount = payment.amount
     if d.get("ticket_id"):
-        ticket = Ticket.objects.filter(pk=d["ticket_id"], user=request.user).first()
+        ticket = Ticket.objects.filter(
+            pk=d["ticket_id"], order_id=payment.order_id).select_related("tier").first()
         if not ticket:
             return Response({"detail": "Ticket not found."}, status=404)
+        if payment.refunds.filter(
+            ticket=ticket, status__in=[Refund.Status.SUCCESS, Refund.Status.PROCESSING]
+        ).exists():
+            return Response({"detail": "That ticket has already been refunded."}, status=400)
         amount = ticket.tier.price
 
     refund, error = _create_and_process_refund(
@@ -591,7 +611,27 @@ def initiate_refund(request):
     )
     if error:
         return error
+    if refund.status == Refund.Status.SUCCESS:
+        _void_refunded_tickets(payment, ticket)
     return Response(RefundSerializer(refund).data, status=201)
+
+
+def _void_refunded_tickets(payment: Payment, ticket):
+    """A refunded ticket must stop admitting people.
+
+    One ticket if the refund named it; every still-valid ticket on the order
+    when the whole payment went back. Seats return to sale the same way a
+    buyer's own cancellation returns them.
+    """
+    from apps.tickets.views import cancel_valid_ticket
+
+    valid = Ticket.objects.filter(order_id=payment.order_id, status=Ticket.Status.VALID)
+    if ticket is not None:
+        valid = valid.filter(pk=ticket.pk)
+    elif payment.status != PaymentStatus.REFUNDED:
+        return
+    for t in valid:
+        cancel_valid_ticket(t, "Refunded by the organiser")
 
 
 def _apply_refund_to_payment(payment: Payment):

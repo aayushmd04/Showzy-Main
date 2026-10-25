@@ -6,10 +6,10 @@
  *
  * Strategy:
  *   - App shell and build assets: cache-first, so the page paints offline.
- *   - Ticket QR images: cache-first and kept, because that is the thing being
- *     shown at the door.
  *   - The tickets API: network-first with a cached fallback, so a stale ticket
- *     list still renders when the network is gone.
+ *     list still renders when the network is gone. The QR itself travels inside
+ *     that response (a data: URI), so it survives offline with it; there is no
+ *     QR file URL to cache any more.
  *   - Everything else: straight to the network, untouched. Payments and
  *     check-ins must never be served from a cache.
  */
@@ -19,7 +19,7 @@
 // evicts the previous worker's entries — without it, browsers that already
 // installed v1 would keep serving the stale `/` it had precached, which is
 // the exact problem the navigation handler below was changed to fix.
-const VERSION = "showzy-v1";
+const VERSION = "showzy-v2";
 const SHELL = `${VERSION}-shell`;
 const TICKETS = `${VERSION}-tickets`;
 const KEEP = [SHELL, TICKETS];
@@ -65,20 +65,6 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
   if (isUnsafeToCache(url)) return;
-
-  // The QR itself — the one asset that must survive a dead network.
-  if (/\/media\/tickets\/qr\//.test(url.pathname)) {
-    event.respondWith(
-      caches.open(TICKETS).then(async (cache) => {
-        const hit = await cache.match(request);
-        if (hit) return hit;
-        const res = await fetch(request);
-        if (res.ok) cache.put(request, res.clone());
-        return res;
-      }),
-    );
-    return;
-  }
 
   // My tickets: fresh when possible, last-known when not.
   if (/\/tickets\/mine\//.test(url.pathname)) {

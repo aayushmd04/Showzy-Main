@@ -1,0 +1,12 @@
+# Secret scanning config (run in CI by .github/workflows/security.yml).
+# Start from gitleaks' built-in rules and allow only what is verifiably not a secret.
+title = "Showzy gitleaks config"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Fake Brevo key used as a unit-test fixture (not a credential)."
+targetRules = ["generic-api-key"]
+paths = ['''apps/backend/apps/core/test_email_backend\.py''']
+regexes = ['''xkeysib-key''']

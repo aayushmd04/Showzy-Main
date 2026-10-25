@@ -1,11 +1,12 @@
 from decimal import Decimal
 from django.conf import settings
 from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework import serializers
 from .models import (
     Organizer, Membership, GigApplication,
     BookingConversation, BookingMessage, Offer,
-    BookingOrder, Transfer, LedgerEntry, Dispute, BookingAuditLog,
+    BookingOrder, BookingReview, Transfer, LedgerEntry, Dispute, BookingAuditLog,
 )
 
 TDS_PCT = Decimal("0.01")  # 1% TDS (194-O — confirm with CA)
@@ -30,6 +31,22 @@ class OrganizerSerializer(serializers.ModelSerializer):
             "id", "kyc_status", "kyc_submitted_at", "kyc_verified_at", "kyc_rejection_reason",
             "is_verified", "can_book_artists", "created_at",
         ]
+        # Nobody picks a URL slug for the venue they just named; make one.
+        extra_kwargs = {"slug": {"required": False}}
+
+    def create(self, validated_data):
+        if not validated_data.get("slug"):
+            validated_data["slug"] = self._unique_slug(validated_data.get("name", ""))
+        return super().create(validated_data)
+
+    @staticmethod
+    def _unique_slug(name):
+        base = slugify(name)[:40] or "organizer"
+        slug, n = base, 2
+        while Organizer.objects.filter(slug=slug).exists():
+            slug = f"{base}-{n}"
+            n += 1
+        return slug
 
 
 class MembershipSerializer(serializers.ModelSerializer):
@@ -63,11 +80,15 @@ class BookingMessageSerializer(serializers.ModelSerializer):
     artist_name = serializers.CharField(source="conversation.artist.stage_name", read_only=True, default=None)
     event_title = serializers.CharField(source="conversation.event.title", read_only=True, default=None)
     conversation_id = serializers.UUIDField(read_only=True)
+    # The offer a OFFER-type message points at, with its *current* status, so a
+    # thread can draw the card (and say whether it was accepted) without a
+    # request per offer.
+    offer = serializers.SerializerMethodField()
 
     class Meta:
         model = BookingMessage
         fields = [
-            "id", "sender", "sender_name", "content", "message_type", "linked_offer",
+            "id", "sender", "sender_name", "content", "message_type", "linked_offer", "offer",
             "is_flagged", "flag_reason", "reviewed_at", "reviewed_by_name",
             "conversation_id", "organizer_name", "artist_name", "event_title",
             "created_at",
@@ -75,19 +96,45 @@ class BookingMessageSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "sender", "is_flagged", "flag_reason", "reviewed_at", "created_at"]
 
 
+    def get_offer(self, obj):
+        offer = obj.linked_offer
+        return OfferSerializer(offer).data if offer else None
+
+
 class BookingConversationSerializer(serializers.ModelSerializer):
     organizer_name = serializers.CharField(source="organizer.name", read_only=True)
     artist_name = serializers.CharField(source="artist.stage_name", read_only=True)
+    event_title = serializers.CharField(source="event.title", read_only=True, default=None)
     latest_message = serializers.SerializerMethodField()
+    # The offer currently waiting for an answer, if any. This is what an
+    # artist's inbox needs to show "₹X for 14 Mar" and offer Accept / Counter /
+    # Decline without a request per thread.
+    pending_offer = serializers.SerializerMethodField()
+    # The booking this thread produced, if an offer in it was accepted. Lets a
+    # booking link and a thread link reach the same screen.
+    order_id = serializers.SerializerMethodField()
 
     class Meta:
         model = BookingConversation
         fields = [
             "id", "organizer", "organizer_name", "artist", "artist_name",
-            "event", "is_active", "last_message_at", "latest_message",
-            "contact_info_detected", "created_at",
+            "event", "event_title", "is_active", "last_message_at", "latest_message",
+            "pending_offer", "order_id", "contact_info_detected", "created_at",
         ]
         read_only_fields = ["id", "last_message_at", "contact_info_detected", "created_at"]
+
+    def get_order_id(self, obj):
+        order = (
+            BookingOrder.objects.filter(offer__conversation=obj)
+            .order_by("-created_at")
+            .values_list("id", flat=True)
+            .first()
+        )
+        return str(order) if order else None
+
+    def get_pending_offer(self, obj):
+        offer = obj.offers.filter(status=Offer.Status.PENDING).order_by("-created_at").first()
+        return OfferSerializer(offer).data if offer else None
 
     def get_latest_message(self, obj):
         msg = obj.messages.filter(is_deleted=False).last()
@@ -120,11 +167,13 @@ class BookingOrderSerializer(serializers.ModelSerializer):
     event_title = serializers.CharField(source="event.title", read_only=True, allow_null=True)
     dispute_raised = serializers.SerializerMethodField()
     agreed_amount = serializers.SerializerMethodField()
+    # The thread this booking was negotiated in.
+    conversation = serializers.SerializerMethodField()
 
     class Meta:
         model = BookingOrder
         fields = [
-            "id", "organizer", "organizer_name", "artist", "artist_name",
+            "id", "conversation", "organizer", "organizer_name", "artist", "artist_name",
             "event", "event_title", "status",
             "agreed_amount",
             "gross_amount", "platform_fee", "tds_amount", "artist_payout", "currency",
@@ -137,6 +186,9 @@ class BookingOrderSerializer(serializers.ModelSerializer):
 
     def get_dispute_raised(self, obj):
         return hasattr(obj, "dispute")
+
+    def get_conversation(self, obj):
+        return str(obj.offer.conversation_id)
 
     def get_agreed_amount(self, obj):
         """What the venue and artist agreed: what the venue pays, less Showzy's fee."""
@@ -225,3 +277,15 @@ def compute_fees(agreed: Decimal):
     artist_payout = agreed - tds
     gross = agreed + platform_fee
     return platform_fee, tds, artist_payout, gross
+
+
+class BookingReviewSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = BookingReview
+        fields = ["id", "direction", "rating", "body", "created_at"]
+        read_only_fields = ["id", "direction", "created_at"]
+
+    def validate_rating(self, value):
+        if not 1 <= value <= 5:
+            raise serializers.ValidationError("Rating must be between 1 and 5.")
+        return value

@@ -2,11 +2,8 @@
 Marketplace B — Host ↔ Artist booking with escrow.
 Every money-moving endpoint uses DB transactions + idempotency guards.
 """
-import hashlib
-import hmac
 import logging
 from decimal import Decimal
-from django.conf import settings as django_settings
 from django.db import models, transaction
 from django.utils import timezone
 from rest_framework import permissions, status
@@ -15,15 +12,15 @@ from rest_framework.response import Response
 
 from .models import (
     Organizer, Membership, GigApplication,
-    BookingConversation, BookingMessage, Offer, BookingOrder,
+    BookingConversation, BookingMessage, Offer, BookingOrder, BookingReview,
     Transfer, LedgerEntry, Dispute, BookingAuditLog,
 )
-from apps.payments.gateways.selector import has_live_credentials
+from apps.payments.gateways import GatewayConfigurationError, GatewayError, get_gateway, to_paise
 from .serializers import (
     OrganizerSerializer, MembershipSerializer, GigApplicationSerializer,
     BookingConversationSerializer, BookingMessageSerializer, OfferSerializer,
     BookingOrderSerializer, LedgerEntrySerializer, AdminLedgerEntrySerializer, DisputeSerializer,
-    FundOrderSerializer, MakeOfferSerializer, compute_fees,
+    FundOrderSerializer, MakeOfferSerializer, BookingReviewSerializer, compute_fees,
 )
 
 logger = logging.getLogger(__name__)
@@ -233,7 +230,7 @@ def conversation_messages(request, convo_id):
     _assert_conversation_participant(request.user, convo)
 
     if request.method == "GET":
-        msgs = convo.messages.filter(is_deleted=False).select_related("sender")
+        msgs = convo.messages.filter(is_deleted=False).select_related("sender", "linked_offer")
         data = BookingMessageSerializer(msgs, many=True).data
         return Response({"count": len(data), "results": data})
 
@@ -248,6 +245,11 @@ def conversation_messages(request, convo_id):
     )
     convo.last_message_at = timezone.now()
     convo.save(update_fields=["last_message_at"])
+
+    from apps.notifications.dispatch import new_message
+
+    _notify(new_message, msg, request.user)
+
     return Response(BookingMessageSerializer(msg).data, status=201)
 
 
@@ -406,7 +408,7 @@ def booking_orders(request):
     from django.db.models import Q
     qs = BookingOrder.objects.filter(
         Q(organizer_id__in=org_ids) | Q(artist=artist)
-    ).select_related("organizer", "artist", "event").order_by("-created_at")
+    ).select_related("organizer", "artist", "event", "offer").order_by("-created_at")
     data = BookingOrderSerializer(qs, many=True).data
     return Response({"count": len(data), "results": data})
 
@@ -420,41 +422,179 @@ def booking_order_detail(request, pk):
     return Response(BookingOrderSerializer(order).data)
 
 
-@api_view(["POST"])
+REVIEWABLE = {
+    BookingOrder.Status.COMPLETED,
+    BookingOrder.Status.RELEASED,
+    BookingOrder.Status.SETTLED,
+}
+
+
+def _review_direction(user, order):
+    """Which way this person's review points: the artist rates the venue, anyone
+    acting for the venue rates the artist."""
+    if order.artist.user_id == user.pk:
+        return BookingReview.Direction.ARTIST_TO_HOST
+    return BookingReview.Direction.HOST_TO_ARTIST
+
+
+@api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
-def fund_order(request, pk):
-    """
-    Host funds escrow — receives Razorpay payment details from frontend checkout.
-    Verifies HMAC signature, creates Transfer record, transitions order to funded,
-    writes LedgerEntry rows, schedules 72h auto-release task.
-    """
+def order_reviews(request, pk):
+    """Both sides' ratings for a finished booking; each side leaves one."""
     order = _get_order_for_user(request.user, pk)
     if not order:
         return Response({"detail": "Not found."}, status=404)
+    direction = _review_direction(request.user, order)
+
+    if request.method == "GET":
+        data = BookingReviewSerializer(order.reviews.all(), many=True).data
+        return Response({"count": len(data), "my_direction": direction, "results": data})
+
+    if order.status not in REVIEWABLE:
+        return Response({"detail": "You can review a booking once the gig is done."}, status=400)
+    if order.reviews.filter(direction=direction).exists():
+        return Response({"detail": "You have already reviewed this booking."}, status=409)
+
+    ser = BookingReviewSerializer(data=request.data)
+    ser.is_valid(raise_exception=True)
+    review = ser.save(booking_order=order, reviewer=request.user, direction=direction)
+    return Response(BookingReviewSerializer(review).data, status=201)
+
+
+def _gateway_or_503():
+    """(gateway, None) or (None, 503 response). Never falls back to the mock."""
+    try:
+        return get_gateway(), None
+    except GatewayConfigurationError as exc:
+        logger.error("Payment gateway misconfigured: %s", exc)
+        return None, Response({"detail": "Payment gateway is not configured."}, status=503)
+
+
+def _host_order_or_error(request, pk):
+    """The booking order, if the caller may pay for it: a member of the hosting
+    organizer. The artist is a party to the order but is the one being paid, so
+    they must never be the one who marks it as funded."""
+    order = _get_order_for_user(request.user, pk)
+    if not order:
+        return None, Response({"detail": "Not found."}, status=404)
+    if not _is_organizer_member(request.user, order.organizer):
+        return None, Response({"detail": "Only the hosting organizer can fund this booking."}, status=403)
+    return order, None
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def initiate_fund(request, pk):
+    """Step 1 of funding escrow: open a gateway order for exactly this booking.
+
+    The host's checkout pays against the order returned here, and `fund_order`
+    only accepts a payment made against it.
+    """
+    order, error = _host_order_or_error(request, pk)
+    if error:
+        return error
     if order.status != BookingOrder.Status.ACCEPTED:
         return Response({"detail": f"Order is in '{order.status}' — cannot fund."}, status=400)
+
+    gateway, error = _gateway_or_503()
+    if error:
+        return error
+
+    if not order.razorpay_order_id:
+        try:
+            gw_order = gateway.create_escrow_order(order)
+        except GatewayError:
+            return Response({"detail": "Could not start the payment. Please try again."}, status=502)
+        order.razorpay_order_id = gw_order["id"]
+        order.save(update_fields=["razorpay_order_id"])
+
+    return Response({
+        "order_id": str(order.id),
+        "gateway": gateway.name,
+        "is_mock": gateway.is_mock,
+        "key": gateway.public_key,
+        "gateway_order_id": order.razorpay_order_id,
+        "amount": to_paise(order.gross_amount),
+        "currency": order.currency,
+    })
+
+
+@api_view(["POST"])
+@permission_classes([permissions.IsAuthenticated])
+def fund_order(request, pk):
+    """Step 2: the host has paid; verify it was real, for this booking, in full.
+
+    A valid Razorpay signature only proves that *some* payment happened on our
+    merchant account. So on a live gateway this also requires that the payment
+    was made against the gateway order opened for THIS booking (`initiate_fund`),
+    that Razorpay itself reports it captured, and that the amount is the full
+    `gross_amount`; and a payment id can only ever fund one booking.
+
+    The one exception is the explicit mock gateway (demos with no real money,
+    which production only allows behind ALLOW_MOCK_PAYMENTS), where the browser
+    cannot sign anything. "No live credentials" is NOT that exception: a live
+    deploy that is missing its keys fails closed here.
+    """
+    order, error = _host_order_or_error(request, pk)
+    if error:
+        return error
 
     ser = FundOrderSerializer(data=request.data)
     ser.is_valid(raise_exception=True)
     d = ser.validated_data
 
-    # HMAC verification (skipped only in dev, and only via the same hardened,
-    # unforgiving credential check the ticket-payments gateway selector uses —
-    # not a bespoke placeholder list that a real deploy could still match).
-    is_dev = not has_live_credentials()
+    if order.status == BookingOrder.Status.FUNDED and order.razorpay_payment_id == d["razorpay_payment_id"]:
+        return Response(BookingOrderSerializer(order).data)  # double-submit
+    if order.status != BookingOrder.Status.ACCEPTED:
+        return Response({"detail": f"Order is in '{order.status}' — cannot fund."}, status=400)
+
+    gateway, error = _gateway_or_503()
+    if error:
+        return error
+    is_dev = gateway.is_mock
+
     if not is_dev:
-        key_secret = django_settings.RAZORPAY_KEY_SECRET
-        body = f"{d['razorpay_order_id']}|{d['razorpay_payment_id']}"
-        expected = hmac.new(key_secret.encode(), body.encode(), hashlib.sha256).hexdigest()
-        if not hmac.compare_digest(expected, d["razorpay_signature"]):
+        if not order.razorpay_order_id:
+            return Response({"detail": "Start the payment first."}, status=400)
+        if d["razorpay_order_id"] != order.razorpay_order_id:
+            return Response({"detail": "That payment was not made for this booking."}, status=400)
+        if not gateway.verify_signature({
+            "order_id": d["razorpay_order_id"],
+            "payment_id": d["razorpay_payment_id"],
+            "signature": d["razorpay_signature"],
+        }):
             return Response({"detail": "Invalid payment signature."}, status=400)
+        try:
+            paid = gateway.fetch_payment(d["razorpay_payment_id"])
+        except GatewayError:
+            return Response({"detail": "Could not confirm the payment. Please try again."}, status=502)
+        if (
+            paid.get("order_id") != order.razorpay_order_id
+            or paid.get("status") != "captured"
+            or paid.get("amount") != to_paise(order.gross_amount)
+            or (paid.get("currency") or order.currency) != order.currency
+        ):
+            logger.warning("Booking %s: payment %s failed the capture/amount check",
+                           order.id, d["razorpay_payment_id"])
+            return Response({"detail": "That payment does not cover this booking."}, status=400)
+        from apps.payments.models import Payment
+        if (
+            BookingOrder.objects.filter(razorpay_payment_id=d["razorpay_payment_id"]).exclude(pk=order.pk).exists()
+            or Payment.objects.filter(gateway_payment_id=d["razorpay_payment_id"]).exists()
+        ):
+            return Response({"detail": "That payment has already been used."}, status=409)
 
     with transaction.atomic():
-        # Idempotency — if payment_id already linked, return the order as-is
-        if order.razorpay_payment_id == d["razorpay_payment_id"]:
-            return Response(BookingOrderSerializer(order).data)
+        # Re-read under a lock: two simultaneous submissions must fund it once.
+        locked = BookingOrder.objects.select_for_update().get(pk=order.pk)
+        if locked.status != BookingOrder.Status.ACCEPTED:
+            return Response(BookingOrderSerializer(locked).data) if (
+                locked.razorpay_payment_id == d["razorpay_payment_id"]
+            ) else Response({"detail": f"Order is in '{locked.status}' — cannot fund."}, status=400)
+        order = locked
 
-        order.razorpay_order_id = d["razorpay_order_id"]
+        if is_dev:
+            order.razorpay_order_id = d["razorpay_order_id"]
         order.razorpay_payment_id = d["razorpay_payment_id"]
         order.save(update_fields=["razorpay_order_id", "razorpay_payment_id"])
         order.transition(BookingOrder.Status.FUNDED, actor=request.user,

@@ -89,8 +89,14 @@ envVarGroups:
       # moved. See DEPLOY.md, "When Razorpay is approved".
       - key: PAYMENT_GATEWAY
         value: mock
+      # Production refuses to boot on the mock gateway unless this is set, because
+      # the mock lets any signed-in user issue themselves free tickets. This is the
+      # pre-launch opt-in. DELETE it (and switch PAYMENT_GATEWAY to razorpay) the
+      # day real money or a real ticketed event goes live.
+      - key: ALLOW_MOCK_PAYMENTS
+        value: "true"
 
-      - key: SENTRY_DSN
+      - key: SENTRY_DSN_BACKEND
         value: ""
       - key: RAZORPAY_KEY_ID
         value: ""
@@ -212,6 +218,25 @@ services:
     buildCommand: npm ci && npm run build --workspace apps/frontend
     staticPublishPath: ./apps/frontend/dist
     autoDeployTrigger: commit
+    # Response headers. The Content-Security-Policy is NOT here: it has to name this
+    # build's API address, so the build embeds it in index.html as a <meta> tag instead
+    # (apps/frontend/build/security-headers.ts). These are the ones a <meta> cannot carry.
+    headers:
+      - path: /*
+        name: X-Frame-Options
+        value: DENY
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy
+        value: camera=(self), geolocation=(self), microphone=(), usb=(), bluetooth=(), serial=(), hid=(), accelerometer=(), gyroscope=(), magnetometer=()
+      - path: /*
+        name: Strict-Transport-Security
+        value: max-age=31536000
     routes:
       # SPA history fallback. Without this, loading /host/events/<id> directly
       # (a refresh, or a pasted link) returns 404 because no such file exists
@@ -225,7 +250,7 @@ services:
       #   https://naada-api.onrender.com/api/v1
       - key: VITE_API_BASE
         sync: false
-      - key: VITE_SENTRY_DSN
+      - key: VITE_SENTRY_DSN_FRONTEND
         value: ""
       # Public Turnstile site key (not secret). Blank = no bot check.
       - key: VITE_TURNSTILE_SITE_KEY

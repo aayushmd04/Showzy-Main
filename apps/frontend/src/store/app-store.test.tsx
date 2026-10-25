@@ -7,8 +7,6 @@ import {
   bookings,
   events,
   gigApplications,
-  messages,
-  reviews,
   tickets,
   venues,
 } from "@/data/fixtures";
@@ -24,9 +22,7 @@ const seed = () => ({
   venues: venues.map((v) => ({ ...v })),
   bookings: bookings.map((b) => ({ ...b, quotes: b.quotes.map((q) => ({ ...q })) })),
   tickets: tickets.map((t) => ({ ...t })),
-  messages: messages.map((m) => ({ ...m })),
   applications: gigApplications.map((a) => ({ ...a })),
-  reviews: reviews.map((r) => ({ ...r })),
 });
 
 function wrapper({ children }: { children: ReactNode }) {
@@ -77,50 +73,6 @@ describe("app-store — admin / ops actions", () => {
   });
 });
 
-describe("app-store — chat", () => {
-  it("sendMessage stores a clean message unflagged", () => {
-    const { result } = setup();
-    act(() => {
-      result.current.sendMessage("b1", "host", "Can you do 8pm instead of 7?");
-    });
-    const thread = result.current.messagesFor("b1");
-    const last = thread[thread.length - 1];
-    expect(last.body).toBe("Can you do 8pm instead of 7?");
-    expect(last.flagged).toBe(false);
-  });
-
-  it("sendMessage flags a message containing a phone number", () => {
-    const { result } = setup();
-    act(() => {
-      result.current.sendMessage("b1", "artist", "call me on 9876543210");
-    });
-    const thread = result.current.messagesFor("b1");
-    const last = thread[thread.length - 1];
-    expect(last.flagged).toBe(true);
-    expect(last.flagReason).toBe("phone number");
-  });
-
-  it("messagesFor returns only messages for that booking, oldest first", () => {
-    const { result } = setup();
-    const thread = result.current.messagesFor("b1");
-    expect(thread.every((m) => m.bookingId === "b1")).toBe(true);
-    const times = thread.map((m) => m.at);
-    expect(times).toEqual([...times].sort());
-  });
-
-  it("reviewFlaggedMessage clears the flag without deleting the message", () => {
-    const { result } = setup();
-    const before = result.current.messages.find((m) => m.flagged);
-    expect(before).toBeDefined();
-
-    act(() => result.current.reviewFlaggedMessage(before!.id));
-
-    const after = result.current.messages.find((m) => m.id === before!.id);
-    expect(after).toBeDefined();
-    expect(after?.flagged).toBe(false);
-  });
-});
-
 describe("app-store — gig board", () => {
   it("applyToGig creates a pending application", () => {
     const { result } = setup();
@@ -140,76 +92,5 @@ describe("app-store — gig board", () => {
     act(() => result.current.setApplicationStatus("ga1", "declined"));
 
     expect(result.current.applications.find((a) => a.id === "ga1")?.status).toBe("declined");
-  });
-
-  it("sendBrief converts a matching pending application for that event/artist", () => {
-    const { result } = setup();
-    expect(result.current.applications.find((a) => a.id === "ga1")?.status).toBe("pending");
-
-    act(() => {
-      result.current.sendBrief({ eventId: "e2", artistId: "a6", amount: 3000, message: "Let's do it" });
-    });
-
-    expect(result.current.applications.find((a) => a.id === "ga1")?.status).toBe("converted");
-  });
-
-  it("sendBrief does not touch an application for a different artist or event", () => {
-    const { result } = setup();
-    act(() => {
-      result.current.sendBrief({ eventId: "e3", artistId: "a5", amount: 4000, message: "Hi" });
-    });
-    expect(result.current.applications.find((a) => a.id === "ga1")?.status).toBe("pending");
-  });
-});
-
-describe("app-store — reviews", () => {
-  it("submitReview stores a review retrievable by booking", () => {
-    const { result } = setup();
-    act(() => {
-      result.current.submitReview("b1", "artist_to_host", 4, "Great venue, smooth load-in.");
-    });
-    const forB1 = result.current.reviewsFor("b1");
-    expect(forB1).toHaveLength(1);
-    expect(forB1[0]).toMatchObject({ rating: 4, direction: "artist_to_host" });
-  });
-
-  it("reviewsFor only returns reviews for that booking", () => {
-    const { result } = setup();
-    const forB3 = result.current.reviewsFor("b3"); // fixture seed review
-    const forB1 = result.current.reviewsFor("b1");
-    expect(forB3).toHaveLength(1);
-    expect(forB1).toHaveLength(0);
-  });
-});
-
-describe("app-store — double-booking guard", () => {
-  it("blocks accepting an offer for an artist already booked that date", () => {
-    const { result } = setup();
-    // b1 (a4, event e2) is already funded. Send a second brief for the same
-    // artist on the same date via a different event, then try to accept it.
-    act(() => {
-      result.current.updateEvent("e3", { date: result.current.eventById("e2")!.date });
-    });
-    let clash: ReturnType<typeof result.current.sendBrief>;
-    act(() => {
-      clash = result.current.sendBrief({
-        eventId: "e3",
-        artistId: "a4",
-        amount: 5000,
-        message: "Also want you for this one",
-      });
-    });
-
-    act(() => result.current.acceptBooking(clash!.id, "artist"));
-
-    // Blocked — still requested, not accepted, and b1 is untouched.
-    expect(result.current.bookingById(clash!.id)?.state).toBe("requested");
-    expect(result.current.bookingById("b1")?.state).toBe("funded");
-  });
-
-  it("allows accepting when the artist is free that date", () => {
-    const { result } = setup();
-    act(() => result.current.acceptBooking("b4", "host")); // a3, no conflicting date
-    expect(result.current.bookingById("b4")?.state).toBe("accepted");
   });
 });

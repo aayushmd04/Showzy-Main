@@ -227,12 +227,26 @@ export function CheckoutPayScreen() {
         ...(zone && zone.seats.length > 0 ? { seat_ids: seatIds } : {}),
         ...(zone && babyChairs > 0 ? { baby_chairs: babyChairs } : {}),
       };
-      const order = await api.createTicketOrder(orderPayload);
-
+      // A second press (the card sheet was closed, or the first attempt was
+      // declined) pays the order already holding the seats instead of
+      // reserving a second set, which would lock this buyer out of their own.
+      let order = placed ?? (await api.createTicketOrder(orderPayload));
       setPlaced(order);
 
       // 2. Ask the backend to open a payment against it.
-      const intent = await api.initiatePayment({ order_id: order.id });
+      let intent: api.InitiatePaymentResponse;
+      try {
+        intent = await api.initiatePayment({ order_id: order.id });
+      } catch (err) {
+        // The hold lapsed while they were deciding (400): reserve afresh once.
+        if (placed && err instanceof ApiError && err.status === 400) {
+          order = await api.createTicketOrder(orderPayload);
+          setPlaced(order);
+          intent = await api.initiatePayment({ order_id: order.id });
+        } else {
+          throw err;
+        }
+      }
 
       // Free and complimentary orders are confirmed by the backend immediately.
       if (intent.status === "success") {
@@ -417,7 +431,7 @@ export function CheckoutPayScreen() {
         )}
 
         {/* ── Promo code ────────────────────────────────────────────── */}
-        {!isFree && phase === "review" && (
+        {!isFree && phase === "review" && placed === null && (
           <section className="mt-4">
             <label htmlFor="promo" className="t-micro">
               Promo code
@@ -460,9 +474,10 @@ export function CheckoutPayScreen() {
               <Button
                 variant="primary"
                 onClick={() => {
+                  // Keep `placed`: the seats are still held for this buyer, and
+                  // pay() reuses the order (or reserves afresh if it lapsed).
                   setPhase("review");
                   setError(null);
-                  setPlaced(null);
                   setZoneRefresh((n) => n + 1);
                 }}
               >

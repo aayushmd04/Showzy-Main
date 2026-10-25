@@ -60,10 +60,13 @@ x-backend-env: &backend-env
   # Payments stay on the mock gateway. No Razorpay account is needed to run,
   # test or demo the entire booking + ticketing flow.
   PAYMENT_GATEWAY: mock
+  # Production settings refuse the mock gateway unless this opt-in is set.
+  # Fine here: this stack is local and moves no real money.
+  ALLOW_MOCK_PAYMENTS: "true"
 
   # Everything below is optional and deliberately empty: Sentry, S3 and SMTP
   # are all clean no-ops when unset. OTP codes print to the backend logs.
-  SENTRY_DSN: ""
+  SENTRY_DSN_BACKEND: ""
   AWS_STORAGE_BUCKET_NAME: ""
 
 services:

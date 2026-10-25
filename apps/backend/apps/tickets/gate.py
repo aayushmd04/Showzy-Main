@@ -264,12 +264,17 @@ def gate_mine(request):
     """Invitations waiting for me, and the doors I currently work."""
     invites = invitations_q(request.user).select_related(
         "event", "event__venue", "invited_by").order_by("-created_at")
+    now = timezone.now()
+    # Once an event's gate window has closed there is nothing left to do at that
+    # door. Dropping it here is also what makes "Gate duty" disappear from the
+    # app for someone whose only shifts are over — the app shows that link only
+    # to people this endpoint returns something for.
     active = GateAssignment.objects.filter(
         user=request.user, status=GateAssignment.Status.ACTIVE,
         event__is_deleted=False,
+        event__end_datetime__gt=now - WINDOW_AFTER,
     ).select_related("event", "event__venue").order_by("event__start_datetime")
 
-    now = timezone.now()
     return Response({
         "invitations": [{
             "id": str(i.id),

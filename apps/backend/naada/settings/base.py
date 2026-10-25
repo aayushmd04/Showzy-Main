@@ -179,6 +179,9 @@ REST_FRAMEWORK = {
         # are capped separately, but asking for a fresh code resets that cap.
         "otp_verify": "20/hour",
         "otp_verify_email": "10/hour",
+        # Google sign-in: per caller IP. Each attempt costs a signature check
+        # and possibly a fetch of Google's keys.
+        "google_login": "30/hour",
     },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
@@ -258,15 +261,22 @@ EMAIL_FROM_ALERTS = config("EMAIL_FROM_ALERTS", default="") or "Showzy <alerts@s
 # Fallback for anything that doesn't pick a sender.
 DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="") or EMAIL_FROM_ALERTS
 
+# Email over HTTPS (Resend and/or Brevo). Use this where the mail ports are blocked, e.g.
+# Render's free plan. Set one or both keys and verify the sending domain with each provider;
+# either takes priority over SMTP. Free plans cap at 100/day (Resend) and 300/day (Brevo).
+RESEND_API_KEY = config("RESEND_API_KEY", default="")
+BREVO_API_KEY = config("BREVO_API_KEY", default="")
+# Which to try first when both keys are set; the next is used if one refuses (e.g. daily cap).
+EMAIL_PROVIDER_ORDER = config("EMAIL_PROVIDER_ORDER", default="resend,brevo")
+
 _smtp_configured = bool(EMAIL_HOST_USER and EMAIL_HOST_PASSWORD)
-EMAIL_BACKEND = config(
-    "EMAIL_BACKEND",
-    default=(
-        "django.core.mail.backends.smtp.EmailBackend"
-        if _smtp_configured
-        else "django.core.mail.backends.console.EmailBackend"
-    ),
-)
+if RESEND_API_KEY or BREVO_API_KEY:
+    _default_email_backend = "apps.core.email_backend.HttpsEmailBackend"
+elif _smtp_configured:
+    _default_email_backend = "django.core.mail.backends.smtp.EmailBackend"
+else:
+    _default_email_backend = "django.core.mail.backends.console.EmailBackend"
+EMAIL_BACKEND = config("EMAIL_BACKEND", default=_default_email_backend)
 
 # ── Razorpay ─────────────────────────────────────────────────────────────────
 RAZORPAY_KEY_ID = config("RAZORPAY_KEY_ID", default="rzp_test_placeholder")
@@ -338,6 +348,14 @@ TURNSTILE_ALLOWED_HOSTNAMES = [
     h.strip() for h in config("TURNSTILE_ALLOWED_HOSTNAMES", default="").split(",") if h.strip()
 ]
 
+# ── Google sign-in ────────────────────────────────────────────────────────────
+# OAuth *client ID* (Google Cloud Console → APIs & Services → Credentials →
+# OAuth client, type "Web application"). It is public and there is no secret in
+# this flow. Pair it with VITE_GOOGLE_CLIENT_ID in the frontend build. Empty =
+# the endpoint answers 503 and the button is hidden.
+GOOGLE_OAUTH_CLIENT_ID = config("GOOGLE_OAUTH_CLIENT_ID", default="")
+GOOGLE_OAUTH_TIMEOUT = config("GOOGLE_OAUTH_TIMEOUT", default=5, cast=int)
+
 # When True the OTP request endpoint echoes the generated code back in the JSON
 # response so you can log in without a mail server. NEVER enable in production:
 # it hands account takeover to anyone who knows a phone number / email.
@@ -348,6 +366,15 @@ OTP_DEBUG_RESPONSE = config("OTP_DEBUG_RESPONSE", default=False, cast=bool)
 # ── Celery ────────────────────────────────────────────────────────────────────
 CELERY_BROKER_URL = config("REDIS_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = config("REDIS_URL", default="redis://localhost:6379/0")
+if CELERY_BROKER_URL.startswith("rediss://"):
+    # Hosted Redis over TLS (Upstash, Redis Cloud). Celery refuses a rediss:// URL unless it
+    # is told how to verify the server certificate, and these providers drop idle sockets.
+    import ssl
+
+    CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
+    CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
+    CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_keepalive": True, "health_check_interval": 30}
+    CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = "Asia/Kolkata"

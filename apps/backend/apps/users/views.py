@@ -17,12 +17,12 @@ from datetime import timedelta
 from apps.core import turnstile
 from apps.core.net import get_client_ip
 
-from . import privacy
+from . import google, privacy
 from .models import ConsentRecord, OTPToken, UserDevice, UserRole
 
 logger = logging.getLogger(__name__)
 from .serializers import (
-    OTPRequestSerializer, OTPVerifySerializer,
+    GoogleLoginSerializer, OTPRequestSerializer, OTPVerifySerializer,
     UserProfileSerializer, UserUpdateSerializer, UserDeviceSerializer
 )
 
@@ -80,6 +80,33 @@ class OTPVerifyEmailThrottle(OTPEmailThrottle):
     """
 
     scope = "otp_verify_email"
+
+
+class GoogleLoginThrottle(AnonRateThrottle):
+    """Caps Google sign-in attempts per caller. Keyed on IP."""
+
+    scope = "google_login"
+
+
+def _start_session(request, user, created):
+    """Record the login and return the token pair every sign-in route hands back."""
+    if not user.is_verified:
+        user.is_verified = True
+        user.save(update_fields=["is_verified"])
+
+    user.last_login_ip = get_client_ip(request)
+    user.last_login_device = request.META.get("HTTP_USER_AGENT", "")[:200]
+    user.save(update_fields=["last_login_ip", "last_login_device"])
+
+    refresh = RefreshToken.for_user(user)
+    user_data = UserProfileSerializer(user).data
+    user_data["is_new_user"] = created
+    return Response({
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+        "user": user_data,
+        "created": created,
+    }, status=status.HTTP_200_OK)
 
 
 @api_view(["POST"])
@@ -184,24 +211,46 @@ def verify_otp(request):
         email=email,
         defaults={"full_name": full_name or email.split("@")[0], "is_verified": True}
     )
-    if not user.is_verified:
-        user.is_verified = True
-        user.save(update_fields=["is_verified"])
+    return _start_session(request, user, created)
 
-    # Update last login metadata
-    user.last_login_ip = get_client_ip(request)
-    user.last_login_device = request.META.get("HTTP_USER_AGENT", "")[:200]
-    user.save(update_fields=["last_login_ip", "last_login_device"])
 
-    refresh = RefreshToken.for_user(user)
-    user_data = UserProfileSerializer(user).data
-    user_data["is_new_user"] = created
-    return Response({
-        "access": str(refresh.access_token),
-        "refresh": str(refresh),
-        "user": user_data,
-        "created": created,
-    }, status=status.HTTP_200_OK)
+@api_view(["POST"])
+@permission_classes([permissions.AllowAny])
+@throttle_classes([GoogleLoginThrottle])
+def google_login(request):
+    """Sign in (or up) with a Google ID token from the browser's Google button.
+
+    Same outcome as redeeming an emailed code, with the proof of inbox
+    ownership coming from Google instead. That is the point: a Google account
+    is costly to mass-produce, so this route does not draw on the mail budget.
+    """
+    serializer = GoogleLoginSerializer(data=request.data)
+    serializer.is_valid(raise_exception=True)
+
+    if not google.enabled():
+        return Response(
+            {"detail": "Google sign-in isn't available right now. Use your email instead."},
+            status=status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
+    try:
+        claims = google.verify(serializer.validated_data["credential"])
+    except google.GoogleSignInError:
+        return Response(
+            {"detail": "We couldn't verify your Google sign-in. Please try again."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+    email = claims["email"]
+    user, created = User.objects.get_or_create(
+        email=email,
+        defaults={"full_name": claims["name"][:120] or email.split("@")[0], "is_verified": True},
+    )
+    if not user.is_active:
+        return Response(
+            {"detail": "This account can't be used to sign in."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
+    return _start_session(request, user, created)
 
 
 class MeView(generics.RetrieveUpdateDestroyAPIView):

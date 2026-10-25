@@ -23,10 +23,12 @@ urlpatterns = [
     # Booking orders (escrow lifecycle)
     path("orders/", views.booking_orders, name="booking-orders"),
     path("orders/<uuid:pk>/", views.booking_order_detail, name="booking-order-detail"),
+    path("orders/<uuid:pk>/fund/start/", views.initiate_fund, name="booking-fund-start"),
     path("orders/<uuid:pk>/fund/", views.fund_order, name="booking-fund"),
     path("orders/<uuid:pk>/complete/", views.complete_order, name="booking-complete"),
     path("orders/<uuid:pk>/cancel/", views.cancel_order, name="booking-cancel"),
     path("orders/<uuid:pk>/dispute/", views.raise_dispute, name="booking-dispute"),
+    path("orders/<uuid:pk>/reviews/", views.order_reviews, name="booking-reviews"),
     path("orders/<uuid:pk>/ledger/", views.order_ledger, name="booking-ledger"),
 
     # Admin

@@ -9,9 +9,10 @@
  *  - Preferences — your language and light/dark theme. Optional: without your
  *    OK they last only until you close the tab.
  *
- * There are no advertising or analytics cookies, and nothing here loads a
- * third-party script. If analytics is ever added it must be a new category that
- * starts OFF and is gated behind `hasConsent()`.
+ * - Analytics — anonymous product usage (PostHog), see lib/analytics.ts. Starts OFF,
+ *   loads nothing until the visitor opts in, and is only available when a key is configured.
+ *
+ * There are no advertising cookies.
  *
  * The choice is kept in a first-party cookie (readable by the server) for
  * twelve months, and re-asked whenever `CONSENT_VERSION` changes.
@@ -20,7 +21,7 @@
 import { useSyncExternalStore } from "react";
 
 /** Bump when the categories or the cookie policy change in a way that needs a fresh OK. */
-export const CONSENT_VERSION = 1;
+export const CONSENT_VERSION = 2;
 export const CONSENT_COOKIE = "naada_consent";
 const MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 const EVENT = "naada:consent";
@@ -29,6 +30,8 @@ export interface ConsentState {
   v: number;
   /** Remember language & theme beyond this tab. */
   preferences: boolean;
+  /** Anonymous usage analytics (PostHog). */
+  analytics: boolean;
   /** ISO timestamp of the decision. */
   at: string;
 }
@@ -38,7 +41,7 @@ function readCookie(): ConsentState | null {
     const hit = document.cookie.split("; ").find((c) => c.startsWith(`${CONSENT_COOKIE}=`));
     if (!hit) return null;
     const parsed = JSON.parse(decodeURIComponent(hit.slice(CONSENT_COOKIE.length + 1)));
-    if (parsed?.v !== CONSENT_VERSION || typeof parsed.preferences !== "boolean") return null;
+    if (parsed?.v !== CONSENT_VERSION || typeof parsed.preferences !== "boolean" || typeof parsed.analytics !== "boolean") return null;
     return parsed as ConsentState;
   } catch {
     return null;
@@ -52,12 +55,17 @@ export function getConsent(): ConsentState | null {
   return snapshot;
 }
 
-export function hasConsent(category: "preferences"): boolean {
+export function hasConsent(category: "preferences" | "analytics"): boolean {
   return snapshot?.[category] === true;
 }
 
-export function setConsent(choice: { preferences: boolean }): ConsentState {
-  const next: ConsentState = { v: CONSENT_VERSION, preferences: choice.preferences, at: new Date().toISOString() };
+export function setConsent(choice: { preferences: boolean; analytics?: boolean }): ConsentState {
+  const next: ConsentState = {
+    v: CONSENT_VERSION,
+    preferences: choice.preferences,
+    analytics: choice.analytics ?? false,
+    at: new Date().toISOString(),
+  };
   try {
     const secure = location.protocol === "https:" ? "; Secure" : "";
     document.cookie =
@@ -84,6 +92,11 @@ export function clearConsent(): void {
 function subscribe(cb: () => void) {
   window.addEventListener(EVENT, cb);
   return () => window.removeEventListener(EVENT, cb);
+}
+
+/** Run `cb` whenever the choice changes (not for the initial value). */
+export function onConsentChange(cb: () => void): () => void {
+  return subscribe(cb);
 }
 
 export function useConsent(): ConsentState | null {

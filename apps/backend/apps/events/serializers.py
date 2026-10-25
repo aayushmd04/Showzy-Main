@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Event, EventArtist, EventPhoto, EventReview, EventSave
+from .models import Event, EventArtist, EventPhoto, EventReview, EventSave, EventStatus
 from apps.core.serializers import GenreSerializer
 from apps.venues.serializers import VenueListSerializer
 from apps.artists.serializers import ArtistListSerializer
@@ -96,7 +96,7 @@ class EventDetailSerializer(serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
     event_artists = EventArtistSerializer(many=True, read_only=True)
     photos = EventPhotoSerializer(many=True, read_only=True)
-    ticket_tiers = TicketTierLightSerializer(many=True, read_only=True)
+    ticket_tiers = serializers.SerializerMethodField()
     reviews = EventReviewSerializer(many=True, read_only=True)
     is_saved = serializers.SerializerMethodField()
     seats_left = serializers.SerializerMethodField()
@@ -106,6 +106,20 @@ class EventDetailSerializer(serializers.ModelSerializer):
     class Meta:
         model = Event
         exclude = ["is_deleted", "deleted_at", "artists"]
+
+    def get_ticket_tiers(self, obj):
+        """Buyers see what they can buy; the organiser also sees what they switched off.
+
+        A tier the host deactivated or hid used to be listed on the public page,
+        where picking it ended in a "not found" at checkout.
+        """
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        tiers = obj.ticket_tiers.all()
+        if not (user and user.is_authenticated
+                and (user.is_staff or obj.organizer_id == user.id)):
+            tiers = [t for t in tiers if t.is_active and t.is_visible]
+        return TicketTierLightSerializer(tiers, many=True, context=self.context).data
 
     def get_is_saved(self, obj):
         request = self.context.get("request")
@@ -132,6 +146,15 @@ class EventDetailSerializer(serializers.ModelSerializer):
 
 
 class EventCreateUpdateSerializer(serializers.ModelSerializer):
+    def validate_status(self, value):
+        # Going live has its own step (`/publish/`), which checks there is a
+        # ticket to sell; a PATCH must not be a way around it.
+        if value == EventStatus.PUBLISHED and (
+            self.instance is None or self.instance.status != EventStatus.PUBLISHED
+        ):
+            raise serializers.ValidationError("Use the publish step to put an event on sale.")
+        return value
+
     class Meta:
         model = Event
         exclude = [

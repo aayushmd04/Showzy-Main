@@ -13,6 +13,17 @@ const CONSOLE_LABEL: Record<Role, string> = {
   admin: "an admin account",
 };
 
+/** Shown while a saved session is being restored — not "signed out" yet. */
+export function RestoringSession() {
+  return (
+    <div className="flex min-h-dvh items-center justify-center bg-ink">
+      <p className="t-micro text-muted" role="status">
+        Loading…
+      </p>
+    </div>
+  );
+}
+
 /**
  * Console routes are scoped to the role on the signed-in account.
  *
@@ -30,10 +41,11 @@ export function RequireRole({
   suggest: Role;
   children: ReactNode;
 }) {
-  const { role, currentUser } = useStore();
+  const { role, currentUser, authReady } = useStore();
   const { open: openAuth } = useAuthSheet();
 
   if (roles.includes(role)) return <>{children}</>;
+  if (!authReady) return <RestoringSession />;
 
   const signedOut = role === "out" || !currentUser;
 

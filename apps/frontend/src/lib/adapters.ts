@@ -11,7 +11,6 @@ import type {
   ApiTicket,
   ApiOrder,
   ApiConversation,
-  ApiMessage,
   ApiOffer,
 } from "./api";
 import type {
@@ -20,9 +19,16 @@ import type {
   Venue,
   Ticket,
   Booking,
-  ChatMessage,
   Quote,
 } from "@/data/fixtures";
+
+/**
+ * Seed imagery sits flat under one of these folders: `/media/artists/x.jpg`.
+ * Anything a person uploads is filed deeper — `/media/artists/2026/10/x.jpg`,
+ * `/media/events/posters/...` — so a single path segment after the category is
+ * what tells the two apart.
+ */
+const SEED_MEDIA = /^\/media\/(artists|banners|events|restaurants|venues)\/[^/]+$/;
 
 /**
  * Resolve a media URL to where the bytes actually are.
@@ -31,18 +37,20 @@ import type {
  * serves it for free with no storage bucket. The backend stores the matching
  * relative path in an ImageField, but DRF runs `build_absolute_uri` on the way
  * out and hands back an API-origin URL — which 404s, because those files were
- * never on the API host.
+ * never on the API host. Those, and only those, are rewritten to a bare path
+ * the frontend serves.
  *
- * So: rewrite same-origin `/media/` URLs to a bare path the frontend serves,
- * and pass everything else through untouched. Real uploads live on S3 under a
- * different origin (see DEPLOY.md) and are unaffected.
+ * A photo someone uploaded lives on the API host (or a bucket) and must keep
+ * its full address. Rewriting it to a path on the website's own domain — as
+ * this once did for every `/media/` URL — pointed it at a file that does not
+ * exist there, so an artist's own photo showed as a broken image.
  */
 export function mediaUrl(raw?: string | null): string | undefined {
   if (!raw) return undefined;
   try {
     const url = new URL(raw, window.location.origin);
     const apiOrigin = new URL(API_BASE, window.location.origin).origin;
-    if (url.origin === apiOrigin && url.pathname.startsWith("/media/")) {
+    if (url.origin === apiOrigin && SEED_MEDIA.test(url.pathname)) {
       return url.pathname;
     }
     return url.origin === window.location.origin ? url.pathname : url.href;
@@ -207,32 +215,18 @@ export function adaptOrder(
       },
     ],
     _orderId: order.id,
+    _conversationId: order.conversation,
     _eventTitle: order.event_title ?? undefined,
     _platformFee: parseFloat(order.platform_fee),
     _artistPayout: parseFloat(order.artist_payout),
     _performanceDate: order.performance_date,
   } as Booking & {
     _orderId: string;
+    _conversationId?: string;
     _eventTitle?: string;
     _platformFee: number;
     _artistPayout: number;
     _performanceDate: string;
-  };
-}
-
-// ─── Messages ─────────────────────────────────────────────────────────────────
-
-export function adaptMessage(
-  m: ApiMessage,
-  convoId: string,
-): ChatMessage {
-  return {
-    id: m.id,
-    bookingId: convoId,
-    sender: "host",
-    body: m.content,
-    at: m.created_at,
-    flagged: m.is_flagged,
   };
 }
 

@@ -6,7 +6,7 @@ Select with::
     DJANGO_ENV=naada.settings.production daphne naada.asgi:application
 
 Required env vars: SECRET_KEY, DATABASE_URL, ALLOWED_HOSTS.
-Optional: REDIS_URL, SENTRY_DSN, AWS_* (see .env.example).
+Optional: REDIS_URL, SENTRY_DSN_BACKEND, AWS_* (see .env.example).
 """
 
 from django.core.exceptions import ImproperlyConfigured
@@ -45,6 +45,35 @@ if _looks_placeholder:
         "SECRET_KEY looks like a placeholder. Generate a real one and set it in the "
         "environment:\n"
         "  python -c \"import secrets; print(secrets.token_urlsafe(64))\""
+    )
+
+# ── Payments ──────────────────────────────────────────────────────────────────
+# The mock gateway signs its own "payments", so on a public site any signed-in
+# user can mint a valid payment for their own order and be issued tickets for
+# nothing. It used to be the silent default here: forget PAYMENT_GATEWAY on launch
+# day and real events sold free tickets with no error anywhere. Production now
+# refuses to boot on it unless somebody opts in on purpose (ALLOW_MOCK_PAYMENTS),
+# which is for pre-launch demos with no real money at stake.
+PAYMENT_GATEWAY = config("PAYMENT_GATEWAY", default="mock").strip().lower()
+ALLOW_MOCK_PAYMENTS = config("ALLOW_MOCK_PAYMENTS", default=False, cast=bool)
+if PAYMENT_GATEWAY != "razorpay" and not ALLOW_MOCK_PAYMENTS:
+    raise ImproperlyConfigured(
+        f"PAYMENT_GATEWAY={PAYMENT_GATEWAY!r} is not allowed in production: the mock gateway "
+        "lets anyone issue themselves free tickets. Set PAYMENT_GATEWAY=razorpay with real "
+        "RAZORPAY_* credentials, or, for a demo with no real money, set ALLOW_MOCK_PAYMENTS=true."
+    )
+
+if PAYMENT_GATEWAY == "mock":
+    # The built-in mock secrets are public (they are in the source). Derive private
+    # ones from SECRET_KEY so a stranger cannot forge a "payment" or a webhook.
+    import hashlib as _hashlib
+
+    def _derive(label):
+        return _hashlib.sha256(f"{SECRET_KEY}:{label}".encode()).hexdigest()  # noqa: F405
+
+    MOCK_PAYMENT_KEY_SECRET = config("MOCK_PAYMENT_KEY_SECRET", default="") or _derive("mock-payment-key")
+    MOCK_PAYMENT_WEBHOOK_SECRET = (
+        config("MOCK_PAYMENT_WEBHOOK_SECRET", default="") or _derive("mock-payment-webhook")
     )
 
 # ── OTP ───────────────────────────────────────────────────────────────────────
@@ -121,15 +150,15 @@ CSRF_TRUSTED_ORIGINS = [
 ] or [o for o in CORS_ALLOWED_ORIGINS if o.startswith("https://")]  # noqa: F405
 
 # ── Sentry (entirely optional — absent DSN means no-op, never a crash) ────────
-SENTRY_DSN = config("SENTRY_DSN", default="")
-if SENTRY_DSN:
+SENTRY_DSN_BACKEND = config("SENTRY_DSN_BACKEND", default="")
+if SENTRY_DSN_BACKEND:
     try:
         import sentry_sdk
         from sentry_sdk.integrations.django import DjangoIntegration
         from sentry_sdk.integrations.celery import CeleryIntegration
 
         sentry_sdk.init(
-            dsn=SENTRY_DSN,
+            dsn=SENTRY_DSN_BACKEND,
             integrations=[DjangoIntegration(), CeleryIntegration()],
             environment=config("SENTRY_ENVIRONMENT", default="production"),
             release=config("SENTRY_RELEASE", default=None),
@@ -140,4 +169,4 @@ if SENTRY_DSN:
     except ImportError:  # pragma: no cover - sentry-sdk not installed
         import logging
 
-        logging.getLogger(__name__).warning("SENTRY_DSN set but sentry-sdk is not installed.")
+        logging.getLogger(__name__).warning("SENTRY_DSN_BACKEND set but sentry-sdk is not installed.")

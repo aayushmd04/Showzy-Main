@@ -5,6 +5,7 @@ from . import views
 urlpatterns = [
     path("auth/request-otp/", views.request_otp, name="auth-request-otp"),
     path("auth/verify-otp/", views.verify_otp, name="auth-verify-otp"),
+    path("auth/google/", views.google_login, name="auth-google"),
     path("auth/refresh/", TokenRefreshView.as_view(), name="auth-token-refresh"),
     path("auth/logout/", TokenBlacklistView.as_view(), name="auth-logout"),
     path("auth/me/", views.MeView.as_view(), name="auth-me"),

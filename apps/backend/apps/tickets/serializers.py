@@ -14,6 +14,81 @@ class TicketTierSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
+class TierWriteSerializer(serializers.ModelSerializer):
+    """What an organiser may set on a ticket tier — never the stock counters."""
+
+    class Meta:
+        model = TicketTier
+        fields = [
+            "name", "description", "tier_type", "price", "total_quantity",
+            "min_per_order", "max_per_order", "sale_start_datetime",
+            "sale_end_datetime", "is_active", "is_visible", "sort_order",
+        ]
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Give the ticket a name.")
+        return value
+
+    def validate_price(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Price can't be negative.")
+        return value
+
+    def validate_total_quantity(self, value):
+        if value < 1:
+            raise serializers.ValidationError("Offer at least one ticket.")
+        return value
+
+    def validate(self, attrs):
+        inst = self.instance
+        total = attrs.get("total_quantity", inst.total_quantity if inst else None)
+        # Never promise fewer tickets than are already sold or being held.
+        if inst and total is not None and total < inst.sold_quantity + inst.reserved_quantity:
+            raise serializers.ValidationError({
+                "total_quantity": f"{inst.sold_quantity + inst.reserved_quantity} are already sold "
+                                  "or being paid for, so you can't go below that."})
+        lo = attrs.get("min_per_order", inst.min_per_order if inst else 1)
+        hi = attrs.get("max_per_order", inst.max_per_order if inst else 10)
+        if lo > hi:
+            raise serializers.ValidationError({"max_per_order": "Maximum can't be below the minimum."})
+        self._check_room(attrs, inst, total)
+        start = attrs.get("sale_start_datetime", inst.sale_start_datetime if inst else None)
+        end = attrs.get("sale_end_datetime", inst.sale_end_datetime if inst else None)
+        if start and end and end <= start:
+            raise serializers.ValidationError({"sale_end_datetime": "Sales must end after they start."})
+        return attrs
+
+
+    def _check_room(self, attrs, inst, total):
+        """Don't put more tickets on sale than the room can hold.
+
+        Counted across every tier that is on sale, against the event's own cap
+        if it has one, otherwise the venue's capacity. A venue with no
+        capacity recorded is not policed.
+        """
+        event = self.context.get("event") or (inst.event if inst else None)
+        if event is None or total is None:
+            return
+        active = attrs.get("is_active", inst.is_active if inst else True)
+        if not active:
+            return
+        limit = event.max_capacity or getattr(event.venue, "capacity", None)
+        if not limit:
+            return
+        others = sum(
+            t.total_quantity for t in event.ticket_tiers.filter(is_active=True)
+            if not inst or t.pk != inst.pk
+        )
+        if others + total > limit:
+            room = max(0, limit - others)
+            raise serializers.ValidationError({
+                "total_quantity": f"The room holds {limit} and {others} are already on sale in other "
+                                  f"tickets, so this one can have at most {room}."
+            })
+
+
 class OrderItemSerializer(serializers.ModelSerializer):
     tier_name = serializers.CharField(source="tier.name", read_only=True)
     tier_price = serializers.DecimalField(source="tier.price", max_digits=10,
@@ -119,10 +194,18 @@ class TicketSerializer(serializers.ModelSerializer):
         ]
 
     def get_qr_image_url(self, obj):
+        """The QR as a ``data:`` URI, for the ticket's current holder only.
+
+        Not a media URL: anything with a URL can be fetched by someone who
+        guesses it, and the QR is the credential at the door. The field keeps
+        its old name so the app's ``<img src>`` keeps working. Door staff
+        scanning someone else's ticket get ``null``.
+        """
         request = self.context.get("request")
-        if obj.qr_image and request:
-            return request.build_absolute_uri(obj.qr_image.url)
-        return None
+        user = getattr(request, "user", None)
+        if user is None or not user.is_authenticated or obj.user_id != user.id:
+            return None
+        return obj.qr_data_uri()
 
 
 class TransferTicketSerializer(serializers.Serializer):

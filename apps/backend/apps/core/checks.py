@@ -89,6 +89,24 @@ def turnstile_should_be_on(app_configs, **kwargs):
     ]
 
 
+@register(deploy=True)
+def mock_payments_must_be_deliberate(app_configs, **kwargs):
+    """The mock gateway issues tickets for no money; say so on every deploy check."""
+    if settings.DEBUG or getattr(settings, "PAYMENT_GATEWAY", "mock") == "razorpay":
+        return []
+    return [
+        CheckWarning(
+            "The MOCK payment gateway is live: anyone signed in can issue themselves free tickets.",
+            hint=(
+                "Set PAYMENT_GATEWAY=razorpay with real RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET / "
+                "RAZORPAY_WEBHOOK_SECRET, then remove ALLOW_MOCK_PAYMENTS. Acceptable only while "
+                "no real money or real ticketed event is involved."
+            ),
+            id="naada.W005",
+        )
+    ]
+
+
 def _is_local(url):
     return any(h in url for h in ("localhost", "127.0.0.1", "0.0.0.0"))
 
@@ -111,7 +129,7 @@ def public_urls_must_not_be_local(app_configs, **kwargs):
             CheckWarning(
                 "FRONTEND_URL still points at this computer, so email links will be broken.",
                 hint="Set FRONTEND_URL to the public website address, e.g. https://showzy.in",
-                id="naada.W005",
+                id="naada.W006",
             )
         )
     origins = [o for o in settings.CORS_ALLOWED_ORIGINS if o.strip()]
@@ -120,7 +138,7 @@ def public_urls_must_not_be_local(app_configs, **kwargs):
             CheckWarning(
                 "CORS_ALLOWED_ORIGINS only allows local addresses, so the live site cannot call this API.",
                 hint="Set CORS_ALLOWED_ORIGINS to the website address, with https:// and no trailing slash.",
-                id="naada.W006",
+                id="naada.W007",
             )
         )
     return found

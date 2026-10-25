@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Bookmark, LogOut, ScanLine, Settings as SettingsIcon, Ticket, UserRound } from "lucide-react";
 import { useStore } from "@/store/app-store";
 import { logout as apiLogout } from "@/lib/api";
+import { useGateAccess } from "@/lib/gate-access";
 
 /**
  * The signed-in avatar, and the only place a person can sign out.
@@ -15,6 +16,9 @@ export function AccountMenu({ tone = "dark" }: { tone?: "dark" | "light" }) {
   const { role, currentUser, setRole, setCurrentUser, toast } = useStore();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+  // Gate duty is shown only to people who hold an invitation or a door, and a
+  // venue account (whose doors live in the host console).
+  const { hasGateWork } = useGateAccess();
 
   useEffect(() => {
     if (!open) return;
@@ -89,10 +93,18 @@ export function AccountMenu({ tone = "dark" }: { tone?: "dark" | "light" }) {
               <Ticket className="size-4 shrink-0" aria-hidden="true" />
               My tickets
             </Link>
-            <Link to="/gate" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
-              <ScanLine className="size-4 shrink-0" aria-hidden="true" />
-              Gate duty
-            </Link>
+            {role === "host" && (
+              <Link to="/host/events" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+                <ScanLine className="size-4 shrink-0" aria-hidden="true" />
+                Doors &amp; gate team
+              </Link>
+            )}
+            {hasGateWork && (
+              <Link to="/gate" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
+                <ScanLine className="size-4 shrink-0" aria-hidden="true" />
+                Gate duty
+              </Link>
+            )}
             <Link to="/saved" role="menuitem" className={itemClass} onClick={() => setOpen(false)}>
               <Bookmark className="size-4 shrink-0" aria-hidden="true" />
               Saved

@@ -1,6 +1,7 @@
 import uuid
 import re
 from decimal import Decimal
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -458,6 +459,37 @@ class LedgerEntry(TimeStampedModel):
 
     def __str__(self):
         return f"[{self.entry_type}] ₹{self.amount} | {self.booking_order_id}"
+
+
+# ---------------------------------------------------------------------------
+# BookingReview — each side rates the other once the gig is done
+# ---------------------------------------------------------------------------
+
+class BookingReview(TimeStampedModel):
+    """A rating one party leaves the other for a finished booking.
+
+    At most one per direction per booking: the venue rates the artist, the
+    artist rates the venue. Immutable once left — a rating that can be
+    rewritten after a dispute is not evidence of anything.
+    """
+
+    class Direction(models.TextChoices):
+        HOST_TO_ARTIST = "host_to_artist", "Host reviewed artist"
+        ARTIST_TO_HOST = "artist_to_host", "Artist reviewed host"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    booking_order = models.ForeignKey(BookingOrder, on_delete=models.CASCADE, related_name="reviews")
+    reviewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="booking_reviews")
+    direction = models.CharField(max_length=20, choices=Direction.choices)
+    rating = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)])
+    body = models.TextField(blank=True, max_length=1000)
+
+    class Meta:
+        unique_together = [("booking_order", "direction")]
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.direction} {self.rating}/5 on {self.booking_order_id}"
 
 
 # ---------------------------------------------------------------------------

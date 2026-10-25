@@ -19,6 +19,7 @@ import {
   type ApiVenue,
 } from "@/lib/api";
 import { ErrorNote, LoadingNote, formatDateTime, friendlyError } from "./host-shared";
+import { GuestList, TierManager } from "./host-event-tickets";
 
 /**
  * Event manager — the hub each event row opens into, and the home of the
@@ -53,8 +54,10 @@ export function HostEventManagerScreen() {
   const [publishError, setPublishError] = useState<string | null>(null);
   const [publishedOpen, setPublishedOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (quiet = false) => {
+    // A quiet reload (after editing a ticket) keeps the page on screen instead
+    // of flashing back to "Loading…" and losing the scroll position.
+    if (!quiet) setLoading(true);
     setLoadError(null);
     try {
       setEvent(await getEvent(id));
@@ -116,11 +119,15 @@ export function HostEventManagerScreen() {
 
   const venue = typeof event.venue === "string" ? undefined : (event.venue as ApiVenue);
   const tiers = event.ticket_tiers ?? [];
+  const onSale = tiers.filter((t) => t.is_active);
+  // Sales and revenue count every tier, paused ones included — those tickets
+  // were still sold. Capacity counts only what can still be bought.
   const sold = tiers.reduce((s, t) => s + t.sold_quantity, 0);
-  const capacity = tiers.reduce((s, t) => s + t.total_quantity, 0);
+  const capacity = onSale.reduce((s, t) => s + t.total_quantity, 0) +
+    tiers.filter((t) => !t.is_active).reduce((s, t) => s + t.sold_quantity, 0);
   const revenue = tiers.reduce((s, t) => s + Number(t.price) * t.sold_quantity, 0);
   const isDraft = event.status === "draft";
-  const canPublish = tiers.length > 0;
+  const canPublish = onSale.length > 0;
   const shareLink = `${window.location.origin}/e/${event.id}`;
 
   return (
@@ -176,7 +183,7 @@ export function HostEventManagerScreen() {
       <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <StatTile value={`${sold}/${capacity}`} label="Tickets sold" />
         <StatTile value={money(revenue)} label="Gross ticket revenue" />
-        <StatTile value={String(tiers.length)} label="Ticket tiers" />
+        <StatTile value={String(onSale.length)} label="Tickets on sale" />
         <StatTile
           value={String(event.genres?.length ?? 0)}
           label="Genres tagged"
@@ -186,42 +193,9 @@ export function HostEventManagerScreen() {
 
       <div className="mt-10 grid gap-8 lg:grid-cols-[1fr_240px]">
         <div className="min-w-0">
-          <h2 className="t-section">Ticket tiers</h2>
-          {tiers.length > 0 ? (
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[420px] glass-soft rounded-xl text-left">
-                <thead>
-                  <tr className="border-b border-line">
-                    <th scope="col" className="t-micro px-4 py-3">Tier</th>
-                    <th scope="col" className="t-micro px-4 py-3 text-right">Price</th>
-                    <th scope="col" className="t-micro px-4 py-3 text-right">Sold</th>
-                    <th scope="col" className="t-micro px-4 py-3 text-right">Revenue</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {tiers.map((t) => (
-                    <tr key={t.id} className="border-b border-line last:border-0">
-                      <td className="px-4 py-3 text-[15px]">{t.name}</td>
-                      <td className="t-mono px-4 py-3 text-right text-[14px]">
-                        {Number(t.price) === 0 ? "FREE" : money(Number(t.price))}
-                      </td>
-                      <td className="t-mono px-4 py-3 text-right text-[14px]">
-                        {t.sold_quantity}/{t.total_quantity}
-                      </td>
-                      <td className="t-mono px-4 py-3 text-right text-[14px]">
-                        {money(Number(t.price) * t.sold_quantity)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <p className="t-small mt-3 border border-dashed border-line px-4 py-6 text-muted">
-              This event has no ticket tiers, so it can't be published and the door has nothing to
-              scan against.
-            </p>
-          )}
+          <TierManager eventId={event.id} tiers={tiers} onChanged={() => load(true)} />
+
+          {!isDraft && <GuestList eventId={event.id} />}
 
           {event.is_seeking_artists && <ApplicationQueue eventId={event.id} />}
         </div>

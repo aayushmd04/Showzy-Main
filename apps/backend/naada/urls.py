@@ -1,7 +1,9 @@
 import logging
 
 from django.contrib import admin
-from django.urls import path, include
+from django.http import Http404
+from django.urls import path, include, re_path
+from django.views.static import serve as serve_media
 from django.conf import settings
 from django.conf.urls.static import static
 from django.core.cache import caches
@@ -109,3 +111,34 @@ urlpatterns = [
     path(API_PREFIX, include("apps.notifications.urls")),
     path(API_PREFIX, include("apps.bookings.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+# `static()` above does nothing once DEBUG is off, so in production every photo
+# an artist or venue uploaded was saved to disk and then answered 404 — the
+# image showed as a broken placeholder everywhere it appeared. Serve uploads
+# from disk whenever they live on this server (a MEDIA_URL that is a path, not
+# a bucket's address). Behind S3 or a CDN the files never touch this server, so
+# there is nothing to serve.
+if not settings.DEBUG and settings.MEDIA_URL.startswith("/"):
+    urlpatterns += [
+        re_path(
+            r"^%s(?P<path>.*)$" % settings.MEDIA_URL.lstrip("/"),
+            serve_media,
+            {"document_root": settings.MEDIA_ROOT},
+        )
+    ]
+
+
+
+def _qr_not_served(request, path=""):
+    raise Http404
+
+
+# Ticket QR codes are entry credentials and are rendered per request for the
+# holder (see Ticket.qr_png_bytes). Old files from before that change are deleted
+# by tickets migration 0008; this refuses to serve any that survive. Inserted
+# first so it wins over both media routes above.
+if settings.MEDIA_URL.startswith("/"):
+    urlpatterns.insert(
+        0,
+        re_path(r"^%stickets/qr/(?P<path>.*)$" % settings.MEDIA_URL.lstrip("/"), _qr_not_served),
+    )

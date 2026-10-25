@@ -70,6 +70,16 @@ class PaymentGateway(ABC):
         """
 
     @abstractmethod
+    def create_escrow_order(self, booking_order) -> dict:
+        """Create a gateway order for a `bookings.BookingOrder`'s escrow funding.
+
+        Same Razorpay order entity as `create_order`, for ``gross_amount``. The
+        host pays against *this* order, and funding is only accepted for a payment
+        made against it, so a payment made for anything else (a ₹10 ticket, say)
+        can never be passed off as the escrow for a ₹1,00,000 booking.
+        """
+
+    @abstractmethod
     def verify_signature(self, payload: dict) -> bool:
         """Verify a checkout callback signature.
 

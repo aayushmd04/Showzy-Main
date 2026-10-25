@@ -462,7 +462,7 @@ the address bar of the website exactly.
 |---|---|
 | `PAYMENT_GATEWAY` | Defaults to `mock`. Only set it when Razorpay is live. |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | Razorpay is approved |
-| `SENTRY_DSN` | You want error alerts. Blank = silently disabled, never a crash. |
+| `SENTRY_DSN_BACKEND` | You want error alerts. Blank = silently disabled, never a crash. |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | You have real SMTP. **Blank means login OTP codes are printed to the Render logs instead of emailed** — fine for testing, not for real users. |
 | `DEFAULT_FROM_EMAIL` | You set up SMTP |
 | `AWS_STORAGE_BUCKET_NAME` + `AWS_*` | You want uploads on S3/Supabase Storage instead of the container's disk |
@@ -523,7 +523,7 @@ Practical consequence: **changing this value on the dashboard does nothing until
 you trigger a new build.** Not a restart. Not a redeploy of the same build. A
 new build. On Render: *Manual Deploy → Clear build cache & deploy*.
 
-Optional and safe to leave empty: `VITE_SENTRY_DSN`, `VITE_ANALYTICS_KEY`,
+Optional and safe to leave empty: `VITE_SENTRY_DSN_FRONTEND`, `VITE_ANALYTICS_KEY`,
 `VITE_ANALYTICS_HOST`.
 
 > Anything starting with `VITE_` ends up inside a file any visitor can read.
@@ -738,8 +738,13 @@ Upgrade `naada-api` to Starter.
 
 ## When Razorpay is approved
 
-Until then, do nothing: `PAYMENT_GATEWAY` defaults to `mock` and the entire
-booking flow works.
+Until then the app runs on the `mock` gateway, and the entire booking flow
+works. Production no longer starts on the mock by default — **it lets any
+signed-in user issue themselves free tickets** — so keep
+`ALLOW_MOCK_PAYMENTS=true` (already in `render.yaml` and the Oracle `.env.example`)
+for as long as no real money or real ticketed event is involved. The deploy check
+prints warning `naada.W005` while it is on, as a reminder. When Razorpay is live,
+set `PAYMENT_GATEWAY=razorpay` and **delete `ALLOW_MOCK_PAYMENTS`**.
 
 The switch is deliberately strict. Setting `PAYMENT_GATEWAY=razorpay` **without**
 valid credentials makes the app raise an error rather than quietly fall back to
@@ -843,15 +848,17 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 
 | Variable | Default | Notes |
 |---|---|---|
-| `PAYMENT_GATEWAY` | `mock` | `razorpay` requires real credentials or it errors. |
+| `PAYMENT_GATEWAY` | `mock` | `razorpay` requires real credentials or it errors. Production refuses `mock` unless `ALLOW_MOCK_PAYMENTS=true`. |
+| `ALLOW_MOCK_PAYMENTS` | `false` | Pre-launch opt-in for the mock gateway. Remove it when going live. |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | placeholders | |
-| `SENTRY_DSN` | *(empty)* | Empty = cleanly disabled. |
+| `SENTRY_DSN_BACKEND` | *(empty)* | Empty = cleanly disabled. |
 | `SENTRY_ENVIRONMENT` / `SENTRY_TRACES_SAMPLE_RATE` | `production` / `0.1` | |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USE_TLS` | `smtp.gmail.com` / `587` / `True` | |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | *(empty)* | Both empty ⇒ email prints to the logs. |
 | `DEFAULT_FROM_EMAIL` | `Showzy <alerts@showzy.in>` | Fallback sender. Sign-in codes use `EMAIL_FROM_AUTH` (`auth@showzy.in`), tickets and refunds `EMAIL_FROM_TICKETS` (`tickets@`), everything else `EMAIL_FROM_ALERTS` (`alerts@`). All are aliases on the mailbox |
 | `EMAIL_USE_SSL` | `False` | `True` for port 465 (then set `EMAIL_USE_TLS=False`) |
 | `TURNSTILE_SECRET_KEY` | empty | Cloudflare Turnstile secret; pair with `VITE_TURNSTILE_SITE_KEY` in the frontend build. Empty = no bot check (`check --deploy` warns) |
+| `GOOGLE_OAUTH_CLIENT_ID` | empty | Google OAuth *client ID* (public, no secret) for "Continue with Google"; pair with `VITE_GOOGLE_CLIENT_ID` in the frontend build. Empty = Google sign-in off (endpoint answers 503). Cloud Console → Credentials → OAuth client (Web application); add the frontend origin(s) under *Authorized JavaScript origins*, leave redirect URIs empty, and **publish** the consent screen |
 | `OTP_PEPPER` | empty (falls back to `SECRET_KEY`) | Secret key protecting stored sign-in codes; set it separately |
 | `TRUSTED_PROXY_COUNT` | `1` | Proxies in front of Django (Render: 1; Cloudflare + Render: 2) |
 | `CLIENT_IP_HEADER` | empty | `CF-Connecting-IP` only once the origin accepts Cloudflare traffic exclusively |
@@ -861,7 +868,7 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `DB_CONN_MAX_AGE` | `60` | Seconds, non-pooled connections only. |
 | `DB_POOLED` | auto (port 6543) | Force pooled behaviour on another port. |
 | `AWS_STORAGE_BUCKET_NAME` + `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_S3_REGION_NAME` / `AWS_S3_ENDPOINT_URL` / `AWS_S3_CUSTOM_DOMAIN` | *(empty)* | Object storage activates only when the bucket name is set. |
-| `MEDIA_URL` / `MEDIA_ROOT` | `/media/` / `media/` | |
+| `MEDIA_URL` / `MEDIA_ROOT` | `/media/` / `media/` | Without a bucket, uploaded photos are served by the backend itself from `MEDIA_ROOT` — keep that folder on a persistent volume (the Oracle compose file does), or photos vanish on redeploy. Use the `AWS_*` bucket on hosts with a disposable disk. |
 | `OTP_LENGTH` / `OTP_EXPIRY_MINUTES` / `OTP_MAX_ATTEMPTS` | `6` / `10` / `5` | |
 | `OTP_DEBUG_RESPONSE` | forced `False` in production | Cannot be enabled in production. Good. |
 
@@ -870,7 +877,8 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | Variable | Example | Notes |
 |---|---|---|
 | `VITE_API_BASE` | `https://naada-api.onrender.com/api/v1` | Include `/api/v1`, no trailing slash. **Rebuild to change.** |
-| `VITE_SENTRY_DSN` | *(empty)* | |
+| `VITE_GOOGLE_CLIENT_ID` | `1234-abc.apps.googleusercontent.com` | Same value as the backend's `GOOGLE_OAUTH_CLIENT_ID`. Empty hides the Google button. **Rebuild to change.** |
+| `VITE_SENTRY_DSN_FRONTEND` | *(empty)* | |
 | `VITE_ANALYTICS_KEY` / `VITE_ANALYTICS_HOST` | *(empty)* | |
 
 ---

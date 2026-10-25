@@ -52,7 +52,7 @@
 |---|---|---|---|
 | **Razorpay** (payments) | Only when a buyer presses Pay (checkout script `checkout.razorpay.com`) and from our server for orders/refunds | Amount, order reference; the payer enters card/UPI details on Razorpay's own page | `checkout-pay.tsx`, `apps/payments/` |
 | **Email provider** (SMTP) | Sign-in codes, tickets, deletion codes, notices | Recipient email, message body | `apps/users/views.py`, `apps/notifications/dispatch.py` |
-| **Sentry** *(optional — only if `SENTRY_DSN` is set)* | Server errors | Stack traces; keep personal data out of exception messages | `requirements.txt`, settings |
+| **Sentry** *(optional — only if `SENTRY_DSN_BACKEND` is set)* | Server errors | Stack traces; keep personal data out of exception messages | `requirements.txt`, settings |
 | **AWS S3 / compatible** *(optional — only if `AWS_STORAGE_BUCKET_NAME` is set)* | Uploads and media reads | Photos, QR images | `django-storages` |
 | **Database host** (Postgres, e.g. Supabase) | Every request | All application data | `DATABASE_URL` |
 | **Redis** | Chat/WebSocket layer, Celery | Message payloads in transit | `channels-redis`, `celery` |

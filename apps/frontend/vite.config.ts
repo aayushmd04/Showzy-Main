@@ -6,10 +6,15 @@ import { securityHeaders } from "./build/security-headers";
 
 export default defineConfig(({ mode }) => {
   // Same default as src/lib/api.ts, so the CSP names the origin the app will really call.
-  const apiBase = loadEnv(mode, __dirname, "VITE_").VITE_API_BASE || "http://localhost:8000/api/v1";
+  const env = loadEnv(mode, __dirname, "VITE_");
+  const apiBase = env.VITE_API_BASE || "http://localhost:8000/api/v1";
 
   return {
-    plugins: [react(), tailwindcss(), securityHeaders({ apiBase })],
+    plugins: [react(), tailwindcss(), securityHeaders({
+        apiBase,
+        sentryDsn: env.VITE_SENTRY_DSN_FRONTEND || undefined,
+        analyticsHost: env.VITE_ANALYTICS_KEY ? env.VITE_ANALYTICS_HOST || "https://us.i.posthog.com" : undefined,
+      })],
     resolve: {
       alias: { "@": path.resolve(__dirname, "./src") },
     },

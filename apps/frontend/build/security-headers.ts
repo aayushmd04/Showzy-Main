@@ -25,10 +25,28 @@ import type { Plugin } from "vite";
 const RAZORPAY = ["https://checkout.razorpay.com", "https://api.razorpay.com"];
 const GOOGLE_SIGN_IN = "https://accounts.google.com/gsi/";
 const TURNSTILE = "https://challenges.cloudflare.com";
+const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
+
+/**
+ * PostHog sends events to its ingest host and fetches extension scripts from a sibling
+ * "-assets" host (us.i.posthog.com -> us-assets.i.posthog.com). A self-hosted or
+ * reverse-proxied host has no assets sibling, so only the host itself is allowed.
+ */
+export function posthogOrigins(host: string): { connect: string[]; script: string[] } {
+  const origin = originOf(host);
+  if (!origin) return { connect: [], script: [] };
+  const m = /^https:\/\/(us|eu)\.i\.posthog\.com$/.exec(origin);
+  const assets = m ? [`https://${m[1]}-assets.i.posthog.com`] : [];
+  return { connect: [origin, ...assets], script: assets };
+}
 
 export interface CspInput {
   /** Value of VITE_API_BASE, e.g. https://api.showzy.in/api/v1 */
   apiBase: string;
+  /** Value of VITE_SENTRY_DSN_FRONTEND, if error reporting is on; its ingest origin joins connect-src. */
+  sentryDsn?: string;
+  /** PostHog host when analytics is configured (VITE_ANALYTICS_KEY set); else omitted. */
+  analyticsHost?: string;
   /** `sha256-…` tokens for the inline scripts in index.html. */
   scriptHashes: string[];
   /**
@@ -46,8 +64,10 @@ export function originOf(url: string): string | null {
   }
 }
 
-export function buildCsp({ apiBase, scriptHashes, forHeader }: CspInput): string {
+export function buildCsp({ apiBase, scriptHashes, forHeader, sentryDsn, analyticsHost }: CspInput): string {
   const api = originOf(apiBase);
+  const sentry = sentryDsn ? originOf(sentryDsn) : null;
+  const posthog = analyticsHost ? posthogOrigins(analyticsHost) : { connect: [], script: [] };
   const directives: Record<string, string[]> = {
     "default-src": ["'self'"],
     "script-src": [
@@ -56,6 +76,7 @@ export function buildCsp({ apiBase, scriptHashes, forHeader }: CspInput): string
       RAZORPAY[0],
       GOOGLE_SIGN_IN,
       `${TURNSTILE}/turnstile/`,
+      ...posthog.script,
     ],
     // Inline styles: React/motion set `style=""` attributes at runtime, which cannot be
     // hashed. Scripts are the injection risk that matters, and they stay strict.
@@ -71,6 +92,8 @@ export function buildCsp({ apiBase, scriptHashes, forHeader }: CspInput): string
       "https://lumberjack.razorpay.com",
       GOOGLE_SIGN_IN,
       TURNSTILE,
+      ...(sentry ? [sentry] : []),
+      ...posthog.connect,
     ],
     "frame-src": [...RAZORPAY, GOOGLE_SIGN_IN, TURNSTILE],
     "worker-src": ["'self'"],
@@ -137,7 +160,7 @@ export function nginxInclude(csp: string): string {
   );
 }
 
-export function securityHeaders(options: { apiBase: string }): Plugin {
+export function securityHeaders(options: Pick<CspInput, "apiBase" | "sentryDsn" | "analyticsHost">): Plugin {
   let hashes: string[] = [];
   return {
     name: "showzy-security-headers",
@@ -147,7 +170,7 @@ export function securityHeaders(options: { apiBase: string }): Plugin {
       hashes = inlineScriptHashes(readFileSync(path.resolve(config.root, "index.html"), "utf8"));
     },
     transformIndexHtml() {
-      const content = buildCsp({ apiBase: options.apiBase, scriptHashes: hashes, forHeader: false });
+      const content = buildCsp({ ...options, scriptHashes: hashes, forHeader: false });
       return [
         {
           tag: "meta",
@@ -157,7 +180,7 @@ export function securityHeaders(options: { apiBase: string }): Plugin {
       ];
     },
     generateBundle() {
-      const csp = buildCsp({ apiBase: options.apiBase, scriptHashes: hashes, forHeader: true });
+      const csp = buildCsp({ ...options, scriptHashes: hashes, forHeader: true });
       this.emitFile({ type: "asset", fileName: "_headers", source: headersFile(csp) });
       this.emitFile({ type: "asset", fileName: "security-headers.conf", source: nginxInclude(csp) });
     },

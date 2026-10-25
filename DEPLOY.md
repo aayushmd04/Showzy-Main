@@ -459,7 +459,7 @@ the address bar of the website exactly.
 |---|---|
 | `PAYMENT_GATEWAY` | Defaults to `mock`. Only set it when Razorpay is live. |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | Razorpay is approved |
-| `SENTRY_DSN` | You want error alerts. Blank = silently disabled, never a crash. |
+| `SENTRY_DSN_BACKEND` | You want error alerts. Blank = silently disabled, never a crash. |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | You have real SMTP. **Blank means login OTP codes are printed to the Render logs instead of emailed** — fine for testing, not for real users. |
 | `DEFAULT_FROM_EMAIL` | You set up SMTP |
 | `AWS_STORAGE_BUCKET_NAME` + `AWS_*` | You want uploads on S3/Supabase Storage instead of the container's disk |
@@ -520,7 +520,7 @@ Practical consequence: **changing this value on the dashboard does nothing until
 you trigger a new build.** Not a restart. Not a redeploy of the same build. A
 new build. On Render: *Manual Deploy → Clear build cache & deploy*.
 
-Optional and safe to leave empty: `VITE_SENTRY_DSN`, `VITE_ANALYTICS_KEY`,
+Optional and safe to leave empty: `VITE_SENTRY_DSN_FRONTEND`, `VITE_ANALYTICS_KEY`,
 `VITE_ANALYTICS_HOST`.
 
 > Anything starting with `VITE_` ends up inside a file any visitor can read.
@@ -848,7 +848,7 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 | `PAYMENT_GATEWAY` | `mock` | `razorpay` requires real credentials or it errors. Production refuses `mock` unless `ALLOW_MOCK_PAYMENTS=true`. |
 | `ALLOW_MOCK_PAYMENTS` | `false` | Pre-launch opt-in for the mock gateway. Remove it when going live. |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` / `RAZORPAY_WEBHOOK_SECRET` | placeholders | |
-| `SENTRY_DSN` | *(empty)* | Empty = cleanly disabled. |
+| `SENTRY_DSN_BACKEND` | *(empty)* | Empty = cleanly disabled. |
 | `SENTRY_ENVIRONMENT` / `SENTRY_TRACES_SAMPLE_RATE` | `production` / `0.1` | |
 | `EMAIL_HOST` / `EMAIL_PORT` / `EMAIL_USE_TLS` | `smtp.gmail.com` / `587` / `True` | |
 | `EMAIL_HOST_USER` / `EMAIL_HOST_PASSWORD` | *(empty)* | Both empty ⇒ email prints to the logs. |
@@ -875,7 +875,7 @@ Changed `VITE_API_BASE`? You must rebuild, not restart:
 |---|---|---|
 | `VITE_API_BASE` | `https://naada-api.onrender.com/api/v1` | Include `/api/v1`, no trailing slash. **Rebuild to change.** |
 | `VITE_GOOGLE_CLIENT_ID` | `1234-abc.apps.googleusercontent.com` | Same value as the backend's `GOOGLE_OAUTH_CLIENT_ID`. Empty hides the Google button. **Rebuild to change.** |
-| `VITE_SENTRY_DSN` | *(empty)* | |
+| `VITE_SENTRY_DSN_FRONTEND` | *(empty)* | |
 | `VITE_ANALYTICS_KEY` / `VITE_ANALYTICS_HOST` | *(empty)* | |
 
 ---

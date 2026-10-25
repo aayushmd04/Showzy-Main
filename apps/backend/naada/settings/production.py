@@ -6,7 +6,7 @@ Select with::
     DJANGO_ENV=naada.settings.production daphne naada.asgi:application
 
 Required env vars: SECRET_KEY, DATABASE_URL, ALLOWED_HOSTS.
-Optional: REDIS_URL, SENTRY_DSN, AWS_* (see .env.example).
+Optional: REDIS_URL, SENTRY_DSN_BACKEND, AWS_* (see .env.example).
 """
 
 from django.core.exceptions import ImproperlyConfigured
@@ -150,15 +150,15 @@ CSRF_TRUSTED_ORIGINS = [
 ] or [o for o in CORS_ALLOWED_ORIGINS if o.startswith("https://")]  # noqa: F405
 
 # ── Sentry (entirely optional — absent DSN means no-op, never a crash) ────────
-SENTRY_DSN = config("SENTRY_DSN", default="")
-if SENTRY_DSN:
+SENTRY_DSN_BACKEND = config("SENTRY_DSN_BACKEND", default="")
+if SENTRY_DSN_BACKEND:
     try:
         import sentry_sdk
         from sentry_sdk.integrations.django import DjangoIntegration
         from sentry_sdk.integrations.celery import CeleryIntegration
 
         sentry_sdk.init(
-            dsn=SENTRY_DSN,
+            dsn=SENTRY_DSN_BACKEND,
             integrations=[DjangoIntegration(), CeleryIntegration()],
             environment=config("SENTRY_ENVIRONMENT", default="production"),
             release=config("SENTRY_RELEASE", default=None),
@@ -169,4 +169,4 @@ if SENTRY_DSN:
     except ImportError:  # pragma: no cover - sentry-sdk not installed
         import logging
 
-        logging.getLogger(__name__).warning("SENTRY_DSN set but sentry-sdk is not installed.")
+        logging.getLogger(__name__).warning("SENTRY_DSN_BACKEND set but sentry-sdk is not installed.")

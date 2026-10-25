@@ -366,6 +366,15 @@ OTP_DEBUG_RESPONSE = config("OTP_DEBUG_RESPONSE", default=False, cast=bool)
 # ── Celery ────────────────────────────────────────────────────────────────────
 CELERY_BROKER_URL = config("REDIS_URL", default="redis://localhost:6379/0")
 CELERY_RESULT_BACKEND = config("REDIS_URL", default="redis://localhost:6379/0")
+if CELERY_BROKER_URL.startswith("rediss://"):
+    # Hosted Redis over TLS (Upstash, Redis Cloud). Celery refuses a rediss:// URL unless it
+    # is told how to verify the server certificate, and these providers drop idle sockets.
+    import ssl
+
+    CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
+    CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
+    CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_keepalive": True, "health_check_interval": 30}
+    CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = "Asia/Kolkata"

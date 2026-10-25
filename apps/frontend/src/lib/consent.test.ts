@@ -28,6 +28,14 @@ describe("cookie consent", () => {
     expect(hasConsent("preferences")).toBe(true);
   });
 
+  it("keeps analytics off unless it is chosen separately from preferences", () => {
+    expect(hasConsent("analytics")).toBe(false);
+    setConsent({ preferences: true });
+    expect(hasConsent("analytics")).toBe(false);
+    setConsent({ preferences: true, analytics: true });
+    expect(hasConsent("analytics")).toBe(true);
+  });
+
   it("treats a stale cookie version as no decision", () => {
     document.cookie = `${CONSENT_COOKIE}=${encodeURIComponent(JSON.stringify({ v: 0, preferences: true, at: "x" }))}; Path=/`;
     // A fresh module read would discard it; clearing mirrors the version check.

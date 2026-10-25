@@ -11,8 +11,10 @@ import { RequireRole } from "@/components/naada/require-role";
 import { RequireGate } from "@/components/naada/require-gate";
 import { Toaster } from "@/components/ui/toaster";
 import { CookieConsent } from "@/components/naada/cookie-consent";
+import { useConsent } from "@/lib/consent";
 import { useStore } from "@/store/app-store";
 import { getMe, tokens, AUTH_EXPIRED_EVENT } from "@/lib/api";
+import { trackPageview } from "@/lib/analytics";
 
 /*
  * The landing path loads eagerly: the home page, a gig, and the two checkout
@@ -100,6 +102,14 @@ function PageFade({ children }: { children: React.ReactNode }) {
       {children}
     </motion.div>
   );
+}
+
+/** One pageview per route change (autocapture is off). A no-op without analytics consent. */
+function PageviewTracker() {
+  const { pathname } = useLocation();
+  const consent = useConsent();
+  useEffect(() => trackPageview(pathname), [pathname, consent?.analytics]);
+  return null;
 }
 
 function ScrollToTop() {
@@ -204,6 +214,7 @@ export default function App() {
               <SessionWatch />
               <BriefComposerProvider>
                 <ScrollToTop />
+                <PageviewTracker />
                 <Suspense fallback={<ScreenFallback />}>
                   <PageFade>
                   <Routes>

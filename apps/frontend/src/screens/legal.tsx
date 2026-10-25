@@ -315,7 +315,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             <S heading="1. The short version">
               <p>
                 We collect what we need to sell you a ticket and get you through the door. We do not sell
-                your personal data, we have no advertising or tracking cookies, and you can download your
+                your personal data, we have no advertising cookies, we use analytics only if you say yes, and you can download your
                 data, correct it, withdraw consent or delete your account yourself from your{" "}
                 <Link to="/settings" className="link-underline text-paper">
                   settings page
@@ -448,7 +448,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             <S heading="10. Cookies">
               <p>
                 We store only what the site needs, plus your language and theme if you say yes. No
-                advertising or analytics cookies. Details, including every item and how long it lasts, are
+                advertising cookies, and anonymous usage analytics only if you say yes. Details, including every item and how long it lasts, are
                 in the{" "}
                 <Link to="/cookies" className="link-underline text-paper">Cookie Policy</Link>.
               </p>
@@ -466,9 +466,9 @@ export function LegalScreen({ doc }: { doc: Doc }) {
           <>
             <S heading="The short version">
               <p>
-                Showzy uses <strong>no advertising, analytics or tracking cookies</strong> and loads no
-                third-party scripts when you browse. We keep a handful of items in your browser so the site
-                works, and — only if you say yes — your language and theme.
+                Showzy uses <strong>no advertising cookies</strong>. We keep a handful of items in your
+                browser so the site works, and — only if you say yes — your language and theme and
+                anonymous usage analytics.
               </p>
               <p className="flex flex-wrap gap-2">
                 <button type="button" className="btn btn-secondary" onClick={openCookieSettings}>
@@ -487,29 +487,34 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                   ["naada.nearbyCity", "Session storage", "The city filter you picked while browsing", "Strictly necessary", "This tab only"],
                   ["naada-v2-shell, naada-v2-tickets", "Browser cache (service worker)", "Lets the site load, and your tickets open, with no signal at the door", "Strictly necessary", "Until updated; tickets removed when you sign out"],
                   ["naada_theme, naada_lang", "Local storage (with your OK) or session storage (without)", "Light/dark theme and language", "Preferences", "Until you clear it — or this tab only if you decline"],
+                  ["ph_*", "Cookie and local storage (PostHog)", "A random visitor ID so page views and key actions can be counted without knowing who you are. Nothing is stored or sent unless you accept Analytics", "Analytics", "Up to 12 months; removed if you withdraw consent"],
                 ]}
               />
             </S>
             <S heading="Third parties">
               <p>
                 Our fonts and images are served by us, so your visit does not send your IP address to a font
-                or image provider. The only third-party code is our payment gateway's checkout window, which
-                loads <em>only when you press Pay</em>; it is run by the gateway under its own privacy and
-                cookie policies and may set its own cookies to take payment securely and prevent fraud.
+                or image provider. Third-party code is limited to our payment gateway's checkout window, which
+                loads <em>only when you press Pay</em> and is run by the gateway under its own privacy and
+                cookie policies, and — <em>only if you accept Analytics</em> — PostHog, which receives
+                anonymous page views and key actions. We also send technical error reports (the error,
+                the page address without its query string, and your browser type, never your name,
+                email or phone number) to Sentry so we can fix faults.
               </p>
             </S>
             <S heading="Your choices">
               <ul className="list-disc space-y-1 pl-5">
                 <li>Use <strong>Cookie settings</strong> in the footer at any time to change your choice.</li>
                 <li>Declining <em>Preferences</em> removes the saved language and theme; they last only until you close the tab.</li>
+                <li>Declining <em>Analytics</em> means nothing is sent to PostHog; withdrawing it later stops sending and clears what it stored.</li>
                 <li>Strictly necessary items can't be switched off in Showzy — blocking them in your browser will stop sign-in and tickets working.</li>
                 <li>You can clear all of this from your browser's settings at any time.</li>
               </ul>
             </S>
             <S heading="If this changes">
               <p>
-                If we ever add analytics or anything else optional, it will start switched <strong>off</strong>,
-                we will ask you again, and this page will list it first.
+                Anything optional we add starts switched <strong>off</strong>, we will ask you again, and this
+                page will list it.
               </p>
             </S>
           </>

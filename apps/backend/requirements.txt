@@ -43,7 +43,7 @@ django-storages==1.14.4
 boto3==1.43.91
 
 # ── Observability & docs ─────────────────────────────────────────────────────
-sentry-sdk==2.19.2            # no-op unless SENTRY_DSN is set
+sentry-sdk==2.19.2            # no-op unless SENTRY_DSN_BACKEND is set
 drf-spectacular==0.28.0       # /api/v1/schema/ and /api/v1/docs/
 
 # ── Transitive security floors (pulled in by daphne/twisted) ────────────────

@@ -83,7 +83,7 @@ envVarGroups:
       - key: ALLOW_MOCK_PAYMENTS
         value: "true"
 
-      - key: SENTRY_DSN
+      - key: SENTRY_DSN_BACKEND
         value: ""
       - key: RAZORPAY_KEY_ID
         value: ""
@@ -237,7 +237,7 @@ services:
       #   https://naada-api.onrender.com/api/v1
       - key: VITE_API_BASE
         sync: false
-      - key: VITE_SENTRY_DSN
+      - key: VITE_SENTRY_DSN_FRONTEND
         value: ""
       - key: VITE_ANALYTICS_KEY
         value: ""

@@ -6,6 +6,7 @@ import {
   inlineScriptHashes,
   nginxInclude,
   originOf,
+  posthogOrigins,
 } from "./security-headers";
 
 const HASH = "sha256-abc123=";
@@ -61,6 +62,45 @@ describe("buildCsp", () => {
 
   it("stays well under Cloudflare's 2,000-character limit per header line", () => {
     expect(buildCsp(prod).length).toBeLessThan(1500);
+  });
+});
+
+describe("optional third parties", () => {
+  const connect = (csp: string) => csp.split("; ").find((d) => d.startsWith("connect-src "))!;
+  const script = (csp: string) => csp.split("; ").find((d) => d.startsWith("script-src "))!;
+
+  it("adds nothing when Sentry and PostHog are not configured", () => {
+    const csp = buildCsp(prod);
+    expect(csp).not.toMatch(/sentry|posthog/);
+  });
+
+  it("lets the browser reach only the Sentry project's ingest origin", () => {
+    const csp = buildCsp({ ...prod, sentryDsn: "https://abc123@o4500.ingest.us.sentry.io/99" });
+    expect(connect(csp)).toContain("https://o4500.ingest.us.sentry.io");
+    expect(connect(csp)).not.toContain("abc123");
+    expect(script(csp)).not.toContain("sentry");
+  });
+
+  it("allows PostHog's ingest host, and its assets host for scripts", () => {
+    const csp = buildCsp({ ...prod, analyticsHost: "https://eu.i.posthog.com" });
+    expect(connect(csp)).toContain("https://eu.i.posthog.com");
+    expect(connect(csp)).toContain("https://eu-assets.i.posthog.com");
+    expect(script(csp)).toContain("https://eu-assets.i.posthog.com");
+    expect(script(csp)).not.toContain("'unsafe-inline'");
+  });
+
+  it("allows a self-hosted PostHog host without inventing an assets host", () => {
+    expect(posthogOrigins("https://ph.showzy.in")).toEqual({ connect: ["https://ph.showzy.in"], script: [] });
+    expect(posthogOrigins("not a url")).toEqual({ connect: [], script: [] });
+  });
+
+  it("still fits Cloudflare's per-line limit with everything switched on", () => {
+    const csp = buildCsp({
+      ...prod,
+      sentryDsn: "https://abc@o4500.ingest.us.sentry.io/99",
+      analyticsHost: "https://us.i.posthog.com",
+    });
+    expect(csp.length).toBeLessThan(1500);
   });
 });
 

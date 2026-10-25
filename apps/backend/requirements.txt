@@ -1,5 +1,5 @@
 # ── Core framework ───────────────────────────────────────────────────────────
-django==5.2.18                 # 5.2 LTS (5.1 is end-of-life; 5.1.4 had 32 known CVEs)
+django==6.1.2                 # 5.2 LTS (5.1 is end-of-life; 5.1.4 had 32 known CVEs)
 djangorestframework==3.18.2
 djangorestframework-simplejwt==5.5.1
 django-cors-headers==4.9.0

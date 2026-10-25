@@ -79,7 +79,12 @@ USER naada
 #
 # DATABASE_URL must look like Postgres: production.py refuses SQLite at import time,
 # so a SQLite placeholder here fails the build. Nothing ever connects to this one.
-RUN SECRET_KEY="build-time-placeholder-not-used-at-runtime" \
+#
+# ALLOW_MOCK_PAYMENTS is set on this one command only, never as ENV: production.py refuses the
+# mock gateway at import time, and the build has no real payment credentials. The running
+# container does not get it, so it still needs real Razorpay keys (or its own opt-in).
+RUN ALLOW_MOCK_PAYMENTS="true" \
+    SECRET_KEY="build-time-placeholder-not-used-at-runtime" \
     DATABASE_URL="postgresql://build:build@localhost:5432/build" \
     ALLOWED_HOSTS="*" \
     CORS_ALLOWED_ORIGINS="http://localhost" \

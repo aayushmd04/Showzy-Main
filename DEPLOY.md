@@ -418,6 +418,8 @@ that for you.
 
 ### B4. Environment variables — backend (`naada-api`, `naada-worker`, `naada-beat`)
 
+> Short on time? [`docs/GO-LIVE-CHECKLIST.md`](docs/GO-LIVE-CHECKLIST.md) lists every setting for the website, API, database and email in plain words, with where to find each value.
+
 All three share one group, so you enter these once.
 
 **Required — the deploy will not work without these:**
@@ -429,6 +431,7 @@ All three share one group, so you enter these once.
 | `DATABASE_URL` | Your Supabase **session pooler** string from A2 |
 | `ALLOWED_HOSTS` | `naada-api.onrender.com,naada-web.onrender.com,127.0.0.1,localhost` |
 | `CORS_ALLOWED_ORIGINS` | `https://naada-web.onrender.com` |
+| `FRONTEND_URL` | The public website address, e.g. `https://showzy.in`. Used for the links inside emails; unset, every email link points at `localhost` |
 | `REDIS_URL` | *(the blueprint wires this from `naada-redis` automatically — don't type it)* |
 
 **The two host variables are where deploys go to die. Get them exactly right:**

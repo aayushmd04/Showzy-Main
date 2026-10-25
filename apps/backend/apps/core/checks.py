@@ -4,6 +4,9 @@ Django's own deploy checks cover the framework's settings. These cover the
 handful of Showzy-specific ways a deploy can look healthy and quietly not be.
 """
 
+import ipaddress
+from urllib.parse import urlparse
+
 from django.conf import settings
 from django.core.checks import Warning as CheckWarning, register
 
@@ -105,3 +108,48 @@ def mock_payments_must_be_deliberate(app_configs, **kwargs):
             id="naada.W005",
         )
     ]
+
+
+def _is_local(url):
+    """True for localhost, loopback and "this machine" addresses, with or without a scheme."""
+    host = urlparse(url if "//" in url else f"//{url}").hostname or ""
+    if host == "localhost" or host.endswith(".localhost"):
+        return True
+    try:
+        address = ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return address.is_loopback or address.is_unspecified
+
+
+@register(deploy=True)
+def public_urls_must_not_be_local(app_configs, **kwargs):
+    """The two settings that quietly point a live site back at a laptop.
+
+    FRONTEND_URL builds the links inside emails (tickets, receipts): left at its
+    default, every email tells people to open http://localhost:5173.
+    CORS_ALLOWED_ORIGINS lists the websites the browser may call this API from:
+    left at its default, the live site loads but every request is blocked.
+    """
+    if settings.DEBUG:
+        return []
+
+    found = []
+    if _is_local(settings.FRONTEND_URL):
+        found.append(
+            CheckWarning(
+                "FRONTEND_URL still points at this computer, so email links will be broken.",
+                hint="Set FRONTEND_URL to the public website address, e.g. https://showzy.in",
+                id="naada.W006",
+            )
+        )
+    origins = [o for o in settings.CORS_ALLOWED_ORIGINS if o.strip()]
+    if not origins or all(_is_local(o) for o in origins):
+        found.append(
+            CheckWarning(
+                "CORS_ALLOWED_ORIGINS only allows local addresses, so the live site cannot call this API.",
+                hint="Set CORS_ALLOWED_ORIGINS to the website address, with https:// and no trailing slash.",
+                id="naada.W007",
+            )
+        )
+    return found

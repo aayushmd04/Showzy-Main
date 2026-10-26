@@ -37,16 +37,16 @@ export function CategoryRow({
             onClick={() => onChange(active ? null : id)}
             className={`${pill} ${
               active
-                ? "border-signal bg-signal text-[#F3E9D6]"
+                ? "border-signal bg-signal text-[#ECECEC]"
                 : "border-[var(--glass-border)] bg-[var(--glass-bg-soft)] text-paper hover:border-signal"
             }`}
           >
             <span
               className={`grid size-8 place-items-center rounded-full transition-colors ${
-                active ? "bg-[#F3E9D6]/20" : "bg-signal/15 group-hover:bg-signal/25"
+                active ? "bg-[#ECECEC]/20" : "bg-signal/15 group-hover:bg-signal/25"
               }`}
             >
-              <Icon className={`size-[18px] ${active ? "text-[#F3E9D6]" : "text-signal"}`} strokeWidth={2} aria-hidden />
+              <Icon className={`size-[18px] ${active ? "text-[#ECECEC]" : "text-signal"}`} strokeWidth={2} aria-hidden />
             </span>
             {kn ? labelKn : label}
           </button>

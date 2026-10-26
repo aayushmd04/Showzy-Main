@@ -4,7 +4,7 @@ import { useStore } from "@/store/app-store";
 import { usePageMeta } from "@/lib/use-meta";
 
 const CARD_TOKENS = {
-  dark:  { paper: "#F3E9D6", muted: "rgba(243,233,214,.55)", signal: "#C4472E", surface: "#1A1512", cardBorder: "rgba(243,233,214,.16)" },
+  dark:  { paper: "#ECECEC", muted: "rgba(255,255,255,.62)", signal: "#C4472E", surface: "#1E1E1E", cardBorder: "rgba(255,255,255,.16)" },
   light: { paper: "#241C15", muted: "rgba(36,28,21,.62)",    signal: "#8C2B3E", surface: "#FFFCF4", cardBorder: "rgba(36,28,21,.16)" },
 };
 
@@ -124,7 +124,7 @@ export function VenuesScreen() {
             href="mailto:hello@naada.live"
             style={{
               display: "inline-block", marginTop: 20, background: tok.signal, borderRadius: 999,
-              padding: "12px 28px", fontSize: 15, fontWeight: 700, color: "#F3E9D6", textDecoration: "none",
+              padding: "12px 28px", fontSize: 15, fontWeight: 700, color: "#ECECEC", textDecoration: "none",
             }}
           >
             Get in touch

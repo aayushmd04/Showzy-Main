@@ -5,7 +5,7 @@ import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { usePageMeta } from "@/lib/use-meta";
 
 const CARD_TOKENS = {
-  dark:  { paper: "#F3E9D6", muted: "rgba(243,233,214,.55)", signal: "#C4472E", surface: "#1A1512", cardBorder: "rgba(243,233,214,.16)" },
+  dark:  { paper: "#ECECEC", muted: "rgba(255,255,255,.62)", signal: "#C4472E", surface: "#1E1E1E", cardBorder: "rgba(255,255,255,.16)" },
   light: { paper: "#241C15", muted: "rgba(36,28,21,.62)",    signal: "#8C2B3E", surface: "#FFFCF4", cardBorder: "rgba(36,28,21,.16)" },
 };
 
@@ -71,7 +71,7 @@ export function HowItWorksScreen() {
           <div style={{ marginTop: 20 }}>
             <button
               onClick={() => navigate("/")}
-              style={{ background: tok.signal, border: "none", borderRadius: 999, padding: "10px 24px", fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#F3E9D6", cursor: "pointer" }}
+              style={{ background: tok.signal, border: "none", borderRadius: 999, padding: "10px 24px", fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#ECECEC", cursor: "pointer" }}
             >
               Browse tonight's shows →
             </button>
@@ -91,7 +91,7 @@ export function HowItWorksScreen() {
           <div style={{ marginTop: 20 }}>
             <button
               onClick={() => openAuth("Join as an artist")}
-              style={{ background: tok.signal, border: "none", borderRadius: 999, padding: "10px 24px", fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#F3E9D6", cursor: "pointer" }}
+              style={{ background: tok.signal, border: "none", borderRadius: 999, padding: "10px 24px", fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#ECECEC", cursor: "pointer" }}
             >
               Join as an artist →
             </button>
@@ -111,7 +111,7 @@ export function HowItWorksScreen() {
           <div style={{ marginTop: 20 }}>
             <button
               onClick={() => openAuth("Join as a host")}
-              style={{ background: tok.signal, border: "none", borderRadius: 999, padding: "10px 24px", fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#F3E9D6", cursor: "pointer" }}
+              style={{ background: tok.signal, border: "none", borderRadius: 999, padding: "10px 24px", fontFamily: "inherit", fontSize: 14, fontWeight: 700, color: "#ECECEC", cursor: "pointer" }}
             >
               List your venue →
             </button>

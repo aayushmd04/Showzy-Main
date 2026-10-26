@@ -9,7 +9,8 @@
 import { useCallback, useMemo } from "react";
 import { Link } from "react-router-dom";
 
-import { PublicShell } from "@/components/naada/public-shell";
+import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
+import { useHostBranch } from "@/components/naada/host-branch";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { useStore } from "@/store/app-store";
 import {
@@ -27,7 +28,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   HomeHeader,
-  HomeLayout,
   LoadingBlock,
   Section,
   T_H3,
@@ -60,6 +60,11 @@ const APPLICATION_TONE: Record<GigApplicationStatus, PillTone> = {
   rejected: "fault",
 };
 
+/** The venue an event is at, whether the API sent the id alone or the whole venue. */
+function venueIdOf(event: ApiEvent): string {
+  return typeof event.venue === "string" ? event.venue : event.venue.id;
+}
+
 /** An upcoming event plus the sales figures read off its own ticket tiers. */
 interface EventSales {
   event: ApiEvent;
@@ -76,6 +81,7 @@ function countLabel(loading: boolean, error: string | null, n: number): string {
 export function HostHomeLandingScreen() {
   usePageMeta({ title: "Your nights", description: "How your nights are selling, who you can book, and what needs a decision." });
   const { currentUser } = useStore();
+  const branch = useHostBranch();
 
   /**
    * The list endpoint carries `seats_left` but not what was sold, so the five
@@ -117,6 +123,16 @@ export function HostHomeLandingScreen() {
   const orders = useAsync(getBookingOrders, "load your bookings");
   const events = useAsync(fetchEvents, "load what's on");
 
+  // Only the branch being shown. The tiles for applications, talks and escrow stay across
+  // all branches, since the host answers those as one business.
+  const nightsHere = useMemo(
+    () => ({
+      ...myEvents,
+      data: myEvents.data?.filter((row) => branch.includes(venueIdOf(row.event))) ?? null,
+    }),
+    [myEvents, branch],
+  );
+
   const pendingApplications = useMemo(
     () => (applications.data?.results ?? []).filter((a) => a.status === "pending"),
     [applications.data],
@@ -150,29 +166,28 @@ export function HostHomeLandingScreen() {
   const firstName = (currentUser?.full_name ?? "").trim().split(" ")[0];
 
   return (
-    <PublicShell>
-      <HomeLayout>
+    <ConsoleShell nav={HOST_NAV} breadcrumb={["Overview"]}>
+      <div>
         <HomeHeader
           kicker={`${greeting()} · Host`}
           title={firstName || "Your nights"}
-          subtitle="How your nights are selling, who you can book, and what's waiting on a decision."
+          subtitle={
+            branch.multiple && branch.current
+              ? `Showing ${branch.current.name}. Applications, talks and escrow cover all your branches.`
+              : "How your nights are selling, who you can book, and what's waiting on a decision."
+          }
           actions={
-            <>
-              <Link to="/host" className="btn btn-secondary">
-                Host console
-              </Link>
-              <Link to="/host/events/new" className="btn btn-primary">
-                New event
-              </Link>
-            </>
+            <Link to="/host/events/new" className="btn btn-primary">
+              New event
+            </Link>
           }
         />
 
         <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <CountTile
             to="/host/events"
-            value={countLabel(myEvents.loading, myEvents.error, myEvents.data?.length ?? 0)}
-            label={myEvents.data?.length === 1 ? "Upcoming night" : "Upcoming nights"}
+            value={countLabel(nightsHere.loading, nightsHere.error, nightsHere.data?.length ?? 0)}
+            label={nightsHere.data?.length === 1 ? "Upcoming night" : "Upcoming nights"}
           />
           <CountTile
             to="/host/events"
@@ -200,7 +215,7 @@ export function HostHomeLandingScreen() {
           action={{ to: "/host/events", label: "All events" }}
         >
           <AsyncSection
-            state={myEvents}
+            state={nightsHere}
             loadingLabel="Loading your events…"
             isEmpty={(d) => d.length === 0}
             empty={
@@ -489,7 +504,7 @@ export function HostHomeLandingScreen() {
             </ul>
           )}
         </Section>
-      </HomeLayout>
-    </PublicShell>
+      </div>
+    </ConsoleShell>
   );
 }

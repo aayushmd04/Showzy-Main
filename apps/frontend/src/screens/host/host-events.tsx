@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
+import { useHostBranch } from "@/components/naada/host-branch";
 import { Pill, statusLabel } from "@/components/ui/pill";
 import { EmptyState } from "@/components/naada/empty-state";
 import { Poster } from "@/components/naada/poster";
@@ -12,6 +13,7 @@ import type { NaadaEvent } from "@/data/fixtures";
 /** Events list — the entry point to the event manager, editor and door scanner. */
 export function HostEventsScreen() {
   const navigate = useNavigate();
+  const branch = useHostBranch();
   const [events, setEvents] = useState<NaadaEvent[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -22,7 +24,7 @@ export function HostEventsScreen() {
       .finally(() => setLoading(false));
   }, []);
 
-  const rows = [...events].sort((a, b) => a.date.localeCompare(b.date));
+  const rows = events.filter((e) => branch.includes(e.venueId)).sort((a, b) => a.date.localeCompare(b.date));
 
   const soldOf = (e: NaadaEvent) => e.tiers.reduce((s, t) => s + t.sold, 0);
   const capacityOf = (e: NaadaEvent) => e.tiers.reduce((s, t) => s + t.capacity, 0);

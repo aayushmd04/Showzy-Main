@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes, useLocation } from "react-router-dom";
 import { MotionConfig, motion } from "motion/react";
 
 import { AppStoreProvider } from "@/store/app-store";
+import { HostBranchProvider } from "@/components/naada/host-branch";
 import { AuthSheetProvider, useAuthSheet } from "@/components/naada/auth-sheet";
 import { BriefComposerProvider } from "@/components/naada/brief-composer";
 import { ErrorBoundary } from "@/components/naada/error-boundary";
@@ -61,7 +62,7 @@ const HowItWorksScreen = lazyScreen(() => import("@/screens/how-it-works"), "How
 const TicketDetailScreen = lazyScreen(() => import("@/screens/ticket-detail"), "TicketDetailScreen");
 const MyTicketsScreen = lazyScreen(() => import("@/screens/my-tickets"), "MyTicketsScreen");
 
-const HostHomeLetterpressScreen = lazyScreen(() => import("@/screens/host/host-home-letterpress"), "HostHomeLetterpressScreen");
+const HostHomeScreen = lazyScreen(() => import("@/screens/home/host-home-landing"), "HostHomeLandingScreen");
 const HostVenueLayoutScreen = lazyScreen(() => import("@/screens/host/host-venue-layout"), "HostVenueLayoutScreen");
 const HostEventsScreen = lazyScreen(() => import("@/screens/host/host-events"), "HostEventsScreen");
 const HostEventManagerScreen = lazyScreen(() => import("@/screens/host/host-event-manager"), "HostEventManagerScreen");
@@ -210,6 +211,7 @@ export default function App() {
         <BrowserRouter>
           <AppStoreProvider>
             <AppBootstrap />
+            <HostBranchProvider>
             <AuthSheetProvider>
               <SessionWatch />
               <BriefComposerProvider>
@@ -248,7 +250,7 @@ export default function App() {
                     <Route path="/contact" element={<LegalScreen doc="contact" />} />
 
                     {/* Host console */}
-                    <Route path="/host" element={host(<HostHomeLetterpressScreen />)} />
+                    <Route path="/host" element={host(<HostHomeScreen />)} />
                     <Route path="/host/venue" element={host(<HostVenueLayoutScreen />)} />
                     <Route path="/host/venue/layout" element={host(<HostVenueLayoutScreen />)} />
                     <Route path="/host/events" element={host(<HostEventsScreen />)} />
@@ -310,6 +312,7 @@ export default function App() {
                 <Toaster />
               </BriefComposerProvider>
             </AuthSheetProvider>
+            </HostBranchProvider>
           </AppStoreProvider>
         </BrowserRouter>
       </MotionConfig>

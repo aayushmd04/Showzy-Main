@@ -3,6 +3,7 @@ import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/input";
 import { Pill, type PillTone } from "@/components/ui/pill";
+import { useHostBranch } from "@/components/naada/host-branch";
 import { getMyVenues, updateVenue } from "@/lib/api";
 import type { ApiVenue } from "@/lib/api";
 
@@ -55,6 +56,7 @@ function sameDraft(a: Draft, b: Draft): boolean {
  * is also the first place a host can see their venue's KYC status at all.
  */
 export function HostVenueBusinessScreen() {
+  const branch = useHostBranch();
   const [venue, setVenue] = useState<ApiVenue | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [saved, setSaved] = useState<Draft | null>(null);
@@ -67,7 +69,7 @@ export function HostVenueBusinessScreen() {
     setLoadState("loading");
     getMyVenues()
       .then((venues) => {
-        const mine = venues[0];
+        const mine = venues.find((v) => v.id === branch.current?.id) ?? venues[0];
         if (!mine) {
           setLoadState("no-venue");
           return;
@@ -81,7 +83,9 @@ export function HostVenueBusinessScreen() {
       .catch(() => setLoadState("error"));
   };
 
-  useEffect(load, []);
+  // Reload when the host picks another branch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [branch.current?.id]);
 
   const dirty = Boolean(draft && saved && !sameDraft(draft, saved));
   const patch = (changes: Partial<Draft>) => {

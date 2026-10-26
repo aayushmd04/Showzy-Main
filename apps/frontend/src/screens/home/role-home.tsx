@@ -17,10 +17,6 @@ const ArtistHomeLandingScreen = lazy(async () => ({
   default: (await import("./artist-home-landing")).ArtistHomeLandingScreen,
 }));
 
-const HostHomeLandingScreen = lazy(async () => ({
-  default: (await import("./host-home-landing")).HostHomeLandingScreen,
-}));
-
 /**
  * The role arrives from `GET /auth/me/`, a round trip after the first paint.
  * Without this an artist reloading `/` would see the signed-out discover page
@@ -80,13 +76,8 @@ export function RoleHomeScreen() {
     );
   }
 
-  if (role === "host") {
-    return (
-      <Suspense fallback={<HomeFallback />}>
-        <HostHomeLandingScreen />
-      </Suspense>
-    );
-  }
+  // A host has one home, in the console, so the layout never changes under them.
+  if (role === "host") return <Navigate to="/host" replace />;
 
   if (role === "admin") return <Navigate to="/admin" replace />;
 

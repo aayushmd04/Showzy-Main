@@ -25,6 +25,7 @@ import { NotificationBell } from "./notification-bell";
 import { AccountMenu } from "./account-menu";
 import { PageBackdrop } from "./page-backdrop";
 import { ThemeToggle } from "./display-controls";
+import { BranchSwitcher } from "./host-branch";
 import { cn } from "@/lib/utils";
 
 /**
@@ -58,7 +59,6 @@ const ICONS = {
 
 export const HOST_NAV: NavItem[] = [
   { to: "/host", label: "Overview", icon: "overview", end: true },
-  { to: "/host/venue", label: "Venue", icon: "venue" },
   { to: "/host/events", label: "Events", icon: "events" },
   { to: "/host/artists", label: "Artists", icon: "artists" },
   { to: "/host/bookings", label: "Bookings", icon: "bookings" },
@@ -124,11 +124,11 @@ export function ConsoleShell({
         </nav>
         <div className="mt-2 border-t border-line p-2 lg:p-3">
           <Link
-            to="/"
+            to="/whats-on"
             className="flex min-h-11 items-center gap-3 px-3 text-[14px] text-muted transition-colors hover:text-paper"
           >
             <ChevronRight className="size-4 shrink-0 rotate-180" aria-hidden="true" />
-            <span className="hidden lg:inline">Back to Discover</span>
+            <span className="hidden lg:inline">Browse events</span>
           </Link>
         </div>
       </aside>
@@ -165,6 +165,8 @@ export function ConsoleShell({
               ))}
             </ol>
           </nav>
+
+          {nav === HOST_NAV && <BranchSwitcher />}
 
           {actions}
 
@@ -220,10 +222,10 @@ export function ConsoleShell({
                 <ThemeToggle className="grid" />
               </div>
               <Link
-                to="/"
+                to="/whats-on"
                 className="flex min-h-11 items-center gap-3 px-3 pt-2 text-[14px] text-muted"
               >
-                Back to Discover
+                Browse events
               </Link>
             </motion.nav>
           </div>

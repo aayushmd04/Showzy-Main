@@ -706,6 +706,15 @@ html.theme-fading *::after {
 .t-h1,
 .t-display { line-height: 1.02; }
 
+/* Working screens (host, artist and admin consoles) keep their titles in normal capitals, so
+   event names and people's names read as written. The lowercase titles stay on the public site. */
+.console .t-h1,
+.console .t-display,
+.console .t-section,
+.console .font-megrim {
+  text-transform: none !important;
+}
+
 /* The live dot from the logo, as a section marker. */
 .t-section::before,
 .live-mark::before {

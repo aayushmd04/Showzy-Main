@@ -9,7 +9,7 @@
 import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 
-import { PublicShell } from "@/components/naada/public-shell";
+import { ConsoleShell, ARTIST_NAV } from "@/components/naada/console-shell";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Pill, type PillTone } from "@/components/ui/pill";
@@ -30,7 +30,6 @@ import {
   EmptyBlock,
   ErrorBlock,
   HomeHeader,
-  HomeLayout,
   LoadingBlock,
   Section,
   T_BODY,
@@ -132,13 +131,31 @@ export function ArtistHomeLandingScreen() {
     [orders.data],
   );
 
+  // Talks that have not become a booking yet; a booked thread is a gig, shown under Confirmed.
   const activeConversations = useMemo(
     () =>
       (conversations.data?.results ?? [])
-        .filter((c) => c.is_active)
+        .filter((c) => c.is_active && !c.order_id)
         .sort((a, b) => (b.last_message_at ?? b.created_at).localeCompare(a.last_message_at ?? a.created_at)),
     [conversations.data],
   );
+
+  // A host's offer that is waiting for this artist's answer.
+  const offersWaiting = useMemo(
+    () =>
+      (conversations.data?.results ?? []).filter(
+        (c) => c.pending_offer && c.pending_offer.proposed_by !== currentUser?.id,
+      ),
+    [conversations.data, currentUser?.id],
+  );
+
+  // Money held for gigs not yet paid out, and money already released.
+  const sumPayout = (statuses: string[]) =>
+    (orders.data?.results ?? [])
+      .filter((o) => statuses.includes(o.status))
+      .reduce((n, o) => n + (Number(o.artist_payout) || 0), 0);
+  const inEscrow = sumPayout(["funded", "in_progress", "completed"]);
+  const paidOut = sumPayout(["released", "settled"]);
 
   const gaps = useMemo(() => profileGaps(profile.data), [profile.data]);
 
@@ -178,25 +195,35 @@ export function ArtistHomeLandingScreen() {
   const stageName = profile.data?.stage_name?.trim();
 
   return (
-    <PublicShell>
-      <HomeLayout>
+    <ConsoleShell nav={ARTIST_NAV} breadcrumb={["Overview"]}>
+      <div>
         <HomeHeader
           kicker={`${greeting()} · Artist`}
           title={stageName || firstName || "Your gigs"}
           subtitle="Open slots you can apply to, and everything currently waiting on you."
           actions={
-            <>
-              <Link to="/artist" className="btn btn-secondary">
-                Artist console
-              </Link>
-              <Link to="/whats-on" className="btn btn-secondary">
-                Browse what's on
-              </Link>
-            </>
+            <Link to="/artist/gig-board" className="btn btn-primary">
+              Gig board
+            </Link>
           }
         />
 
-        <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {offersWaiting.length > 0 && (
+          <Link
+            to="/artist/offers"
+            className="mt-6 flex items-center justify-between gap-3 glass-soft rounded-xl border border-signal px-4 py-3 transition-colors hover:bg-paper/5"
+          >
+            <span className={T_SMALL}>
+              <span className="font-semibold text-paper">
+                {offersWaiting.length === 1 ? "A host sent you an offer." : `${offersWaiting.length} hosts sent you offers.`}
+              </span>{" "}
+              <span className="text-muted">Open it to accept, counter or decline.</span>
+            </span>
+            <span className="btn btn-secondary btn-sm shrink-0">View offers</span>
+          </Link>
+        )}
+
+        <div className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
           <CountTile
             to="/artist/gig-board"
             value={countLabel(events.loading, events.error, openGigs.length)}
@@ -218,6 +245,17 @@ export function ArtistHomeLandingScreen() {
             to="/artist/gigs"
             value={countLabel(orders.loading, orders.error, confirmedGigs.length)}
             label={confirmedGigs.length === 1 ? "Confirmed gig" : "Confirmed gigs"}
+          />
+          <CountTile
+            to="/artist/earnings"
+            value={orders.loading ? "…" : orders.error ? "—" : rupees(inEscrow) ?? "₹0"}
+            label="In escrow"
+            tone="gold"
+          />
+          <CountTile
+            to="/artist/earnings"
+            value={orders.loading ? "…" : orders.error ? "—" : rupees(paidOut) ?? "₹0"}
+            label="Paid out"
           />
         </div>
 
@@ -557,8 +595,8 @@ export function ArtistHomeLandingScreen() {
             </>
           )}
         </Modal>
-      </HomeLayout>
-    </PublicShell>
+      </div>
+    </ConsoleShell>
   );
 }
 

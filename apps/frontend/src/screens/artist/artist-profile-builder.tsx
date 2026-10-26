@@ -1004,7 +1004,7 @@ export function ArtistProfileBuilderScreen() {
             <p className="t-small mt-3 text-muted">{cityName || "No city set"}</p>
 
             {artist.total_gigs > 0 && (
-              <p className="tabular-nums font-semibold mt-2 text-[13px] text-muted">{artist.total_gigs} gigs on Showzy</p>
+              <p className="tabular-nums font-semibold mt-2 text-[13px] text-muted">{artist.total_gigs} {artist.total_gigs === 1 ? "gig" : "gigs"} on Showzy</p>
             )}
 
             <p className="tabular-nums font-semibold mt-2 text-[13px] text-brass">

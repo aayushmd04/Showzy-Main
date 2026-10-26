@@ -60,6 +60,10 @@ export interface HomeConversation {
   artist_name: string;
   event: string | null;
   is_active: boolean;
+  /** The booking this thread produced, once an offer was accepted. */
+  order_id?: string | null;
+  /** The offer waiting for an answer, and who put it forward. */
+  pending_offer?: { proposed_by?: string } | null;
   last_message_at: string | null;
   latest_message: { content: string; sender: string } | null;
   created_at: string;

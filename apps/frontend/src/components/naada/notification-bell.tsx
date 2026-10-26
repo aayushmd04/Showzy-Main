@@ -154,7 +154,7 @@ export function NotificationBell({ className }: { className?: string }) {
         {unread > 0 && (
           <span
             aria-hidden="true"
-            className="t-mono absolute -right-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-signal px-1 text-[10px] font-bold leading-[18px] text-[#F3E9D6]"
+            className="t-mono absolute -right-1 -top-1 grid min-w-[18px] place-items-center rounded-full bg-signal px-1 text-[10px] font-bold leading-[18px] text-[#ECECEC]"
           >
             {unread > 9 ? "9+" : unread}
           </span>

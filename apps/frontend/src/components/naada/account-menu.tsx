@@ -71,7 +71,7 @@ export function AccountMenu({ tone = "dark" }: { tone?: "dark" | "light" }) {
         className="grid size-9 place-items-center rounded-full text-[13px] font-bold transition-opacity hover:opacity-85"
         style={{
           background: "var(--color-signal)",
-          color: "#F3E9D6",
+          color: "#ECECEC",
           border: tone === "light" ? "1px solid rgba(0,0,0,.1)" : "none",
         }}
       >

@@ -185,9 +185,9 @@ function Rail<T>({
 
 /** Colour blocks for events that have no photo, all from the site's own palette. */
 const TYPESET = [
-  { bg: "#C4472E", fg: "#F3E9D6" },
-  { bg: "#E8B85C", fg: "#120E0B" },
-  { bg: "#F3E9D6", fg: "#120E0B" },
+  { bg: "#C4472E", fg: "#ECECEC" },
+  { bg: "#E8B85C", fg: "#121212" },
+  { bg: "#ECECEC", fg: "#121212" },
   { bg: "#2A211B", fg: "#E8B85C" },
 ];
 
@@ -453,7 +453,7 @@ export function HomeFeed() {
             imageWebp: "/media/banners/mysuru-main-desktop.webp",
             mobileImage: "/media/banners/mysuru-main-mobile.jpg",
             mobileImageWebp: "/media/banners/mysuru-main-mobile.webp",
-            position: "100% 50%",
+            position: "100% 92%",
             title: "Your city. Your scene.",
             body: "From live gigs to hidden gems, discover what's happening around Mysuru.",
             cta: "Explore events →",
@@ -570,7 +570,7 @@ export function HomeFeed() {
     <PublicShell>
       <div ref={top} className="w-full space-y-10 px-[var(--page-pad)] pb-6 pt-5 md:space-y-12 md:pb-8 md:pt-6">
         {/* Banner flush under the header */}
-        <div className="banner-wrap relative z-0 -mx-[var(--page-pad)] min-[1440px]:mx-0 min-[1440px]:overflow-hidden min-[1440px]:rounded-3xl">
+        <div className="banner-wrap relative z-0 -mx-[var(--page-pad)]">
           <FeedCarousel slides={slides} label={t("Highlights", "ಮುಖ್ಯಾಂಶಗಳು")} />
         </div>
 

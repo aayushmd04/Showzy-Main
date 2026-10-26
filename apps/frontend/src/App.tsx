@@ -75,7 +75,7 @@ const HostGateTeamScreen = lazyScreen(() => import("@/screens/host/host-gate-tea
 const GateScreen = lazyScreen(() => import("@/screens/gate"), "GateScreen");
 const HostDoorScannerScreen = lazyScreen(() => import("@/screens/host/host-door-scanner"), "HostDoorScannerScreen");
 
-const ArtistHomeScreen = lazyScreen(() => import("@/screens/artist/artist-home"), "ArtistHomeScreen");
+const ArtistHomeScreen = lazyScreen(() => import("@/screens/home/artist-home-landing"), "ArtistHomeLandingScreen");
 const ArtistGigBoardScreen = lazyScreen(() => import("@/screens/artist/artist-gig-board"), "ArtistGigBoardScreen");
 const ArtistOffersScreen = lazyScreen(() => import("@/screens/artist/artist-offers"), "ArtistOffersScreen");
 const ArtistGigsScreen = lazyScreen(() => import("@/screens/artist/artist-gigs"), "ArtistGigsScreen");

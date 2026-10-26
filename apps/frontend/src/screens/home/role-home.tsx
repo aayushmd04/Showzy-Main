@@ -6,16 +6,12 @@
  * they came to do; an admin goes straight to the ops overview, which is
  * already their whole job.
  */
-import { Suspense, lazy, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Navigate } from "react-router-dom";
 
 import { HomeFeed } from "@/screens/home-feed";
 import { useStore } from "@/store/app-store";
 import { tokens } from "@/lib/api";
-
-const ArtistHomeLandingScreen = lazy(async () => ({
-  default: (await import("./artist-home-landing")).ArtistHomeLandingScreen,
-}));
 
 /**
  * The role arrives from `GET /auth/me/`, a round trip after the first paint.
@@ -68,13 +64,8 @@ export function RoleHomeScreen() {
   // intro page said now lives in the feed's banner.
   if (!currentUser) return <HomeFeed />;
 
-  if (role === "artist") {
-    return (
-      <Suspense fallback={<HomeFallback />}>
-        <ArtistHomeLandingScreen />
-      </Suspense>
-    );
-  }
+  // An artist has one home, in the console, so the layout never changes under them.
+  if (role === "artist") return <Navigate to="/artist" replace />;
 
   // A host has one home, in the console, so the layout never changes under them.
   if (role === "host") return <Navigate to="/host" replace />;

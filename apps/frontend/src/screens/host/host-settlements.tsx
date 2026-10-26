@@ -3,7 +3,7 @@ import { Info } from "lucide-react";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Modal } from "@/components/ui/modal";
 import { Pill } from "@/components/ui/pill";
-import { getEventPayoutSummary, getMyEvents, getMyOrders, getOrderLedger, orderOrganizerName } from "@/lib/api";
+import { getEventPayoutSummary, getMyEvents, getMyOrders, getOrderLedger } from "@/lib/api";
 import type { ApiOrder, ApiPayoutSummary } from "@/lib/api";
 import { dateCompact, money } from "@/lib/format";
 
@@ -111,7 +111,7 @@ export function HostSettlementsScreen() {
               <tr key={o.id} className="border-b border-line last:border-0 hover:bg-paper/5">
                 <th scope="row" className="px-4 py-3 text-left font-normal">
                   <button type="button" onClick={() => openDetail(o)} className="text-[15px] hover:text-signal text-left">
-                    {orderOrganizerName(o)}
+                    {o.artist_name || "Artist"}
                     <span className="t-mono ml-2 text-[12px] text-muted">{dateCompact(o.performance_date)}</span>
                   </button>
                 </th>
@@ -145,7 +145,7 @@ export function HostSettlementsScreen() {
 
       {/* Ledger detail modal */}
       {openOrder && (
-        <Modal open title={`Order ledger — ${orderOrganizerName(openOrder)}`} onClose={() => setOpenOrder(null)}>
+        <Modal open title={`Order ledger — ${openOrder.artist_name || "Artist"}`} onClose={() => setOpenOrder(null)}>
           <div className="divide-y divide-line">
             {ledger.length === 0 && <p className="py-4 text-center text-muted t-small">No ledger entries yet.</p>}
             {ledger.map((entry, i) => (

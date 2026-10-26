@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { KANNADA_ENABLED } from "@/lib/features";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
@@ -351,14 +352,16 @@ export function HostEventEditorScreen() {
             />
           </Field>
 
-          <Field label="Event name in Kannada" htmlFor="ev-title-kn" hint="Optional. Shown to readers who switch the app to Kannada.">
-            <Input
-              id="ev-title-kn"
-              value={form.title_kn}
-              onChange={(e) => setField("title_kn", e.target.value)}
-              className="font-[Anek_Kannada]"
-            />
-          </Field>
+          {KANNADA_ENABLED && (
+            <Field label="Event name in Kannada" htmlFor="ev-title-kn" hint="Optional. Shown to readers who switch the app to Kannada.">
+              <Input
+                id="ev-title-kn"
+                value={form.title_kn}
+                onChange={(e) => setField("title_kn", e.target.value)}
+                className="font-[Anek_Kannada]"
+              />
+            </Field>
+          )}
 
           <div className="grid gap-3 sm:grid-cols-2">
             <Field

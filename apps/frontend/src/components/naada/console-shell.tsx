@@ -102,7 +102,7 @@ export function ConsoleShell({
 
 
   return (
-    <div className="relative isolate min-h-dvh md:flex">
+    <div className="console relative isolate min-h-dvh md:flex">
       <PageBackdrop />
       {/* Desktop sidebar / tablet icon rail */}
       <aside className="glass-soft sticky top-0 hidden h-dvh shrink-0 rounded-none border-y-0 border-l-0 bg-[var(--glass-bar)] md:block md:w-[72px] lg:w-[240px]">

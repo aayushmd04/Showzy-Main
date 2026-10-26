@@ -122,11 +122,17 @@ export function HostArtistSearchScreen() {
                     </Link>
                     <p className="t-small mt-0.5 flex flex-wrap items-center gap-x-3 text-muted">
                       <span className="truncate">{artist.genres.join(" · ")}</span>
-                      <span className="flex items-center gap-1">
-                        <Star className="size-3 fill-brass text-brass" aria-hidden="true" />
-                        <span className="t-mono">{artist.rating.toFixed(1)}</span>
+                      {artist.rating > 0 && (
+                        <span className="flex items-center gap-1">
+                          <Star className="size-3 fill-brass text-brass" aria-hidden="true" />
+                          <span className="t-mono">{artist.rating.toFixed(1)}</span>
+                        </span>
+                      )}
+                      <span className="t-mono">
+                        {artist.gigsPlayed > 0
+                          ? `${artist.gigsPlayed} ${artist.gigsPlayed === 1 ? "gig" : "gigs"}`
+                          : "New on Showzy"}
                       </span>
-                      <span className="t-mono">{artist.gigsPlayed} gigs</span>
                     </p>
                     <p className="t-mono mt-1 text-[13px] text-brass">
                       {money(artist.feeMin)}–{money(artist.feeMax)}

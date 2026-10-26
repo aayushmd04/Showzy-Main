@@ -64,7 +64,7 @@ function ArtistCard({ artist, tok }: { artist: import("@/data/fixtures").Artist;
       {/* Stats */}
       <div style={{ display: "flex", gap: 16, marginTop: 12, paddingTop: 12, borderTop: `1px solid ${tok.cardBorder}` }}>
         {artist.gigsPlayed > 0 && (
-          <span style={{ fontSize: 12, color: tok.muted }}>{artist.gigsPlayed} gigs</span>
+          <span style={{ fontSize: 12, color: tok.muted }}>{artist.gigsPlayed} {artist.gigsPlayed === 1 ? "gig" : "gigs"}</span>
         )}
         {artist.rating > 0 && (
           <span style={{ fontSize: 12, color: tok.muted }}>★ {artist.rating.toFixed(1)}</span>

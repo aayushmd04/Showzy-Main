@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import (
-    TicketTier, Order, OrderItem, Ticket, PromoCode, TicketTransfer, ZoneAllocation,
+    MAX_TICKETS_PER_ORDER, TicketTier, Order, OrderItem, Ticket, PromoCode, TicketTransfer,
+    ZoneAllocation,
 )
 from apps.events.serializers import EventListSerializer
 
@@ -50,7 +51,10 @@ class TierWriteSerializer(serializers.ModelSerializer):
                 "total_quantity": f"{inst.sold_quantity + inst.reserved_quantity} are already sold "
                                   "or being paid for, so you can't go below that."})
         lo = attrs.get("min_per_order", inst.min_per_order if inst else 1)
-        hi = attrs.get("max_per_order", inst.max_per_order if inst else 10)
+        hi = attrs.get("max_per_order", inst.max_per_order if inst else MAX_TICKETS_PER_ORDER)
+        if hi > MAX_TICKETS_PER_ORDER:
+            raise serializers.ValidationError({
+                "max_per_order": f"One order can hold at most {MAX_TICKETS_PER_ORDER} tickets."})
         if lo > hi:
             raise serializers.ValidationError({"max_per_order": "Maximum can't be below the minimum."})
         self._check_room(attrs, inst, total)
@@ -102,12 +106,12 @@ class OrderItemSerializer(serializers.ModelSerializer):
 
 class CreateOrderItemSerializer(serializers.Serializer):
     tier_id = serializers.UUIDField()
-    quantity = serializers.IntegerField(min_value=1, max_value=10)
+    quantity = serializers.IntegerField(min_value=1, max_value=MAX_TICKETS_PER_ORDER)
 
 
 class CreateOrderSerializer(serializers.Serializer):
     event_id = serializers.UUIDField()
-    items = CreateOrderItemSerializer(many=True)
+    items = CreateOrderItemSerializer(many=True, allow_empty=False)
     promo_code = serializers.CharField(required=False, allow_blank=True)
     # The floor-plan zone the buyer picked, if the venue has a floor plan and
     # they picked one. Absent means "seat me anywhere", which is how every
@@ -120,6 +124,13 @@ class CreateOrderSerializer(serializers.Serializer):
     # Optional free add-on: baby/high chairs at the picked table, for guests
     # bringing a little one. Validated against the table's stock in create_order.
     baby_chairs = serializers.IntegerField(required=False, min_value=0, max_value=8, default=0)
+
+    def validate_items(self, items):
+        total = sum(i["quantity"] for i in items)
+        if total > MAX_TICKETS_PER_ORDER:
+            raise serializers.ValidationError(
+                f"You can book at most {MAX_TICKETS_PER_ORDER} tickets in one order.")
+        return items
 
 
 class ZoneSerializer(serializers.Serializer):

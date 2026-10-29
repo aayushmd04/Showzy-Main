@@ -52,3 +52,68 @@ def event_payout_summary(event) -> dict:
         "owed_to_organiser": owed,
         "paid_out": paid_out,
         "balance": owed - paid_out,}.items()}
+
+
+def payout_readiness(user) -> dict:
+    """Whether Showzy can actually send this host money yet, and if not, why.
+
+    Ticket money is paid to the bank account on the host's venue once its KYC is
+    verified (the same gate `Venue.can_receive_payouts` applies). Saying so
+    plainly, before the first night sells out, beats a host discovering it when
+    the money does not arrive.
+    """
+    from apps.venues.models import Venue
+
+    venues = list(Venue.objects.filter(owner=user, is_deleted=False))
+    if any(v.can_receive_payouts for v in venues):
+        ready = next(v for v in venues if v.can_receive_payouts)
+        return {"ready": True, "blocker": "", "account_last4": ready.bank_account_last4,
+                "account_holder": ready.bank_account_holder_name}
+    if not venues:
+        return {"ready": False, "blocker": "no_venue", "account_last4": "", "account_holder": ""}
+    venue = venues[0]
+    if not venue.has_bank_details:
+        blocker = "no_bank_details"
+    elif venue.kyc_status == "rejected":
+        blocker = "kyc_rejected"
+    else:
+        blocker = "kyc_pending"
+    return {"ready": False, "blocker": blocker, "account_last4": venue.bank_account_last4,
+            "account_holder": venue.bank_account_holder_name}
+
+
+def host_statement(user) -> dict:
+    """Every night this host has taken money for: what came in, what Showzy kept,
+    what has been paid to them (with the bank reference) and what is still owed."""
+    from apps.events.models import Event
+    from apps.tickets.models import Ticket
+
+    totals = {k: ZERO for k in
+              ("collected", "refunded", "naada_fee", "owed_to_organiser", "paid_out", "balance")}
+    rows = []
+    events = Event.objects.filter(organizer=user, is_deleted=False).order_by("-start_datetime")
+    for event in events:
+        summary = event_payout_summary(event)
+        payouts = list(OrganizerPayout.objects.filter(event=event).order_by("-paid_at"))
+        sold = (Ticket.objects.filter(event=event)
+                .exclude(status=Ticket.Status.CANCELLED).count())
+        if summary["collected"] == ZERO and not payouts and not sold:
+            continue  # a draft, or a night nobody has bought for yet
+        for key in totals:
+            totals[key] += summary[key]
+        rows.append({
+            "event_id": str(event.id),
+            "title": event.title,
+            "start_datetime": event.start_datetime.isoformat(),
+            "status": event.status,
+            "tickets_sold": sold,
+            **{k: summary[k] for k in totals},
+            "payouts": [{
+                "id": str(p.id),
+                "amount": p.amount,
+                "reference": p.reference,
+                "paid_at": p.paid_at.isoformat(),
+                "note": p.note,
+            } for p in payouts],
+        })
+    return {"totals": totals, "events": rows, "payout_account": payout_readiness(user)}

@@ -54,11 +54,12 @@
 | **Email provider** (SMTP) | Sign-in codes, tickets, deletion codes, notices | Recipient email, message body | `apps/users/views.py`, `apps/notifications/dispatch.py` |
 | **Sentry** *(optional — only if `SENTRY_DSN_BACKEND` is set)* | Server errors | Stack traces; keep personal data out of exception messages | `requirements.txt`, settings |
 | **AWS S3 / compatible** *(optional — only if `AWS_STORAGE_BUCKET_NAME` is set)* | Uploads and media reads | Photos, QR images | `django-storages` |
+| **OpenStreetMap** (venue map) | Only when a guest presses "Show map" on an event page; nothing is requested before that | The guest's IP address and browser, and the venue's coordinates (public) | `components/naada/venue-map.tsx`, `frame-src` in `build/security-headers.ts` |
 | **Database host** (Postgres, e.g. Supabase) | Every request | All application data | `DATABASE_URL` |
 | **Redis** | Chat/WebSocket layer, Celery | Message payloads in transit | `channels-redis`, `celery` |
 | ~~Google Fonts~~ | *(removed)* | *(was: every visitor's IP address and browser)* | `index.html`, `styles/fonts.css` |
 
-No analytics, advertising, social-media or tag-manager scripts exist in the frontend. The browser only talks to our own origin and API.
+No analytics, advertising, social-media or tag-manager scripts exist in the frontend. The browser talks to our own origin and API, plus the providers above when the visitor uses them (pays, signs in with Google, or asks to see a venue map).
 
 ## Licences
 

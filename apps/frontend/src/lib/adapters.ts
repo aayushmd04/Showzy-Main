@@ -89,6 +89,8 @@ export function adaptEvent(e: ApiEvent): NaadaEvent {
           price: parseFloat(t.price),
           capacity: t.total_quantity,
           sold: t.sold_quantity,
+          minPerOrder: t.min_per_order,
+          maxPerOrder: t.max_per_order,
         }))
       : [
           {

@@ -377,6 +377,13 @@ export interface ApiVenue {
   city?: string;       // city id or name depending on endpoint
   city_name?: string;  // flat field from list endpoint
   capacity?: number;
+  /** Where the venue is — detail endpoint only. */
+  address_line1?: string;
+  address_line2?: string;
+  pincode?: string;
+  lat?: string | null;
+  lng?: string | null;
+  google_maps_url?: string;
   primary_photo?: string;
   slug?: string;
   layout?: { version?: number; elements?: unknown[] };
@@ -404,6 +411,7 @@ export interface ApiTier {
   sold_quantity: number;
   is_active: boolean;
   description?: string;
+  min_per_order?: number;
   max_per_order?: number;
 }
 
@@ -453,6 +461,43 @@ export interface ApiPayoutSummary {
   owed_to_organiser: string;
   paid_out: string;
   balance: string;
+}
+
+export interface ApiPayoutRecord {
+  id: string;
+  amount: string;
+  /** Bank / UPI reference of the transfer. */
+  reference: string;
+  paid_at: string;
+  note: string;
+}
+
+export interface ApiStatementEvent extends ApiPayoutSummary {
+  event_id: string;
+  title: string;
+  start_datetime: string;
+  status: string;
+  tickets_sold: number;
+  payouts: ApiPayoutRecord[];
+}
+
+export interface ApiPayoutAccount {
+  ready: boolean;
+  /** Why money cannot be sent yet; empty when it can. */
+  blocker: "" | "no_venue" | "no_bank_details" | "kyc_pending" | "kyc_rejected";
+  account_last4: string;
+  account_holder: string;
+}
+
+/** The signed-in host's ticket money, night by night, with every payout made. */
+export interface ApiPayoutStatement {
+  totals: ApiPayoutSummary;
+  events: ApiStatementEvent[];
+  payout_account: ApiPayoutAccount;
+}
+
+export function getHostPayoutStatement(): Promise<ApiPayoutStatement> {
+  return get<ApiPayoutStatement>("/host/payout-statement/");
 }
 
 export function getEventPayoutSummary(eventId: string): Promise<ApiPayoutSummary> {
@@ -1395,8 +1440,9 @@ export interface VenueWritePayload {
   contact_email?: string;
   website?: string;
   instagram?: string;
-  lat?: string;
-  lng?: string;
+  /** null clears the pin. */
+  lat?: string | null;
+  lng?: string | null;
   google_maps_url?: string;
   has_parking?: boolean;
   is_accessible?: boolean;

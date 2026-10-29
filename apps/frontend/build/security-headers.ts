@@ -25,6 +25,8 @@ import type { Plugin } from "vite";
 const RAZORPAY = ["https://checkout.razorpay.com", "https://api.razorpay.com"];
 const GOOGLE_SIGN_IN = "https://accounts.google.com/gsi/";
 const TURNSTILE = "https://challenges.cloudflare.com";
+/** The venue map on an event page. Framed only after a guest clicks "Show map". */
+const OPENSTREETMAP = "https://www.openstreetmap.org";
 const DEFAULT_POSTHOG_HOST = "https://us.i.posthog.com";
 
 /**
@@ -95,7 +97,7 @@ export function buildCsp({ apiBase, scriptHashes, forHeader, sentryDsn, analytic
       ...(sentry ? [sentry] : []),
       ...posthog.connect,
     ],
-    "frame-src": [...RAZORPAY, GOOGLE_SIGN_IN, TURNSTILE],
+    "frame-src": [...RAZORPAY, GOOGLE_SIGN_IN, TURNSTILE, OPENSTREETMAP],
     "worker-src": ["'self'"],
     "manifest-src": ["'self'"],
     "object-src": ["'none'"],

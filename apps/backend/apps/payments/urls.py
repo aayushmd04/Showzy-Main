@@ -8,5 +8,6 @@ urlpatterns = [
     path("payments/refund/", views.initiate_refund, name="payments-refund"),
     # Stands in for Razorpay's hosted checkout while the mock gateway is active.
     # Returns 404 once a live gateway is configured.
+    path("host/payout-statement/", views.host_payout_statement, name="host-payout-statement"),
     path("payments/mock/checkout/", views.mock_checkout, name="payments-mock-checkout"),
 ]

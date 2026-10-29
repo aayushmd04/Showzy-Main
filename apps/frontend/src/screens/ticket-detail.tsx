@@ -412,9 +412,12 @@ export function TicketDetailScreen() {
           title="Transfer this ticket"
         >
           <p className="t-body text-paper/90">
-            The recipient needs a Showzy account already — they'll be able to sign in and see this
-            ticket under their own "My tickets" the moment you send it. We use their email only to find
-            their account, and the ticket's name and contact details pass to them.
+            The recipient needs a Showzy account already — they'll see this ticket under their own
+            "My tickets" the moment you send it, and we'll let them know. We use their email only to
+            find their account, and the ticket's name and contact details pass to them.
+          </p>
+          <p className="t-small mt-3 text-muted">
+            Once it's sent, it's theirs: your copy of the QR code stops working.
           </p>
           <label htmlFor="transfer-email" className="t-micro mb-2 mt-5 block">
             Their email address

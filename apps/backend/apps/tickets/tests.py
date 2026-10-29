@@ -906,6 +906,59 @@ class TicketTransferTests(ZoneTestCase):
         self.assertEqual(ticket.user_id, third.id)
         self.assertEqual(ticket.original_purchaser_id, self.buyer.id)
 
+    def test_the_senders_old_qr_stops_working_and_the_new_holders_works(self):
+        ticket = self.issue_ticket()
+        old_qr = ticket.qr_data
+        self.transfer(ticket, "recipient@naada.test")
+        ticket.refresh_from_db()
+        self.assertNotEqual(ticket.qr_data, old_qr)
+
+        door = APIClient()
+        door.force_authenticate(user=self.host)
+        self.assertEqual(door.post(reverse("tickets-scan", args=[old_qr])).status_code, 404)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.status, Ticket.Status.VALID)
+        self.assertEqual(door.post(reverse("tickets-scan", args=[ticket.qr_data])).status_code, 200)
+
+    def test_the_new_holder_is_told_in_app_and_by_email(self):
+        from django.core import mail
+        from apps.notifications.models import Notification, NotificationType
+        ticket = self.issue_ticket()
+        mail.outbox.clear()
+        self.transfer(ticket, "recipient@naada.test")
+
+        notice = Notification.objects.get(
+            user=self.recipient, notification_type=NotificationType.TICKET_TRANSFER_RECEIVED)
+        self.assertIn("Anita Shetty", notice.title)
+        self.assertEqual(notice.action_url, f"/tickets/{ticket.id}")
+        sent = [m for m in mail.outbox if m.to == ["recipient@naada.test"]]
+        self.assertEqual(len(sent), 1)
+        self.assertIn(ticket.ticket_number, sent[0].body)
+        # The sender is not emailed about their own action.
+        self.assertFalse([m for m in mail.outbox if m.to == [self.buyer.email]])
+
+    def test_a_failed_notice_does_not_undo_the_transfer(self):
+        from unittest import mock
+        ticket = self.issue_ticket()
+        with mock.patch("apps.notifications.dispatch.ticket_received", side_effect=RuntimeError("boom")):
+            resp = self.transfer(ticket, "recipient@naada.test")
+        self.assertEqual(resp.status_code, 200)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.user_id, self.recipient.id)
+
+    def test_a_ticket_to_a_finished_or_cancelled_event_cannot_be_transferred(self):
+        ticket = self.issue_ticket()
+        Event.objects.filter(pk=self.event.pk).update(
+            start_datetime=timezone.now() - timedelta(hours=5),
+            end_datetime=timezone.now() - timedelta(hours=2))
+        self.assertEqual(self.transfer(ticket, "recipient@naada.test").status_code, 400)
+
+        Event.objects.filter(pk=self.event.pk).update(
+            end_datetime=timezone.now() + timedelta(hours=2), status=EventStatus.CANCELLED)
+        self.assertEqual(self.transfer(ticket, "recipient@naada.test").status_code, 400)
+        ticket.refresh_from_db()
+        self.assertEqual(ticket.user_id, self.buyer.id)
+
     def test_original_sender_can_no_longer_act_on_a_transferred_ticket(self):
         ticket = self.issue_ticket()
         self.transfer(ticket, "recipient@naada.test")

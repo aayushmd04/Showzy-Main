@@ -692,3 +692,106 @@ class PayoutSummaryTests(PaymentsTestCase):
     def test_only_the_organiser_can_see_it(self):
         self.client.force_authenticate(user=self.other)
         self.assertEqual(self.client.get(self.url()).status_code, 403)
+
+
+class HostPayoutStatementTests(PaymentsTestCase):
+    def url(self):
+        return reverse("host-payout-statement")
+
+    def sell(self, total="1000.00", qty=2):
+        order = self.make_order(total=Decimal(total), qty=qty)
+        order.platform_fee = (Decimal(total) * Decimal("0.05")).quantize(Decimal("0.01"))
+        order.save()
+        from apps.tickets.models import Ticket
+        self.pay_successfully(order)
+        return order
+
+    def test_a_night_with_sales_shows_money_in_fee_kept_and_tickets_sold(self):
+        self.sell()
+        data = self.client.get(self.url()).data
+        self.assertEqual(len(data["events"]), 1)
+        row = data["events"][0]
+        self.assertEqual(row["title"], "Raag Night")
+        self.assertEqual(row["collected"], "1000.00")
+        self.assertEqual(row["naada_fee"], "50.00")
+        self.assertEqual(row["owed_to_organiser"], "950.00")
+        self.assertEqual(row["balance"], "950.00")
+        self.assertEqual(row["tickets_sold"], 2)
+        self.assertEqual(data["totals"]["collected"], "1000.00")
+        self.assertEqual(data["totals"]["balance"], "950.00")
+
+    def test_recorded_payouts_appear_with_their_bank_reference_and_cut_the_balance(self):
+        from .models import OrganizerPayout
+        self.sell()
+        OrganizerPayout.objects.create(
+            event=self.event, amount=Decimal("400.00"), reference="UTR123456",
+            paid_at=timezone.now(), note="First instalment")
+        data = self.client.get(self.url()).data
+        row = data["events"][0]
+        self.assertEqual(row["paid_out"], "400.00")
+        self.assertEqual(row["balance"], "550.00")
+        self.assertEqual(row["payouts"][0]["reference"], "UTR123456")
+        self.assertEqual(row["payouts"][0]["amount"], "400.00")
+        self.assertEqual(data["totals"]["paid_out"], "400.00")
+
+    def test_totals_add_up_across_nights(self):
+        self.sell()
+        second = Event.objects.create(
+            organizer=self.user, venue=self.venue, title="Second night",
+            start_datetime=timezone.now() + timedelta(days=14),
+            end_datetime=timezone.now() + timedelta(days=14, hours=3))
+        tier2 = TicketTier.objects.create(event=second, name="GA", price=Decimal("200"), total_quantity=50)
+        order = Order.objects.create(user=self.user, event=second, total_amount=Decimal("400.00"),
+                                     subtotal=Decimal("400.00"), status=Order.Status.INITIATED)
+        OrderItem.objects.create(order=order, tier=tier2, quantity=2, unit_price=tier2.price,
+                                 total_price=Decimal("400.00"))
+        self.pay_successfully(order)
+        data = self.client.get(self.url()).data
+        self.assertEqual(len(data["events"]), 2)
+        self.assertEqual(data["totals"]["collected"], "1400.00")
+
+    def test_a_night_with_no_activity_is_left_off(self):
+        data = self.client.get(self.url()).data
+        self.assertEqual(data["events"], [])
+        self.assertEqual(data["totals"]["collected"], "0.00")
+
+    def test_it_never_includes_another_hosts_nights(self):
+        self.sell()
+        self.client.force_authenticate(user=self.other)
+        data = self.client.get(self.url()).data
+        self.assertEqual(data["events"], [])
+        self.assertEqual(data["totals"]["balance"], "0.00")
+
+    def test_it_needs_a_signed_in_host(self):
+        self.assertIn(APIClient().get(self.url()).status_code, (401, 403))
+
+    def test_it_says_why_money_cannot_be_paid_out_yet(self):
+        # No bank details on the venue yet.
+        self.assertEqual(self.client.get(self.url()).data["payout_account"]["blocker"], "no_bank_details")
+
+        self.venue.bank_account_number = "123456789012"
+        self.venue.bank_ifsc_code = "HDFC0001234"
+        self.venue.bank_account_holder_name = "Test Hall"
+        self.venue.save()
+        account = self.client.get(self.url()).data["payout_account"]
+        self.assertEqual((account["ready"], account["blocker"]), (False, "kyc_pending"))
+
+        self.venue.kyc_status = "rejected"
+        self.venue.save()
+        self.assertEqual(self.client.get(self.url()).data["payout_account"]["blocker"], "kyc_rejected")
+
+        self.venue.kyc_status = "verified"
+        self.venue.save()
+        account = self.client.get(self.url()).data["payout_account"]
+        self.assertTrue(account["ready"])
+        self.assertEqual(account["account_last4"], "9012")
+
+    def test_the_full_account_number_is_never_sent(self):
+        self.venue.bank_account_number = "123456789012"
+        self.venue.bank_ifsc_code = "HDFC0001234"
+        self.venue.save()
+        self.assertNotIn("123456789012", str(self.client.get(self.url()).data))
+
+    def test_a_host_with_no_venue_is_told_to_add_one(self):
+        self.client.force_authenticate(user=self.other)
+        self.assertEqual(self.client.get(self.url()).data["payout_account"]["blocker"], "no_venue")

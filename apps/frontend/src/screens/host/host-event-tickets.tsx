@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Download, Pencil, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Input } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { Pill } from "@/components/ui/pill";
 import { useStore } from "@/store/app-store";
 import { money } from "@/lib/format";
+import { downloadCsv, fileSlug, type CsvCell } from "@/lib/csv";
 import {
   createTier,
   deleteTier,
@@ -279,7 +280,30 @@ const STATUS_LABEL: Record<ApiAttendee["status"], string> = {
   cancelled: "Cancelled",
 };
 
-export function GuestList({ eventId }: { eventId: string }) {
+/** "2026-11-20 20:14" in the viewer's own clock — what a spreadsheet user expects. */
+function stamp(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+/**
+ * The guest list as spreadsheet rows. Everyone on it, not just what the screen
+ * shows, and nothing the door list doesn't already carry: no emails, no phone
+ * numbers, no QR values.
+ */
+export function guestListRows(rows: ApiAttendee[]): CsvCell[][] {
+  return [
+    ["Guest", "Ticket number", "Ticket type", "Seat", "Status", "Checked in at"],
+    ...rows.map((r) => [
+      r.holder_name, r.ticket_number, r.tier_name ?? "", r.seat_label, STATUS_LABEL[r.status], stamp(r.checked_in_at),
+    ]),
+  ];
+}
+
+export function GuestList({ eventId, eventName }: { eventId: string; eventName?: string }) {
   const [rows, setRows] = useState<ApiAttendee[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -321,6 +345,18 @@ export function GuestList({ eventId }: { eventId: string }) {
           </p>
         )}
       </div>
+      {rows && rows.length > 0 && (
+        <Button
+          size="sm"
+          className="mt-3"
+          onClick={() =>
+            downloadCsv(`${fileSlug(eventName ?? "", "event")}-guest-list.csv`, guestListRows(rows))
+          }
+        >
+          <Download className="mr-2 size-4" aria-hidden="true" />
+          Download guest list
+        </Button>
+      )}
 
       {error && <ErrorNote className="mt-3" message={error} onRetry={() => void load()} />}
       {!rows && !error && <LoadingNote label="Loading the guest list…" />}
@@ -375,7 +411,7 @@ export function GuestList({ eventId }: { eventId: string }) {
             <p className="t-small mt-2 text-muted">Nobody on the list matches that.</p>
           )}
           {!query && booked > 100 && (
-            <p className="t-small mt-2 text-muted">Showing the first 100 of {booked}. Search to find anyone else.</p>
+            <p className="t-small mt-2 text-muted">Showing the first 100 of {booked}. Search to find anyone else, or download the full list.</p>
           )}
         </>
       )}

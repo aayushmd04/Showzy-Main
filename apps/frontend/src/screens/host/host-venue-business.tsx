@@ -3,6 +3,7 @@ import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/input";
 import { Pill, type PillTone } from "@/components/ui/pill";
+import { VenueLocationCard } from "@/components/naada/venue-location-card";
 import { useHostBranch } from "@/components/naada/host-branch";
 import { getMyVenues, updateVenue } from "@/lib/api";
 import type { ApiVenue } from "@/lib/api";
@@ -274,6 +275,8 @@ export function HostVenueBusinessScreen() {
           )}
         </div>
       </div>
+
+      {venue.slug && <VenueLocationCard key={venue.slug} slug={venue.slug} name={venue.name} />}
     </ConsoleShell>
   );
 }

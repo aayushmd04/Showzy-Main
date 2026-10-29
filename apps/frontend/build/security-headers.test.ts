@@ -25,6 +25,14 @@ describe("buildCsp", () => {
     expect(scripts).not.toMatch(/\*/);
   });
 
+  it("frames only the payment, sign-in, bot-check and map providers", () => {
+    const frames = buildCsp(prod).split("; ").find((d) => d.startsWith("frame-src "))!;
+    expect(frames).toContain("https://www.openstreetmap.org");
+    expect(frames).toContain("https://checkout.razorpay.com");
+    expect(frames).not.toMatch(/https:(\s|$)/);
+    expect(frames).not.toMatch(/\*/);
+  });
+
   it("allows the inline theme script by hash, not by 'unsafe-inline'", () => {
     expect(buildCsp(prod)).toContain(`'${HASH}'`);
   });

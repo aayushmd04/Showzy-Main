@@ -24,7 +24,7 @@
 ##############################################################################
 # Stage 1 — builder.  Compilers and headers live here and never ship.
 ##############################################################################
-FROM python:3.12-slim AS builder
+FROM python:3.13-slim AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -50,7 +50,7 @@ RUN pip install --upgrade pip setuptools wheel \
 ##############################################################################
 # Stage 2 — runtime.  Interpreter + venv + source. No build toolchain.
 ##############################################################################
-FROM python:3.12-slim AS runtime
+FROM python:3.13-slim AS runtime
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \

@@ -60,7 +60,7 @@ Constraints that apply to every task:
 - [x] E4/E5 notifications UI + emit on real events
 - [x] E2/E3 server-side search and filters
 - [x] E7/G10 per-event meta tags, prerender, sitemap
-- [x] E8–E14 save, follow, reviews, ics (transfer + map still open)
+- [x] E8–E14 save, follow, reviews, ics, ticket transfer, venue map
 - [ ] E12 Kannada
 - [ ] G11 websocket chat
 
@@ -103,8 +103,9 @@ Constraints that apply to every task:
 - E12 Kannada is half-built — the toggle changes nav labels and little else.
 - Social link previews need the prerender step in DEPLOY.md; per-route meta
   tags work today for search engines that run JavaScript.
-- E11 ticket transfer and E13 venue maps. Save, follow, reviews and
-  add-to-calendar all shipped.
+- (E11 ticket transfer and E13 venue maps have shipped: transfer reissues the
+  QR and notifies the recipient; the event page shows the address and a
+  "Get directions" link from the venue's Google Maps link.)
 
 ## Deployment answers owed to the founder
 - Supabase = Postgres/storage only; it does not host Django. Recommendation and

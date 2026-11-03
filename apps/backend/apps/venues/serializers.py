@@ -29,6 +29,9 @@ class VenueListSerializer(serializers.ModelSerializer):
             "city", "city_name", "area_name", "capacity",
             "stage_type", "is_verified", "is_featured",
             "primary_photo", "lat", "lng",
+            # Where guests go. Public by nature: a venue on a ticketing site is
+            # a place people are meant to find.
+            "address_line1", "address_line2", "pincode", "google_maps_url",
             # The host's floor-plan editor loads from ?mine=true and needs the
             # stored plan, not just the summary fields.
             "layout",

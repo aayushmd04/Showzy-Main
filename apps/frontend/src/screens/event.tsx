@@ -7,6 +7,8 @@ import { Poster } from "@/components/naada/poster";
 import { Button } from "@/components/ui/button";
 import { Pill } from "@/components/ui/pill";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
+import { QuantityStepper } from "@/components/naada/quantity-stepper";
+import { VenueMap } from "@/components/naada/venue-map";
 import { SaveButton } from "@/components/naada/save-button";
 import { EventReviews } from "@/components/naada/event-reviews";
 import { ReviewForm } from "@/components/naada/review-form";
@@ -19,6 +21,7 @@ import {
 import { useStore } from "@/store/app-store";
 import { usePageMeta } from "@/lib/use-meta";
 import { adaptEvent } from "@/lib/adapters";
+import { clampTickets, maxTickets, minTickets } from "@/lib/quantity";
 import { CONVENIENCE_FEE, type NaadaEvent } from "@/data/fixtures";
 import { dateBody, dateListingFull, money } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -94,6 +97,7 @@ export function EventScreen() {
     [event],
   );
   const [selected, setSelected] = useState<string | null>(null);
+  const [wanted, setWanted] = useState(1);
 
   // Tiers arrive with the detail fetch, so the default selection has to follow.
   useEffect(() => {
@@ -118,8 +122,13 @@ export function EventScreen() {
   const venue = venueOf(event);
   const tier = event.tiers.find((t) => t.name === (selected ?? firstAvailable));
   const isFree = event.tiers.every((t) => t.price === 0);
-  const fee = tier && tier.price > 0 ? CONVENIENCE_FEE : 0;
-  const total = (tier?.price ?? 0) + fee;
+  // How many the buyer can take of the chosen tier (at most 10 an order), and
+  // what they have asked for, pulled back inside that range.
+  const qty = tier ? clampTickets(wanted, tier) : 1;
+  const qtyMax = tier ? maxTickets(tier) : 1;
+  const qtyMin = tier ? Math.min(minTickets(tier), qtyMax || 1) : 1;
+  const fee = tier && tier.price > 0 ? CONVENIENCE_FEE * qty : 0;
+  const total = (tier?.price ?? 0) * qty + fee;
   // `every` is vacuously true on an empty list, so an event listed before its
   // ticket tiers exist was showing "Sold out" and hiding its own buy button.
   // Require a real capacity before calling anything sold out.
@@ -138,7 +147,7 @@ export function EventScreen() {
 
   const getTicket = () => {
     if (!tier) return;
-    startCheckout(event.id, tier.name, tier.id);
+    startCheckout(event.id, tier.name, tier.id, qty);
     if (role === "out") {
       openAuth(isFree ? "Sign in to reserve" : "Sign in to book", {
         allowGuest: true,
@@ -250,6 +259,20 @@ export function EventScreen() {
               <p className="t-small mt-1 text-muted">
                 {venue?.area} · capacity <span className="t-mono">{venue?.capacity}</span>
               </p>
+              {raw?.venue && (
+                <VenueMap
+                  className="mt-4 border-t border-line pt-4"
+                  spot={{
+                    name: raw.venue.name,
+                    address_line1: raw.venue.address_line1,
+                    address_line2: raw.venue.address_line2,
+                    pincode: raw.venue.pincode,
+                    area_name: raw.venue.area_name ?? venue?.area,
+                    city_name: raw.venue.city_name ?? raw.city_name,
+                    google_maps_url: raw.venue.google_maps_url,
+                  }}
+                />
+              )}
             </div>
           </section>
 
@@ -300,7 +323,10 @@ export function EventScreen() {
                       <button
                         type="button"
                         disabled={isSoldOut}
-                        onClick={() => setSelected(t.name)}
+                        onClick={() => {
+                          setSelected(t.name);
+                          setWanted(minTickets(t));
+                        }}
                         aria-pressed={active}
                         className={cn(
                           "flex w-full items-center gap-3 px-4 py-4 text-left transition-colors",
@@ -354,11 +380,28 @@ export function EventScreen() {
 
               {!soldOut && tier && (
                 <div className="border-t border-line px-4 py-4">
+                  <QuantityStepper
+                    className="mb-4"
+                    value={qty}
+                    min={qtyMin}
+                    max={qtyMax}
+                    onChange={setWanted}
+                    label={isFree ? "Spots" : "Tickets"}
+                  />
+                  {qty >= qtyMax && qtyMax > 0 && (
+                    <p className="t-small -mt-2 mb-3 text-muted">
+                      {qtyMax >= 10
+                        ? "10 is the most one order can hold."
+                        : `That's all that's left, or the most one order can hold (${qtyMax}).`}
+                    </p>
+                  )}
                   <dl className="space-y-1.5">
                     <div className="flex justify-between gap-4">
-                      <dt className="t-small text-muted">Ticket</dt>
+                      <dt className="t-small text-muted">
+                        Ticket{qty > 1 ? ` × ${qty}` : ""}
+                      </dt>
                       <dd className="t-mono text-[14px]">
-                        {tier.price === 0 ? "FREE" : money(tier.price)}
+                        {tier.price === 0 ? "FREE" : money(tier.price * qty)}
                       </dd>
                     </div>
                     {fee > 0 && (
@@ -402,7 +445,10 @@ export function EventScreen() {
         <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[var(--glass-border-soft)] bg-[var(--glass-bar)] px-4 py-3 backdrop-blur-xl lg:hidden">
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
-              <p className="t-small truncate text-muted">{tier.name}</p>
+              <p className="t-small truncate text-muted">
+                {tier.name}
+                {qty > 1 ? ` × ${qty}` : ""}
+              </p>
               <p className="t-mono text-[17px] font-medium">
                 {total === 0 ? "FREE" : money(total)}
               </p>

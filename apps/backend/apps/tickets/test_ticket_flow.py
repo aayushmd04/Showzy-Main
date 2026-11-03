@@ -202,6 +202,43 @@ class BookingRuleTests(TicketFlowBase):
         self.assertEqual(self.order(self.fan, self.event, tier, qty=3).status_code, 400)
         self.assertEqual(self.order(self.fan, self.event, tier, qty=2).status_code, 201)
 
+    def test_a_buyer_can_book_ten_tickets_in_one_order_but_not_eleven(self):
+        tier = self.sellable(total=50)
+        ok = self.order(self.fan, self.event, tier, qty=10)
+        self.assertEqual(ok.status_code, 201, ok.data)
+        self.assertEqual(Order.objects.get(pk=ok.data["id"]).items.get().quantity, 10)
+        over = self.order(self.stranger, self.event, tier, qty=11)
+        self.assertEqual(over.status_code, 400)
+        tier.refresh_from_db()
+        self.assertEqual(tier.reserved_quantity, 10)  # the refused order held nothing
+
+    def test_the_ten_ticket_cap_counts_every_tier_in_the_order(self):
+        a = self.sellable(total=20)
+        b = TicketTier.objects.create(event=self.event, name="VIP", price=Decimal("900"), total_quantity=20)
+        r = self.as_user(self.fan).post(reverse("orders-create"), {
+            "event_id": str(self.event.id),
+            "items": [{"tier_id": str(a.id), "quantity": 6}, {"tier_id": str(b.id), "quantity": 5}],
+        }, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("at most 10", str(r.data))
+        a.refresh_from_db()
+        b.refresh_from_db()
+        self.assertEqual((a.reserved_quantity, b.reserved_quantity), (0, 0))
+
+    def test_an_older_tier_that_allows_more_than_ten_is_still_held_to_ten(self):
+        tier = self.sellable(total=100)
+        TicketTier.objects.filter(pk=tier.pk).update(max_per_order=50)
+        self.assertEqual(self.order(self.fan, self.event, tier, qty=10).status_code, 201)
+
+    def test_a_host_cannot_set_a_per_order_limit_above_ten(self):
+        host = self.as_user(self.host)
+        url = reverse("event-tiers", args=[self.event.id])
+        body = {"name": "Big", "price": "100", "total_quantity": 50}
+        bad = host.post(url, {**body, "max_per_order": 11}, format="json")
+        self.assertEqual(bad.status_code, 400)
+        self.assertIn("max_per_order", bad.data)
+        self.assertEqual(host.post(url, {**body, "max_per_order": 10}, format="json").status_code, 201)
+
     def test_a_declined_payment_does_not_lock_the_buyer_out_of_a_retry(self):
         tier = self.sellable(total=2)
         first = self.order(self.fan, self.event, tier, qty=2)

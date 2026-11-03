@@ -1,3 +1,4 @@
+import uuid
 from decimal import Decimal
 from django.conf import settings as django_settings
 from django.contrib.auth import get_user_model
@@ -9,7 +10,8 @@ from rest_framework.response import Response
 from datetime import timedelta
 
 from .models import (
-    Order, OrderItem, Ticket, TicketTier, PromoCode, TicketTransfer, ZoneAllocation,
+    MAX_TICKETS_PER_ORDER, Order, OrderItem, Ticket, TicketTier, PromoCode, TicketTransfer,
+    ZoneAllocation,
 )
 from .tax import compute_gst
 from . import zones as zone_map
@@ -171,9 +173,11 @@ def create_order(request):
                 raise SaleUnavailable(f"{tier.name} tickets aren't on sale yet.")
             if tier.sale_end_datetime and now > tier.sale_end_datetime:
                 raise SaleUnavailable(f"Sales for {tier.name} have closed.")
-            if qty > tier.max_per_order:
+            # A tier set up before the global cap may allow more; the cap wins.
+            per_order = min(tier.max_per_order, MAX_TICKETS_PER_ORDER)
+            if qty > per_order:
                 raise SaleUnavailable(
-                    f"You can book at most {tier.max_per_order} {tier.name} tickets in one order.")
+                    f"You can book at most {per_order} {tier.name} tickets in one order.")
             if qty < tier.min_per_order:
                 raise SaleUnavailable(
                     f"{tier.name} tickets are sold in groups of at least {tier.min_per_order}.")
@@ -486,9 +490,10 @@ def cancel_ticket(request, pk):
 def transfer_ticket(request, pk):
     """Give this ticket to someone else who already has a Showzy account.
 
-    Reassigns the same row — same QR, same ticket number — rather than
-    issuing a new one, so the door's check-in flow (which only ever cares
-    about `status`, never who holds the ticket) needs no changes at all.
+    Reassigns the same row — same ticket number — rather than issuing a new
+    one, so the door's check-in flow (which only ever cares about `status`,
+    never who holds the ticket) needs no changes. The QR value is replaced, so
+    the previous holder's copy of it stops working.
     `original_purchaser` is left untouched as the audit trail of who
     actually paid; `holder_*` and `user` move to whoever is meant to attend.
     """
@@ -500,6 +505,14 @@ def transfer_ticket(request, pk):
     if ticket.status != Ticket.Status.VALID:
         return Response(
             {"detail": f"This ticket is {ticket.get_status_display().lower()} and can't be transferred."},
+            status=400,
+        )
+
+    # A ticket to a night that is over or called off is worth nothing to anyone.
+    event = ticket.event
+    if event.status == EventStatus.CANCELLED or event.end_datetime <= timezone.now():
+        return Response(
+            {"detail": "This event is over or cancelled, so its tickets can't be transferred."},
             status=400,
         )
 
@@ -529,9 +542,23 @@ def transfer_ticket(request, pk):
         locked.holder_email = recipient.email
         locked.holder_phone = recipient.phone or ""
         locked.transfer_count += 1
+        # A new QR for the new holder. The QR is the credential at the door, so
+        # the sender's old screenshot must stop working the moment the ticket
+        # leaves them — otherwise they could hand it over and still walk in
+        # first, or sell it twice.
+        locked.qr_data = uuid.uuid4()
         locked.save(update_fields=[
-            "user", "holder_name", "holder_email", "holder_phone", "transfer_count",
+            "user", "holder_name", "holder_email", "holder_phone", "transfer_count", "qr_data",
         ])
+
+    # Best-effort: the ticket has already moved, so a failed notice must not
+    # turn a completed transfer into an error.
+    try:
+        from apps.notifications.dispatch import ticket_received
+        ticket_received(locked, request.user)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception("Transfer notice failed for ticket %s", locked.pk)
 
     return Response(TicketSerializer(locked, context={"request": request}).data)
 

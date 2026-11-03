@@ -5,6 +5,12 @@ from django.utils import timezone
 from apps.core.models import TimeStampedModel
 
 
+#: The most tickets one checkout can hold, across every tier in it. A bigger
+#: group is a conversation with the venue, not a cart; it also bounds how much
+#: inventory one abandoned checkout can lock up for the ten-minute hold.
+MAX_TICKETS_PER_ORDER = 10
+
+
 class TierType(models.TextChoices):
     GENERAL = "general", "General Admission"
     VIP = "vip", "VIP"

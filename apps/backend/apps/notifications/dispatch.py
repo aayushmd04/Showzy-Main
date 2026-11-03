@@ -167,6 +167,55 @@ Enjoy the show.
     )
 
 
+def ticket_received(ticket, from_user):
+    """Someone handed you a ticket. Tell the new holder, with the details.
+
+    Transferring reassigns the same ticket, so the recipient already has it in
+    My Tickets the moment this runs; the notice is how they find out it is there.
+    """
+    to_user = ticket.user
+    event = ticket.event
+    sender = (getattr(from_user, "name", "") or "").strip() or "Someone"
+    when = timezone.localtime(event.start_datetime).strftime("%a %d %b %Y, %I:%M %p")
+    venue = getattr(event.venue, "name", "") or ""
+
+    title = f"{sender} sent you a ticket to {event.title}"
+    body = (
+        f"{event.title} — {when}{f' at {venue}' if venue else ''}. "
+        "It's in My Tickets now."
+    )
+    record(
+        to_user,
+        notification_type=NotificationType.TICKET_TRANSFER_RECEIVED,
+        title=title,
+        body=body,
+        action_url=f"/tickets/{ticket.id}",
+        data={"ticket_id": str(ticket.id), "event_id": str(event.id)},
+    )
+    if not _prefs(to_user).ticket_confirmed_email:
+        return
+    send_email(
+        to_user,
+        title,
+        f"""Hi {to_user.name or ''},
+
+{sender} has sent you a ticket.
+
+  Event:  {event.title}
+  When:   {when}
+  Where:  {venue}
+  Ticket: {ticket.ticket_number}
+
+It's in My Tickets with its QR code — show that at the door.
+
+See your ticket: {settings.FRONTEND_URL}/tickets/{ticket.id}
+
+— Showzy
+""",
+        notification_type="ticket_confirmed",
+    )
+
+
 def order_refunded(order, amount):
     user = order.user
     title = "Refund on its way"

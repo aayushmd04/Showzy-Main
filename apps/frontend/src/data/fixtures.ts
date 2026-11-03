@@ -61,6 +61,9 @@ export interface Tier {
   price: number;
   capacity: number;
   sold: number;
+  /** The tier's own per-order limits, when the server sent them. */
+  minPerOrder?: number;
+  maxPerOrder?: number;
 }
 
 export interface NaadaEvent {

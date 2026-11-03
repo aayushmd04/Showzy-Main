@@ -195,7 +195,7 @@ export function HostEventManagerScreen() {
         <div className="min-w-0">
           <TierManager eventId={event.id} tiers={tiers} onChanged={() => load(true)} />
 
-          {!isDraft && <GuestList eventId={event.id} />}
+          {!isDraft && <GuestList eventId={event.id} eventName={event.title} />}
 
           {event.is_seeking_artists && <ApplicationQueue eventId={event.id} />}
         </div>

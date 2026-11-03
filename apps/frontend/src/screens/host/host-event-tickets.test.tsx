@@ -147,6 +147,54 @@ describe("GuestList", () => {
     expect(screen.getByText("Meera")).toBeInTheDocument();
   });
 
+  it("downloads everyone on the list as a spreadsheet, named after the night", async () => {
+    const csv = await import("@/lib/csv");
+    const download = vi.spyOn(csv, "downloadCsv").mockImplementation(() => {});
+    vi.mocked(api.getEventAttendees).mockResolvedValue({
+      event: "e1", count: 2,
+      results: [
+        row({ holder_name: "=cmd|' /C calc'!A0", ticket_number: "TON-00001" }),
+        row({ id: "a2", holder_name: "Dev Menon", ticket_number: "TON-00002", seat_label: "Table 4 · Seat 2",
+              status: "used", checked_in_at: "2026-11-20T14:44:00Z" }),
+      ],
+    });
+    const user = userEvent.setup();
+    wrap(<GuestList eventId="e1" eventName="Friday Raga — Gokulam!" />);
+    await user.click(await screen.findByRole("button", { name: "Download guest list" }));
+
+    expect(download).toHaveBeenCalledTimes(1);
+    const [name, rows] = download.mock.calls[0];
+    expect(name).toBe("friday-raga-gokulam-guest-list.csv");
+    expect(rows[0]).toEqual(["Guest", "Ticket number", "Ticket type", "Seat", "Status", "Checked in at"]);
+    expect(rows).toHaveLength(3);
+    expect(rows[2].slice(0, 5)).toEqual(["Dev Menon", "TON-00002", "General", "Table 4 · Seat 2", "Checked in"]);
+    expect(String(rows[2][5])).toMatch(/^2026-11-20 \d{2}:\d{2}$/);
+    // Contact details and QR values are not part of the file.
+    expect(JSON.stringify(rows)).not.toContain('"q"');
+    download.mockRestore();
+  });
+
+  it("exports everyone even when the screen only shows the first hundred", async () => {
+    const csv = await import("@/lib/csv");
+    const download = vi.spyOn(csv, "downloadCsv").mockImplementation(() => {});
+    const many = Array.from({ length: 130 }, (_, i) =>
+      row({ id: `a${i}`, holder_name: `Guest ${i}`, ticket_number: `TON-${i}` }));
+    vi.mocked(api.getEventAttendees).mockResolvedValue({ event: "e1", count: 130, results: many });
+    const user = userEvent.setup();
+    wrap(<GuestList eventId="e1" eventName="Big night" />);
+    expect(await screen.findByText(/Showing the first 100 of 130/)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Download guest list" }));
+    expect(download.mock.calls[0][1]).toHaveLength(131);
+    download.mockRestore();
+  });
+
+  it("offers no download when nobody has booked", async () => {
+    vi.mocked(api.getEventAttendees).mockResolvedValue({ event: "e1", count: 0, results: [] });
+    wrap(<GuestList eventId="e1" />);
+    await screen.findByText(/No bookings yet/);
+    expect(screen.queryByRole("button", { name: "Download guest list" })).not.toBeInTheDocument();
+  });
+
   it("says so when nobody has booked yet", async () => {
     vi.mocked(api.getEventAttendees).mockResolvedValue({ event: "e1", count: 0, results: [] });
     wrap(<GuestList eventId="e1" />);

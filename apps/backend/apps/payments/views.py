@@ -641,3 +641,23 @@ def _apply_refund_to_payment(payment: Payment):
     payment.status = (PaymentStatus.REFUNDED if settled >= payment.amount
                       else PaymentStatus.PARTIALLY_REFUNDED)
     payment.save(update_fields=["status"])
+
+
+def _stringify(value):
+    """Decimals travel as strings so no precision is lost on the way out."""
+    if isinstance(value, Decimal):
+        return str(value)
+    if isinstance(value, dict):
+        return {k: _stringify(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_stringify(v) for v in value]
+    return value
+
+
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def host_payout_statement(request):
+    """The signed-in host's own ticket money, night by night, with payout history."""
+    from .payouts import host_statement
+
+    return Response(_stringify(host_statement(request.user)))

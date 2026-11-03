@@ -18,8 +18,6 @@ const venue = (over: Partial<api.ApiVenue> = {}): api.ApiVenue => ({
   address_line1: "12, 4th Main",
   address_line2: "",
   pincode: "570017",
-  lat: null,
-  lng: null,
   google_maps_url: "",
   ...over,
 });
@@ -38,16 +36,12 @@ describe("VenueLocationCard", () => {
     expect(screen.getByText(/12, 4th Main, Mysuru 570017/)).toBeInTheDocument();
   });
 
-  it("saves the link and a pin pasted from Google Maps, and clears nothing else", async () => {
-    vi.mocked(api.updateVenue).mockResolvedValue(
-      venue({ lat: "12.295800", lng: "76.639400", google_maps_url: "https://maps.app.goo.gl/abc" }),
-    );
+  it("saves the pasted Maps link with the address", async () => {
+    vi.mocked(api.updateVenue).mockResolvedValue(venue({ google_maps_url: "https://maps.app.goo.gl/abc" }));
     const user = userEvent.setup();
     render(<VenueLocationCard slug="gokulam" name="Gokulam Hall" />);
     await user.type(await screen.findByLabelText("Google Maps link"), "https://maps.app.goo.gl/abc");
-    await user.type(screen.getByLabelText("Map pin (optional)"), "12.2958, 76.6394");
-    expect(screen.getByText(/Pin found/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Show map" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Get directions/ })).toHaveAttribute("href", "https://maps.app.goo.gl/abc");
 
     await user.click(screen.getByRole("button", { name: "Save location" }));
 
@@ -57,30 +51,24 @@ describe("VenueLocationCard", () => {
         address_line2: "",
         pincode: "570017",
         google_maps_url: "https://maps.app.goo.gl/abc",
-        lat: "12.295800",
-        lng: "76.639400",
       }),
     );
     expect(await screen.findByText("Saved")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save location" })).toBeDisabled();
   });
 
-  it("takes the pin out of a pasted Maps link", async () => {
+  it("adds the https:// a host leaves off", async () => {
+    vi.mocked(api.updateVenue).mockResolvedValue(venue());
     const user = userEvent.setup();
     render(<VenueLocationCard slug="gokulam" name="Gokulam Hall" />);
-    await user.type(
-      await screen.findByLabelText("Map pin (optional)"),
-      "https://www.google.com/maps/place/X/@12.2958,76.6394,17z",
+    await user.type(await screen.findByLabelText("Google Maps link"), "maps.app.goo.gl/abc");
+    await user.click(screen.getByRole("button", { name: "Save location" }));
+    await waitFor(() =>
+      expect(api.updateVenue).toHaveBeenCalledWith(
+        "gokulam",
+        expect.objectContaining({ google_maps_url: "https://maps.app.goo.gl/abc" }),
+      ),
     );
-    expect(screen.getByText(/12\.295800, 76\.639400/)).toBeInTheDocument();
-  });
-
-  it("blocks saving a pin it cannot read, and says how to write it", async () => {
-    const user = userEvent.setup();
-    render(<VenueLocationCard slug="gokulam" name="Gokulam Hall" />);
-    await user.type(await screen.findByLabelText("Map pin (optional)"), "near the palace");
-    expect(screen.getByText(/latitude, longitude/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Save location" })).toBeDisabled();
   });
 
   it("blocks a link that is not a web address", async () => {
@@ -91,26 +79,14 @@ describe("VenueLocationCard", () => {
     expect(screen.getByRole("button", { name: "Save location" })).toBeDisabled();
   });
 
-  it("clears the pin on the server when the host empties the field", async () => {
-    vi.mocked(api.getVenue).mockResolvedValue(venue({ lat: "12.295800", lng: "76.639400" }));
-    vi.mocked(api.updateVenue).mockResolvedValue(venue());
-    const user = userEvent.setup();
-    render(<VenueLocationCard slug="gokulam" name="Gokulam Hall" />);
-    await user.clear(await screen.findByLabelText("Map pin (optional)"));
-    await user.click(screen.getByRole("button", { name: "Save location" }));
-    await waitFor(() =>
-      expect(api.updateVenue).toHaveBeenCalledWith("gokulam", expect.objectContaining({ lat: null, lng: null })),
-    );
-  });
-
   it("shows the server's reason when saving fails, and keeps the edits", async () => {
-    vi.mocked(api.updateVenue).mockRejectedValue(new api.ApiError(400, "Latitude is between -90 and 90."));
+    vi.mocked(api.updateVenue).mockRejectedValue(new api.ApiError(400, "That doesn't look like a web address."));
     const user = userEvent.setup();
     render(<VenueLocationCard slug="gokulam" name="Gokulam Hall" />);
     await user.clear(await screen.findByLabelText("Address"));
     await user.type(screen.getByLabelText("Address"), "99 New Road");
     await user.click(screen.getByRole("button", { name: "Save location" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Latitude is between");
+    expect(await screen.findByRole("alert")).toHaveTextContent("doesn't look like a web address");
     expect(screen.getByLabelText("Address")).toHaveValue("99 New Road");
   });
 });

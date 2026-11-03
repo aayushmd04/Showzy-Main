@@ -4,25 +4,21 @@ import { Field, Input } from "@/components/ui/input";
 import { VenueMap } from "@/components/naada/venue-map";
 import { actionError } from "@/components/naada/api-message";
 import { getVenue, updateVenue, type ApiVenue } from "@/lib/api";
-import { coordinatesOf, parseCoordinates, safeHttpUrl } from "@/lib/venue-map";
+import { normaliseLink, safeHttpUrl } from "@/lib/venue-map";
 
 interface Draft {
   address_line1: string;
   address_line2: string;
   pincode: string;
   google_maps_url: string;
-  /** "lat, lng" as the host would paste it. */
-  pin: string;
 }
 
 function draftOf(v: ApiVenue): Draft {
-  const pin = coordinatesOf(v);
   return {
     address_line1: v.address_line1 ?? "",
     address_line2: v.address_line2 ?? "",
     pincode: v.pincode ?? "",
     google_maps_url: v.google_maps_url ?? "",
-    pin: pin ? `${pin.lat}, ${pin.lng}` : "",
   };
 }
 
@@ -71,15 +67,10 @@ export function VenueLocationCard({ slug, name }: { slug: string; name: string }
     setError("");
   };
 
-  const pinText = draft.pin.trim();
-  const pin = parseCoordinates(pinText);
-  const pinProblem = pinText && !pin ? "Paste it as latitude, longitude — for example 12.2958, 76.6394." : "";
-  const linkText = draft.google_maps_url.trim();
-  const linkProblem = linkText && !safeHttpUrl(/^[a-z]+:\/\//i.test(linkText) ? linkText : `https://${linkText}`)
-    ? "That doesn't look like a web address."
-    : "";
+  const link = normaliseLink(draft.google_maps_url);
+  const linkProblem = link && !safeHttpUrl(link) ? "That doesn't look like a web address." : "";
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved);
-  const invalid = Boolean(pinProblem || linkProblem || !draft.address_line1.trim());
+  const invalid = Boolean(linkProblem || !draft.address_line1.trim());
 
   const save = async () => {
     setSaving(true);
@@ -89,9 +80,7 @@ export function VenueLocationCard({ slug, name }: { slug: string; name: string }
         address_line1: draft.address_line1.trim(),
         address_line2: draft.address_line2.trim(),
         pincode: draft.pincode.trim(),
-        google_maps_url: linkText,
-        lat: pin ? pin.lat.toFixed(6) : null,
-        lng: pin ? pin.lng.toFixed(6) : null,
+        google_maps_url: link,
       });
       setVenue({ ...venue, ...updated });
       const next = draftOf({ ...venue, ...updated });
@@ -111,8 +100,7 @@ export function VenueLocationCard({ slug, name }: { slug: string; name: string }
         Location
       </h2>
       <p className="t-small mt-1 text-muted">
-        Guests see this on your event pages, with a "Get directions" button and — if you add a pin —
-        a map.
+        Guests see this on your event pages, with a "Get directions" button.
       </p>
 
       <div className="mt-4 space-y-4">
@@ -146,7 +134,7 @@ export function VenueLocationCard({ slug, name }: { slug: string; name: string }
         <Field
           label="Google Maps link"
           htmlFor="vl-link"
-          hint="Open your venue in Google Maps → Share → Copy link."
+          hint="Open your venue in Google Maps → Share → Copy link, and paste it here. Guests get a “Get directions” button that opens it."
         >
           <Input
             id="vl-link"
@@ -156,27 +144,6 @@ export function VenueLocationCard({ slug, name }: { slug: string; name: string }
             aria-invalid={linkProblem ? true : undefined}
           />
           {linkProblem && <p className="t-small mt-1 text-fault">{linkProblem}</p>}
-        </Field>
-        <Field
-          label="Map pin (optional)"
-          htmlFor="vl-pin"
-          hint="In Google Maps, right-click your door and click the numbers to copy them. Pasting a full Maps link works too."
-        >
-          <Input
-            id="vl-pin"
-            value={draft.pin}
-            onChange={(e) => patch({ pin: e.target.value })}
-            placeholder="12.2958, 76.6394"
-            className="t-mono"
-            aria-invalid={pinProblem ? true : undefined}
-          />
-          {pinProblem ? (
-            <p className="t-small mt-1 text-fault">{pinProblem}</p>
-          ) : pin ? (
-            <p className="t-small mt-1 text-muted">
-              Pin found: <span className="t-mono">{pin.lat.toFixed(6)}, {pin.lng.toFixed(6)}</span>
-            </p>
-          ) : null}
         </Field>
       </div>
 
@@ -215,11 +182,7 @@ export function VenueLocationCard({ slug, name }: { slug: string; name: string }
               pincode: draft.pincode,
               area_name: venue.area_name,
               city_name: venue.city_name,
-              lat: pin?.lat ?? null,
-              lng: pin?.lng ?? null,
-              google_maps_url: linkText && !linkProblem
-                ? /^[a-z]+:\/\//i.test(linkText) ? linkText : `https://${linkText}`
-                : "",
+              google_maps_url: linkProblem ? "" : link,
             }}
           />
         </div>

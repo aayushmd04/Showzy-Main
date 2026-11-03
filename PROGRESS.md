@@ -104,8 +104,8 @@ Constraints that apply to every task:
 - Social link previews need the prerender step in DEPLOY.md; per-route meta
   tags work today for search engines that run JavaScript.
 - (E11 ticket transfer and E13 venue maps have shipped: transfer reissues the
-  QR and notifies the recipient; the event page shows the address, a directions
-  link and a click-to-load OpenStreetMap.)
+  QR and notifies the recipient; the event page shows the address and a
+  "Get directions" link from the venue's Google Maps link.)
 
 ## Deployment answers owed to the founder
 - Supabase = Postgres/storage only; it does not host Django. Recommendation and

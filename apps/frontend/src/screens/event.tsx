@@ -269,8 +269,6 @@ export function EventScreen() {
                     pincode: raw.venue.pincode,
                     area_name: raw.venue.area_name ?? venue?.area,
                     city_name: raw.venue.city_name ?? raw.city_name,
-                    lat: raw.venue.lat,
-                    lng: raw.venue.lng,
                     google_maps_url: raw.venue.google_maps_url,
                   }}
                 />

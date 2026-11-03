@@ -45,8 +45,6 @@ const detail = (tiers: unknown[]) =>
       capacity: 120,
       address_line1: "12, 4th Main",
       city_name: "Mysuru",
-      lat: "12.295800",
-      lng: "76.639400",
       google_maps_url: "https://maps.app.goo.gl/abc",
     },
     start_datetime: "2099-01-10T19:00:00+05:30",
@@ -150,8 +148,7 @@ describe("Event page ticket quantity", () => {
     expect(screen.getByTestId("draft")).toHaveTextContent("General|6");
   });
 
-  it("shows where the venue is, with directions and a map only on request", async () => {
-    const user = userEvent.setup();
+  it("shows where the venue is, with a directions link from the host's Maps link", async () => {
     const { container } = open([tier()]);
     await screen.findByText("The venue");
     expect(screen.getByText(/12, 4th Main, Mysuru/)).toBeInTheDocument();
@@ -160,7 +157,5 @@ describe("Event page ticket quantity", () => {
       "https://maps.app.goo.gl/abc",
     );
     expect(container.querySelector("iframe")).toBeNull();
-    await user.click(screen.getByRole("button", { name: "Show map" }));
-    expect(container.querySelector("iframe")).not.toBeNull();
   });
 });

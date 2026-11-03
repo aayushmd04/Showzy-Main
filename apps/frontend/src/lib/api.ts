@@ -381,8 +381,6 @@ export interface ApiVenue {
   address_line1?: string;
   address_line2?: string;
   pincode?: string;
-  lat?: string | null;
-  lng?: string | null;
   google_maps_url?: string;
   primary_photo?: string;
   slug?: string;
@@ -1440,9 +1438,8 @@ export interface VenueWritePayload {
   contact_email?: string;
   website?: string;
   instagram?: string;
-  /** null clears the pin. */
-  lat?: string | null;
-  lng?: string | null;
+  lat?: string;
+  lng?: string;
   google_maps_url?: string;
   has_parking?: boolean;
   is_accessible?: boolean;

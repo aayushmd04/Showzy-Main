@@ -87,28 +87,6 @@ class VenueCreateUpdateSerializer(PayoutFieldsMixin, serializers.ModelSerializer
         exclude = ["owner", "is_deleted", "deleted_at", "is_verified", "is_featured", "slug"]
         read_only_fields = PAYOUT_READ_ONLY_FIELDS
 
-    def validate_lat(self, value):
-        if value is not None and not -90 <= value <= 90:
-            raise serializers.ValidationError("Latitude is between -90 and 90.")
-        return value
-
-    def validate_lng(self, value):
-        if value is not None and not -180 <= value <= 180:
-            raise serializers.ValidationError("Longitude is between -180 and 180.")
-        return value
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-        # A pin needs both halves; one without the other would plot nothing, or
-        # worse, somewhere on the equator.
-        inst = self.instance
-        lat = attrs.get("lat", inst.lat if inst else None)
-        lng = attrs.get("lng", inst.lng if inst else None)
-        if (lat is None) != (lng is None):
-            raise serializers.ValidationError(
-                {"lat" if lat is None else "lng": "Give both latitude and longitude, or neither."})
-        return attrs
-
     def create(self, validated_data):
         from django.utils.text import slugify
         import uuid as _uuid

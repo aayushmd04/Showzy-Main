@@ -1,135 +1,108 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
+import { Landmark, MapPin, Search } from "lucide-react";
 import { PublicShell } from "@/components/naada/public-shell";
+import { Avatar } from "@/components/naada/avatar";
+import { IconTile } from "@/components/naada/icon-tile";
 import { useStore } from "@/store/app-store";
+import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { usePageMeta } from "@/lib/use-meta";
-
-const CARD_TOKENS = {
-  dark:  { paper: "#ECECEC", muted: "rgba(255,255,255,.62)", signal: "#C4472E", surface: "#1E1E1E", cardBorder: "rgba(255,255,255,.16)" },
-  light: { paper: "#241C15", muted: "rgba(36,28,21,.62)",    signal: "#8C2B3E", surface: "#FFFCF4", cardBorder: "rgba(36,28,21,.16)" },
-};
+import { today } from "@/lib/format";
 
 export function VenuesScreen() {
-  usePageMeta({ title: "Venues", description: "Intimate spaces hosting grassroots live music across Mysuru and Bengaluru." });
-  const { venues, theme, events } = useStore();
+  usePageMeta({ title: "Venues", description: "Intimate spaces hosting live art across Mysuru and Bengaluru." });
+  const { venues, events } = useStore();
+  const { open: openAuth } = useAuthSheet();
   const [query, setQuery] = useState("");
-  const isDark = theme === "dark";
-  const tok = isDark ? CARD_TOKENS.dark : CARD_TOKENS.light;
 
-  const filtered = venues.filter((v) =>
-    !query || v.name.toLowerCase().includes(query.toLowerCase()) || v.area?.toLowerCase().includes(query.toLowerCase()),
-  );
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return venues.filter((v) => !q || v.name.toLowerCase().includes(q) || v.area?.toLowerCase().includes(q));
+  }, [venues, query]);
 
   return (
     <PublicShell>
-      <div style={{ padding: "40px var(--page-pad) 80px" }}>
-        {/* Header */}
-        <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: 32, fontWeight: 800, color: tok.paper, margin: 0 }}>Venues</h1>
-          <p style={{ fontSize: 15, color: tok.muted, marginTop: 8 }}>
-            Intimate spaces hosting grassroots live music across Mysuru and Bengaluru.
-          </p>
-        </div>
+      <div className="px-[var(--page-pad)] pb-20 pt-8 md:pt-10">
+        <h1 className="font-megrim text-[clamp(30px,4vw,44px)] font-normal uppercase leading-tight">Venues</h1>
+        <p className="mt-1 max-w-[56ch] text-[15px] text-muted">
+          Intimate spaces hosting live art across Mysuru and Bengaluru. Open one to see what's on, what it has hosted and what people said.
+        </p>
 
-        {/* Search */}
-        <div style={{ marginBottom: 28 }}>
+        <label className="relative mt-6 block max-w-[400px]">
+          <span className="sr-only">Search venues or areas</span>
+          <Search aria-hidden="true" className="pointer-events-none absolute left-3.5 top-1/2 size-[17px] -translate-y-1/2 text-muted" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search venues or areas…"
-            style={{
-              width: "100%", maxWidth: 400, minHeight: 42,
-              border: `1px solid ${tok.cardBorder}`,
-              background: tok.surface, borderRadius: 6, padding: "0 14px",
-              fontFamily: "inherit", fontSize: 14, color: tok.paper, outline: "none",
-              boxSizing: "border-box",
-            }}
+            placeholder="Search venues or areas"
+            className="h-11 w-full rounded-md border border-[var(--field-border)] bg-[var(--field-bg)] pl-10 pr-3 text-[15px] text-paper placeholder:text-muted focus:border-signal focus:outline-none"
           />
-        </div>
+        </label>
 
-        <p style={{ fontSize: 13, color: tok.muted, marginBottom: 20 }}>
+        <p className="mt-5 text-[13px] text-muted" aria-live="polite">
           {filtered.length} venue{filtered.length !== 1 ? "s" : ""}
         </p>
 
-        {/* Grid */}
         {filtered.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 0", color: tok.muted }}>
-            <p style={{ fontSize: 18 }}>No venues found</p>
+          <div className="glass-soft mt-4 rounded-xl border-dashed p-10 text-center">
+            <p className="text-[17px] font-semibold">No venues found</p>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 16 }}>
+          <ul className="mt-4 grid gap-3 sm:grid-cols-2 md:gap-4 lg:grid-cols-3 xl:grid-cols-4">
             {filtered.map((v) => {
-              const venueEvents = events.filter((e) => e.venueId === v.id && e.status === "published");
-              return (
-                <div
-                  key={v.id}
-                  style={{
-                    border: `1px solid ${tok.cardBorder}`, background: tok.surface,
-                    borderRadius: 4, overflow: "hidden",
-                  }}
-                >
-                  {/* A room is worth showing. The mark stands in when there's no photo yet. */}
-                  {v.photo ? (
-                    <div style={{ aspectRatio: "16 / 9", overflow: "hidden", background: `${tok.signal}12` }}>
-                      <img
-                        src={v.photo}
-                        alt={`Inside ${v.name}`}
-                        loading="lazy"
-                        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-                      />
-                    </div>
-                  ) : (
-                    <div style={{
-                      aspectRatio: "16 / 9",
-                      background: `${tok.signal}12`, borderBottom: `1px solid ${tok.cardBorder}`,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 26, color: tok.signal,
-                    }}>
-                      ♪
-                    </div>
-                  )}
-
-                  <div style={{ padding: "20px" }}>
-                  <p style={{ fontSize: 17, fontWeight: 700, color: tok.paper, margin: 0 }}>{v.name}</p>
-                  <p style={{ fontSize: 13, color: tok.muted, margin: "4px 0 0" }}>
-                    {v.area}{v.area ? " · " : ""}{v.capacity > 0 ? `Capacity ${v.capacity}` : "Intimate venue"}
-                  </p>
-
-                  {venueEvents.length > 0 && (
-                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${tok.cardBorder}` }}>
-                      <p style={{ fontSize: 11, color: tok.muted, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8, fontWeight: 600 }}>
-                        Upcoming
-                      </p>
-                      {venueEvents.slice(0, 2).map((e) => (
-                        <p key={e.id} style={{ fontSize: 13, color: tok.muted, margin: "4px 0" }}>
-                          · {e.name}
-                        </p>
-                      ))}
-                    </div>
-                  )}
+              const upcoming = events.filter((e) => e.venueId === v.id && e.status === "published" && e.date >= today());
+              const card = (
+                <>
+                  <div className="relative aspect-[16/10] overflow-hidden bg-surface-2">
+                    <Avatar src={v.photo} name={v.name} rounded="rounded-none" className="transition-transform duration-500 group-hover:scale-[1.03]" />
                   </div>
-                </div>
+                  <div className="p-4">
+                    <h3 className="line-clamp-1 text-[17px] font-semibold">{v.name}</h3>
+                    <p className="mt-0.5 flex items-center gap-1 text-[14px] text-muted">
+                      <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+                      <span className="line-clamp-1">
+                        {[v.area, v.capacity > 0 ? `${v.capacity} seats` : "Intimate room"].filter(Boolean).join(" · ")}
+                      </span>
+                    </p>
+                    <p className="mt-3 border-t border-[var(--glass-border-soft)] pt-3 text-[13px] text-muted">
+                      {upcoming.length > 0
+                        ? `${upcoming.length} ${upcoming.length === 1 ? "night" : "nights"} coming up`
+                        : "Nothing announced yet"}
+                    </p>
+                  </div>
+                </>
+              );
+              const cls = "glass-soft group block overflow-hidden rounded-xl text-paper no-underline transition-transform duration-300 hover:-translate-y-1";
+              return (
+                <li key={v.id}>
+                  {v.slug ? (
+                    <Link to={`/v/${v.slug}`} className={cls}>
+                      {card}
+                    </Link>
+                  ) : (
+                    <div className={cls}>{card}</div>
+                  )}
+                </li>
               );
             })}
-          </div>
+          </ul>
         )}
 
-        {/* Host CTA */}
-        <div style={{ marginTop: 64, textAlign: "center", padding: "40px 24px", border: `1px solid ${tok.cardBorder}`, borderRadius: 8, background: tok.surface }}>
-          <h2 style={{ fontSize: 22, fontWeight: 800, color: tok.paper, margin: 0 }}>Host events at your space?</h2>
-          <p style={{ fontSize: 15, color: tok.muted, marginTop: 8, maxWidth: 480, margin: "8px auto 0" }}>
+        <section className="glass-soft mt-14 flex flex-col items-center gap-4 rounded-2xl px-6 py-10 text-center">
+          <IconTile icon={Landmark} />
+          <h2 className="font-megrim text-[clamp(22px,3vw,30px)] font-normal uppercase leading-tight">Host events at your space?</h2>
+          <p className="max-w-[48ch] text-[15px] text-muted">
             List your venue on Showzy and connect with artists looking for intimate performance spaces.
           </p>
-          <a
-            href="mailto:hello@naada.live"
-            style={{
-              display: "inline-block", marginTop: 20, background: tok.signal, borderRadius: 999,
-              padding: "12px 28px", fontSize: 15, fontWeight: 700, color: "#ECECEC", textDecoration: "none",
-            }}
+          <button
+            type="button"
+            onClick={() => openAuth("Host your event on Showzy", { preferRole: "host" })}
+            className="min-h-11 rounded-full bg-signal px-7 text-[15px] font-bold text-white transition-opacity hover:opacity-90"
           >
-            Get in touch
-          </a>
-        </div>
+            Start hosting
+          </button>
+        </section>
       </div>
     </PublicShell>
   );

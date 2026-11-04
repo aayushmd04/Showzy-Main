@@ -133,6 +133,7 @@ export function adaptArtist(a: ApiArtist): Artist {
 export function adaptVenue(v: ApiVenue): Venue {
   return {
     id: v.id,
+    slug: v.slug,
     name: v.name,
     area: v.area_name ?? v.area ?? v.city_name ?? v.city ?? "",
     capacity: v.capacity ?? 0,

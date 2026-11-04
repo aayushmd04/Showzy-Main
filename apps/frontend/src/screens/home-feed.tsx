@@ -11,9 +11,10 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ChevronLeft, ChevronRight, MapPin } from "lucide-react";
 
 import { PublicShell } from "@/components/naada/public-shell";
+import { Avatar } from "@/components/naada/avatar";
 import { CategoryRow } from "@/components/naada/category-row";
 import { FeedCarousel, type FeedSlide } from "@/components/naada/feed-carousel";
-import { CATEGORIES, inCategory, type CategoryId } from "@/lib/categories";
+import { searchAll } from "@/lib/search";
 import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { useStore } from "@/store/app-store";
 import type { Artist, NaadaEvent, Venue } from "@/data/fixtures";
@@ -223,7 +224,7 @@ function TypesetArt({ event }: { event: NaadaEvent }) {
   );
 }
 
-function PosterCard({ event, index, venue }: { event: NaadaEvent; index: number; venue?: Venue }) {
+export function PosterCard({ event, index, venue }: { event: NaadaEvent; index: number; venue?: Venue }) {
   const low = lowest(event);
   const price = soldOut(event) ? "Sold out" : low === null ? "Details soon" : low === 0 ? "Free entry" : `From ${money(low)}`;
   return (
@@ -307,15 +308,11 @@ function PosterSkeleton() {
   );
 }
 
-function ArtistCard({ artist }: { artist: Artist }) {
+export function ArtistCard({ artist }: { artist: Artist }) {
   return (
     <Link to={`/a/${artist.id}`} className="glass-soft block rounded-xl p-3 text-center text-paper no-underline transition-transform duration-300 hover:-translate-y-1">
-      <div className="mx-auto grid size-24 place-items-center overflow-hidden rounded-full border border-white/20 bg-surface-2 sm:size-28">
-        {artist.photo ? (
-          <img src={artist.photo} alt="" loading="lazy" className="size-full object-cover" />
-        ) : (
-          <span className="font-megrim text-[40px] uppercase">{artist.name.slice(0, 1)}</span>
-        )}
+      <div className="mx-auto size-24 overflow-hidden rounded-full border border-white/20 bg-surface-2 sm:size-28">
+        <Avatar src={artist.photo} name={artist.name} />
       </div>
       <h3 className="mt-2 line-clamp-1 text-[16px] font-semibold">{artist.name}</h3>
       <p className="line-clamp-1 text-[14px] text-muted">{artist.genres.slice(0, 2).join(" · ") || artist.city}</p>
@@ -323,10 +320,10 @@ function ArtistCard({ artist }: { artist: Artist }) {
   );
 }
 
-function VenueCard({ venue, index }: { venue: Venue; index: number }) {
+export function VenueCard({ venue, index }: { venue: Venue; index: number }) {
   return (
     <Link
-      to="/venues"
+      to={venue.slug ? `/v/${venue.slug}` : "/venues"}
       className="glass-soft block overflow-hidden rounded-xl text-paper no-underline transition-transform duration-300 hover:-translate-y-1"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-surface-2">
@@ -357,8 +354,6 @@ export function HomeFeed() {
   const [params] = useSearchParams();
   const q = (params.get("q") ?? "").trim().toLowerCase();
   const [city, setCity] = useState(() => getNearbyCity() ?? "all");
-  const [genre, setGenre] = useState<string | null>(null);
-  const [category, setCategory] = useState<CategoryId | null>(null);
   const top = useRef<HTMLDivElement>(null);
   const rails = useRef<HTMLDivElement>(null);
   const kn = lang === "kn";
@@ -409,29 +404,18 @@ export function HomeFeed() {
     return Object.entries(n).sort((a, b) => b[1] - a[1]);
   }, [upcoming]);
 
-  const shown = useMemo(
-    () =>
-      upcoming
-        .filter((e) => !genre || e.genres.includes(genre))
-        .filter((e) => !category || inCategory(category, e.genres)),
-    [upcoming, genre, category],
-  );
+  const shown = upcoming;
 
-  const results = useMemo(() => {
-    if (!q) return [];
-    return upcoming.filter((e) => {
-      const v = venueOf(e);
-      const lineup = e.lineup.map((id) => artists.find((a) => a.id === id)?.name ?? "").join(" ");
-      return `${e.name} ${v?.name ?? ""} ${v?.area ?? ""} ${e.genres.join(" ")} ${lineup}`.toLowerCase().includes(q);
-    });
-  }, [q, upcoming, venueOf, artists]);
+  // Search looks across everything on the site, not just tonight's rails.
+  const found = useMemo(
+    () => (q ? searchAll(q, { events: upcoming, artists, venues, venueOf }) : { events: [], artists: [], venues: [] }),
+    [q, upcoming, artists, venues, venueOf],
+  );
+  const resultCount = found.events.length + found.artists.length + found.venues.length;
 
   const weekEnd = daysFromNow(7);
   const thisWeek = shown.filter((e) => e.date <= weekEnd);
   const free = shown.filter(isFree);
-  const activeCategory = CATEGORIES.find((c) => c.id === category);
-  const categoryLabel = activeCategory?.label.toLowerCase() ?? "";
-  const categoryLabelKn = activeCategory?.labelKn ?? "";
   const where = city === "all" ? t("Mysuru & Bengaluru", "ಮೈಸೂರು ಮತ್ತು ಬೆಂಗಳೂರು") : city;
   const seeAll = t("See all", "ಎಲ್ಲವನ್ನೂ ನೋಡಿ");
 
@@ -535,10 +519,10 @@ export function HomeFeed() {
       <PublicShell>
         <div className="w-full px-[var(--page-pad)] py-6">
           <h1 className="t-h1">{t("Search", "ಹುಡುಕಾಟ")}</h1>
-          <p className="mt-2 text-[15px] text-muted">
-            {results.length} {results.length === 1 ? "result" : "results"} for “{params.get("q")}” in {where}
+          <p className="mt-2 text-[15px] text-muted" role="status">
+            {resultCount} {resultCount === 1 ? "result" : "results"} for “{params.get("q")}” in {where}
           </p>
-          {results.length === 0 ? (
+          {resultCount === 0 ? (
             <div className="mt-8 glass-soft rounded-xl border-dashed p-8 text-center">
               <p className="text-[17px] font-semibold">{t("Nothing matched that search", "ಯಾವುದೂ ಹೊಂದಿಕೆಯಾಗಲಿಲ್ಲ")}</p>
               <p className="mt-1 text-[15px] text-muted">
@@ -555,10 +539,41 @@ export function HomeFeed() {
               )}
             </div>
           ) : (
-            <div className="mt-6 grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
-              {results.map((e, i) => (
-                <div key={e.id}>{poster(e, i)}</div>
-              ))}
+            <div className="mt-6 space-y-10">
+              {found.artists.length > 0 && (
+                <section aria-label={t("Artists", "ಕಲಾವಿದರು")}>
+                  <h2 className="t-micro mb-3">{t("Artists", "ಕಲಾವಿದರು")}</h2>
+                  <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+                    {found.artists.map((a) => (
+                      <li key={a.id}>
+                        <ArtistCard artist={a} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {found.venues.length > 0 && (
+                <section aria-label={t("Venues", "ಸ್ಥಳಗಳು")}>
+                  <h2 className="t-micro mb-3">{t("Venues", "ಸ್ಥಳಗಳು")}</h2>
+                  <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                    {found.venues.map((v, i) => (
+                      <li key={v.id}>
+                        <VenueCard venue={v} index={i} />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+              {found.events.length > 0 && (
+                <section aria-label={t("Events", "ಕಾರ್ಯಕ್ರಮಗಳು")}>
+                  <h2 className="t-micro mb-3">{t("Events", "ಕಾರ್ಯಕ್ರಮಗಳು")}</h2>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-6 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
+                    {found.events.map((e, i) => (
+                      <div key={e.id}>{poster(e, i)}</div>
+                    ))}
+                  </div>
+                </section>
+              )}
             </div>
           )}
         </div>
@@ -583,13 +598,9 @@ export function HomeFeed() {
             {t("Pick an art form to see what's on", "ಏನಿದೆ ನೋಡಲು ಕಲಾ ಪ್ರಕಾರ ಆರಿಸಿ")}
           </p>
           <CategoryRow
-            value={category}
-            onChange={setCategory}
-            onSeeAll={() => {
-              setCategory(null);
-              setGenre(null);
-              rails.current?.scrollIntoView({ behavior: "smooth" });
-            }}
+            value={null}
+            onChange={(id) => id && navigate(`/explore?category=${id}`)}
+            onSeeAll={() => navigate("/explore")}
           />
         </section>
 
@@ -624,31 +635,21 @@ export function HomeFeed() {
           </section>
         ) : shown.length === 0 ? (
           <div className="glass-soft rounded-xl border-dashed p-8 text-center">
-            <p className="text-[18px] font-semibold">
-              {category
-                ? t(`No ${categoryLabel} events yet`, `ಇನ್ನೂ ${categoryLabelKn} ಕಾರ್ಯಕ್ರಮಗಳಿಲ್ಲ`)
-                : t("Nothing on sale right now", "ಇದೀಗ ಯಾವುದೂ ಮಾರಾಟದಲ್ಲಿಲ್ಲ")}
-            </p>
+            <p className="text-[18px] font-semibold">{t("Nothing on sale right now", "ಇದೀಗ ಯಾವುದೂ ಮಾರಾಟದಲ್ಲಿಲ್ಲ")}</p>
             <p className="mt-1 text-[15px] text-muted">
-              {category
-                ? t("New ones are added all the time. Check back soon, or look at everything that's on.", "ಹೊಸವು ಆಗಾಗ ಸೇರುತ್ತವೆ. ಶೀಘ್ರದಲ್ಲೇ ಮತ್ತೆ ನೋಡಿ, ಅಥವಾ ಎಲ್ಲವನ್ನೂ ನೋಡಿ.")
-                : t("Try another city or type, or check back soon.", "ಬೇರೆ ನಗರ ಅಥವಾ ಪ್ರಕಾರ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ಮತ್ತೆ ನೋಡಿ.")}
+              {t("Try another city, or check back soon.", "ಬೇರೆ ನಗರ ಪ್ರಯತ್ನಿಸಿ, ಅಥವಾ ಮತ್ತೆ ನೋಡಿ.")}
             </p>
-            <div className="mt-4 flex flex-wrap justify-center gap-3">
-              {(city !== "all" || genre || category) && (
+            {city !== "all" && (
+              <div className="mt-4 flex flex-wrap justify-center gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setGenre(null);
-                    setCategory(null);
-                    setNearbyCity("all");
-                  }}
+                  onClick={() => setNearbyCity("all")}
                   className="min-h-11 rounded-md border border-line px-5 text-[15px] font-semibold hover:border-paper/50"
                 >
                   {t("Show everything", "ಎಲ್ಲವನ್ನೂ ತೋರಿಸಿ")}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         ) : (
           <Rail
@@ -689,7 +690,7 @@ export function HomeFeed() {
           />
         )}
 
-        {/* Best of live arts: tiles that filter the rails above */}
+        {/* Best of live arts: each tile opens that art form on its own page */}
         {genres.length > 0 && (
           <section aria-label={t("The best of live arts", "ಲೈವ್ ಕಲೆಯ ಅತ್ಯುತ್ತಮ")}>
             <h2 className="mb-3 font-megrim text-[clamp(22px,3vw,32px)] font-normal uppercase leading-tight tracking-[0.02em]">
@@ -700,14 +701,10 @@ export function HomeFeed() {
                 const sample = upcoming.find((e) => e.genres.includes(g));
                 const colour = GENRE_COLOURS[i % GENRE_COLOURS.length];
                 return (
-                  <button
+                  <Link
                     key={g}
-                    type="button"
-                    onClick={() => {
-                      setGenre(g);
-                      top.current?.scrollIntoView({ behavior: "smooth" });
-                    }}
-                    className="relative isolate h-[130px] w-[44vw] max-w-[200px] shrink-0 snap-start overflow-hidden rounded-xl text-left text-white sm:w-[200px] lg:w-[220px] lg:max-w-none 2xl:w-[250px]"
+                    to={`/explore?genre=${encodeURIComponent(g)}`}
+                    className="relative isolate h-[130px] w-[44vw] max-w-[200px] shrink-0 snap-start overflow-hidden rounded-xl text-left text-white no-underline sm:w-[200px] lg:w-[220px] lg:max-w-none 2xl:w-[250px]"
                     style={{ background: colour }}
                   >
                     {sample && (
@@ -726,7 +723,7 @@ export function HomeFeed() {
                         {n} {n === 1 ? t("event", "ಕಾರ್ಯಕ್ರಮ") : t("events", "ಕಾರ್ಯಕ್ರಮಗಳು")}
                       </span>
                     </span>
-                  </button>
+                  </Link>
                 );
               })}
             </div>

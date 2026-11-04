@@ -1,6 +1,7 @@
 from rest_framework import serializers
-from .models import Venue, VenuePhoto, VenueHours, VenueOperatorAccess
+from .models import Venue, VenuePhoto, VenueHours, VenueOperatorAccess, VenueFollower
 from apps.core.serializers import CitySerializer, AreaSerializer
+from apps.core import privacy
 from apps.core.urlfields import ForgivingURLField, IndianPhoneField, SocialHandleField
 from apps.core.payout_fields import PayoutFieldsMixin, PAYOUT_READ_ONLY_FIELDS, PayoutDetailReadMixin
 
@@ -44,6 +45,38 @@ class VenueListSerializer(serializers.ModelSerializer):
             return request.build_absolute_uri(photo.image.url) if request and photo.image else None
         return None
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        owner = privacy.is_staff(user) or (
+            privacy._authed(user) and instance.owner_id == user.id
+        )
+        # The floor plan is the owner's working document (and reaches buyers
+        # through the event's own seat map), not part of a public listing.
+        if not owner:
+            data.pop("layout", None)
+        return data
+
+
+#: How to reach the venue directly, who owns it, and its floor plan. The
+#: public page is about the room and its nights; the owner and staff see the rest.
+_VENUE_OWNER_ONLY = ("contact_email", "contact_phone", "owner_name", "owner", "layout", "operator_access")
+
+
+def _event_card(event, request):
+    """What a venue page needs to show one of its nights."""
+    poster = None
+    if event.poster_image:
+        poster = request.build_absolute_uri(event.poster_image.url) if request else event.poster_image.url
+    return {
+        "id": str(event.id),
+        "title": event.title,
+        "start_datetime": event.start_datetime.isoformat(),
+        "poster_image": poster,
+        "genres": [g.name for g in event.genres.all()],
+    }
+
 
 class VenueDetailSerializer(PayoutDetailReadMixin, serializers.ModelSerializer):
     city = CitySerializer(read_only=True)
@@ -56,6 +89,13 @@ class VenueDetailSerializer(PayoutDetailReadMixin, serializers.ModelSerializer):
     bank_account_last4 = serializers.ReadOnlyField()
     has_bank_details = serializers.ReadOnlyField()
     can_receive_payouts = serializers.ReadOnlyField()
+    follower_count = serializers.SerializerMethodField()
+    is_following = serializers.SerializerMethodField()
+    avg_rating = serializers.SerializerMethodField()
+    review_count = serializers.SerializerMethodField()
+    recent_reviews = serializers.SerializerMethodField()
+    upcoming_events = serializers.SerializerMethodField()
+    past_events = serializers.SerializerMethodField()
 
     class Meta:
         model = Venue
@@ -66,6 +106,70 @@ class VenueDetailSerializer(PayoutDetailReadMixin, serializers.ModelSerializer):
 
     def _is_payout_owner(self, instance, user):
         return instance.owner_id == user.id
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        owner = privacy.is_staff(user) or (
+            privacy._authed(user) and instance.owner_id == user.id
+        )
+        if not owner:
+            for key in _VENUE_OWNER_ONLY:
+                data.pop(key, None)
+        return data
+
+    # ── Public reputation: what people who went said, and who follows ────────
+    def _reviews(self, obj):
+        from apps.events.models import EventReview
+        return EventReview.objects.filter(event__venue=obj, is_published=True)
+
+    def get_follower_count(self, obj):
+        return obj.followers.count()
+
+    def get_is_following(self, obj):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        return bool(privacy._authed(user) and obj.followers.filter(user=user).exists())
+
+    def get_avg_rating(self, obj):
+        from django.db.models import Avg
+        avg = self._reviews(obj).aggregate(a=Avg("rating"))["a"]
+        return round(float(avg), 1) if avg is not None else None
+
+    def get_review_count(self, obj):
+        return self._reviews(obj).count()
+
+    def get_recent_reviews(self, obj):
+        rows = self._reviews(obj).select_related("reviewer", "event").order_by("-created_at")[:5]
+        return [{
+            "id": str(r.id),
+            "reviewer_name": r.reviewer.name,
+            "rating": r.rating,
+            "comment": r.comment,
+            "event_title": r.event.title,
+            "is_verified_attendee": r.is_verified_attendee,
+            "created_at": r.created_at.isoformat(),
+        } for r in rows]
+
+    def _events(self, obj):
+        from apps.events.models import Event, EventStatus
+        return Event.objects.filter(
+            venue=obj, is_deleted=False,
+            status__in=[EventStatus.PUBLISHED, EventStatus.SOLD_OUT, EventStatus.LIVE, EventStatus.PAST],
+        ).prefetch_related("genres")
+
+    def get_upcoming_events(self, obj):
+        from django.utils import timezone
+        request = self.context.get("request")
+        rows = self._events(obj).filter(end_datetime__gte=timezone.now()).order_by("start_datetime")[:12]
+        return [_event_card(e, request) for e in rows]
+
+    def get_past_events(self, obj):
+        from django.utils import timezone
+        request = self.context.get("request")
+        rows = self._events(obj).filter(end_datetime__lt=timezone.now()).order_by("-start_datetime")[:12]
+        return [_event_card(e, request) for e in rows]
 
 
 class VenueCreateUpdateSerializer(PayoutFieldsMixin, serializers.ModelSerializer):

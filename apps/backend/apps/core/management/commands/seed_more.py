@@ -18,6 +18,9 @@ from django.utils import timezone
 # Which picture goes with which demo row. A picture is used only where it truly fits (a
 # Bharatanatyam night shows a dancer, a jazz night a jazz band). `None` means "no photo":
 # the site then draws a typeset poster from the event name, or an initial for an artist.
+# Every demo artist now has a picture. Where no stock photo shows the person or the art form,
+# an atmospheric stage image stands in (a mic in a beam of light for a comedian), which reads
+# as a profile picture far better than a lone letter. They are stand-ins, not portraits.
 # Paths are relative to the shared media folder.
 EVENT_IMAGES = {
     "Late Bloom Improv: Tonight's Show": "venues/mic-in-light-beam.jpg",
@@ -34,6 +37,9 @@ EVENT_IMAGES = {
     "Storytelling Night: Tara D": "venues/four-chairs-blue-stage.jpg",
     "Contemporary Dance Showcase": None,
     "Street Play Festival: Day 1": None,
+    "Improv Jam: Open Stage": "venues/empty-stage-purple-wash.jpg",
+    "Improv for Beginners: Weekend Workshop": "venues/industrial-black-box.jpg",
+    "Monologue Night: Rangamanch": "venues/empty-stage-red-spots.jpg",
     "Comedy Double Bill": "venues/curtained-stage-mic.jpg",
     "Folk & Indie Sessions": "events/music-cafe-guitarist.jpg",
     # the original seed events
@@ -45,15 +51,15 @@ EVENT_IMAGES = {
 
 ARTIST_IMAGES = {
     "Anaya Rao": "events/classical-dancer-stage.jpg",
-    "Ishaan M": None,
+    "Ishaan M": "venues/curtained-stage-mic.jpg",
     "The Paper Boats": "events/acoustic-band-bar-night.jpg",
-    "Sahana Kulkarni": None,
+    "Sahana Kulkarni": "venues/empty-stage-red-spots.jpg",
     "Rangamanch Mysuru": "venues/theatre-seats-lit-stage.jpg",
-    "Tara D": None,
+    "Tara D": "venues/four-chairs-blue-stage.jpg",
     "Vikram Hegde": "events/indian-classical-spotlight.jpg",
-    "Late Bloom Improv": None,
+    "Late Bloom Improv": "venues/mic-in-light-beam.jpg",
     "Noor & The Strings": "events/jazz-duo-guitar-piano.jpg",
-    "Kiran Shetty": None,
+    "Kiran Shetty": "restaurants/art-filled-coffee-house.jpg",
     # the original seed artists
     "Rahul & The Mysore Blues": "artists/guitarist-stage-light.jpg",
     "Meghana K": "artists/singer-songwriter-glasses.jpg",
@@ -215,6 +221,12 @@ class Command(BaseCommand):
              "Short new works by local choreographers.", [("General", 249, 130, 22)], False),
             ("Street Play Festival: Day 1", "palm-street-studio", ["rangamanch.mysuru"], ["street-play", "theatre"], "theatre", 21, 16, 4,
              "Open-air street plays, free to watch.", [("Free Entry", 0, 200, 0)], True),
+            ("Improv Jam: Open Stage", "palm-street-studio", ["late.bloom.improv"], ["improv"], "comedy", 4, 18, 2,
+             "Bring a friend and get on stage. The troupe leads the games; everyone plays.", [("General", 149, 40, 9)], False),
+            ("Improv for Beginners: Weekend Workshop", "blue-door-gallery", ["late.bloom.improv"], ["improv"], "workshop", 9, 11, 3,
+             "Three hours of games and scenes. No experience needed, no pressure to be funny.", [("Workshop Seat", 399, 16, 5)], False),
+            ("Monologue Night: Rangamanch", "lantern-yard-cafe", ["rangamanch.mysuru"], ["theatre"], "theatre", 11, 19, 2,
+             "Short solo pieces by the collective's actors, in Kannada and English.", [("General", 179, 50, 8)], False),
             ("Comedy Double Bill", "koramangala-loft", ["ishaan.m", "late.bloom.improv"], ["stand-up-comedy", "improv"], "comedy", 26, 20, 3,
              "A stand-up set, then an improv show.", [("General", 299, 100, 15)], False),
             ("Folk & Indie Sessions", "lantern-yard-cafe", ["the.paper.boats", "noor.and.the.strings"], ["folk", "indie", "jazz"], "concert", 33, 19, 3,

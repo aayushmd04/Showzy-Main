@@ -1,3 +1,5 @@
+import { Landmark, Mic2, Ticket, type LucideIcon } from "lucide-react";
+import { IconTile } from "@/components/naada/icon-tile";
 import {
   createContext,
   useCallback,
@@ -463,10 +465,10 @@ function GoogleSignInButton({ onCredential }: { onCredential: (credential: strin
   return <div ref={boxRef} className="flex min-h-[44px] justify-center" />;
 }
 
-const ROLE_OPTIONS: { role: Role; label: string; description: string; emoji: string }[] = [
-  { role: "listener", label: "I'm here to watch",   description: "Browse events and book tickets near you",             emoji: "🎵" },
-  { role: "artist",   label: "I'm an artist",        description: "Get booked for gigs and receive payments via Showzy", emoji: "🎸" },
-  { role: "host",     label: "I host events",         description: "Create events, hire artists, sell tickets",         emoji: "🎪" },
+const ROLE_OPTIONS: { role: Role; label: string; description: string; icon: LucideIcon }[] = [
+  { role: "listener", label: "I'm here to watch",   description: "Browse events and book tickets near you",             icon: Ticket },
+  { role: "artist",   label: "I'm an artist",        description: "Get booked for gigs and receive payments via Showzy", icon: Mic2 },
+  { role: "host",     label: "I host events",         description: "Create events, hire artists, sell tickets",         icon: Landmark },
 ];
 
 function RoleStep({
@@ -483,7 +485,7 @@ function RoleStep({
         <p className="t-small mb-4 text-fault" role="alert">{error}</p>
       )}
       <div className="flex flex-col gap-3">
-        {ROLE_OPTIONS.map(({ role, label, description, emoji }) => (
+        {ROLE_OPTIONS.map(({ role, label, description, icon }) => (
           <button
             key={role}
             type="button"
@@ -492,7 +494,7 @@ function RoleStep({
             className="flex items-start gap-4 border border-line p-4 text-left transition-colors hover:border-signal hover:bg-surface-2 disabled:opacity-50"
             style={{ borderRadius: 6, background: "transparent", fontFamily: "inherit", cursor: loading ? "not-allowed" : "pointer" }}
           >
-            <span style={{ fontSize: 28, lineHeight: 1 }}>{emoji}</span>
+            <IconTile icon={icon} size={44} still />
             <span>
               <span className="block text-[15px] font-semibold text-paper">{label}</span>
               <span className="t-small block text-muted mt-0.5">{description}</span>

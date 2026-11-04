@@ -16,6 +16,8 @@ import { useConsent } from "@/lib/consent";
 import { useStore } from "@/store/app-store";
 import { getMe, tokens, AUTH_EXPIRED_EVENT } from "@/lib/api";
 import { trackPageview } from "@/lib/analytics";
+import { internalPath, prefetchPublicPagesWhenIdle, prefetchRoute } from "@/lib/prefetch";
+import { PublicShell } from "@/components/naada/public-shell";
 
 /*
  * The landing path loads eagerly: the home page, a gig, and the two checkout
@@ -56,7 +58,9 @@ function lazyScreen<K extends string, C extends React.ComponentType<any>>(
  * every first-time visitor download before they have seen a single gig. */
 const ArtistsScreen = lazyScreen(() => import("@/screens/artists"), "ArtistsScreen");
 const ArtistProfileScreen = lazyScreen(() => import("@/screens/artist-profile"), "ArtistProfileScreen");
+const ExploreScreen = lazyScreen(() => import("@/screens/explore"), "ExploreScreen");
 const VenuesScreen = lazyScreen(() => import("@/screens/venues"), "VenuesScreen");
+const VenueProfileScreen = lazyScreen(() => import("@/screens/venue-profile"), "VenueProfileScreen");
 const HowItWorksScreen = lazyScreen(() => import("@/screens/how-it-works"), "HowItWorksScreen");
 /* Post-purchase: nobody reaches these before they have bought something. */
 const TicketDetailScreen = lazyScreen(() => import("@/screens/ticket-detail"), "TicketDetailScreen");
@@ -99,7 +103,7 @@ const SavedScreen = lazyScreen(() => import("@/screens/saved"), "SavedScreen");
 function PageFade({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
   return (
-    <motion.div key={pathname} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.35, ease: "easeOut" }}>
+    <motion.div key={pathname} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.2, ease: "easeOut" }}>
       {children}
     </motion.div>
   );
@@ -182,14 +186,57 @@ function SessionWatch() {
   return null;
 }
 
+/**
+ * What shows while a page's code arrives. A public page keeps the site header
+ * and shows the shape of a page under a thin travelling line, so a click never
+ * turns into a blank screen. Console pages (which have their own shell) get the
+ * line and a quiet mark.
+ */
 function ScreenFallback() {
+  const { pathname } = useLocation();
+  const inConsole = /^\/(host|artist|admin|gate)(\/|$)/.test(pathname);
+  const bar = <div className="route-bar" aria-hidden="true" />;
+  if (inConsole) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-ink" role="status" aria-label="Loading">
+        {bar}
+        <span className="font-megrim text-[28px] uppercase tracking-[0.06em] text-paper/70 route-pulse">showzy</span>
+      </div>
+    );
+  }
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-ink">
-      <p className="t-micro text-muted" role="status">
-        Loading…
-      </p>
-    </div>
+    <PublicShell>
+      {bar}
+      <div className="px-[var(--page-pad)] pt-10" role="status" aria-label="Loading">
+        <div className="route-pulse h-9 w-56 rounded bg-paper/10" />
+        <div className="route-pulse mt-3 h-4 w-80 max-w-full rounded bg-paper/10" />
+        <div className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div key={i} className="route-pulse aspect-[3/4] rounded-xl bg-paper/10" style={{ animationDelay: `${i * 90}ms` }} />
+          ))}
+        </div>
+      </div>
+    </PublicShell>
   );
+}
+
+/** Warm the next page's code on idle and as a pointer or finger heads for a link. */
+function RoutePrefetcher() {
+  useEffect(() => {
+    const stopIdle = prefetchPublicPagesWhenIdle();
+    const warm = (e: Event) => {
+      const a = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      const path = a ? internalPath(a) : null;
+      if (path) prefetchRoute(path);
+    };
+    const events = ["pointerover", "focusin", "touchstart"] as const;
+    events.forEach((n) => document.addEventListener(n, warm, { passive: true }));
+    return () => {
+      stopIdle();
+      events.forEach((n) => document.removeEventListener(n, warm));
+    };
+  }, []);
+  return null;
 }
 
 const host = (element: React.ReactNode) => (
@@ -216,6 +263,7 @@ export default function App() {
               <SessionWatch />
               <BriefComposerProvider>
                 <ScrollToTop />
+                <RoutePrefetcher />
                 <PageviewTracker />
                 <Suspense fallback={<ScreenFallback />}>
                   <PageFade>
@@ -232,7 +280,9 @@ export default function App() {
                     <Route path="/e/:id" element={<EventScreen />} />
                     <Route path="/a/:id" element={<ArtistProfileScreen />} />
                     <Route path="/artists" element={<ArtistsScreen />} />
+                    <Route path="/explore" element={<ExploreScreen />} />
                     <Route path="/venues" element={<VenuesScreen />} />
+                    <Route path="/v/:slug" element={<VenueProfileScreen />} />
                     <Route path="/how-it-works" element={<HowItWorksScreen />} />
                     <Route path="/checkout/details" element={<CheckoutDetailsScreen />} />
                     <Route path="/checkout/pay" element={<CheckoutPayScreen />} />

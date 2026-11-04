@@ -35,11 +35,13 @@ export function normaliseLink(text: string): string {
 
 /** One line a person would read out: "12, 4th Main, Vijayanagar, Mysuru 570017". */
 export function addressLine(spot: VenueSpot): string {
-  return [spot.address_line1, spot.address_line2, spot.area_name, spot.city_name]
-    .map((p) => (p ?? "").trim())
-    .filter(Boolean)
-    .join(", ")
-    .concat(spot.pincode ? ` ${spot.pincode.trim()}` : "");
+  const parts: string[] = [];
+  for (const raw of [spot.address_line1, spot.address_line2, spot.area_name, spot.city_name]) {
+    const part = (raw ?? "").trim();
+    // Hosts often type the area into the address too; say it once.
+    if (part && !parts.join(", ").toLowerCase().includes(part.toLowerCase())) parts.push(part);
+  }
+  return parts.join(", ").concat(spot.pincode ? ` ${spot.pincode.trim()}` : "");
 }
 
 /**

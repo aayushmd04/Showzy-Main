@@ -246,10 +246,8 @@ class PublicProfilePayoutPrivacyTests(ArtistPayoutTestCase):
         self.assertEqual(resp.status_code, 200, resp.data)
         for field in self.private_fields:
             self.assertNotIn(field, resp.data, field)
-        # The genuinely public-safe payout summary still shows up.
-        self.assertIn("bank_account_last4", resp.data)
-        self.assertIn("has_bank_details", resp.data)
-        self.assertIn("can_receive_payouts", resp.data)
+        # Not even the last four digits: nobody but the owner has a use for them.
+        self.assertNotIn("bank_account_last4", resp.data)
 
     def test_other_signed_in_user_read_hides_payout_details(self):
         resp = self.stranger_client.get(reverse("artists-detail", args=[self.artist.id]))

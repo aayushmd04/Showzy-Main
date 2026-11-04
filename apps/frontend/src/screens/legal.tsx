@@ -111,17 +111,49 @@ function T({ head, rows }: { head: string[]; rows: string[][] }) {
   );
 }
 
+const CONFIG_KEY = "showzy_site_config";
+
+function readCachedConfig(): SiteConfig | null {
+  try {
+    const raw = sessionStorage.getItem(CONFIG_KEY);
+    return raw ? (JSON.parse(raw) as SiteConfig) : null;
+  } catch {
+    return null;
+  }
+}
+
+function cacheConfig(config: SiteConfig): void {
+  try {
+    sessionStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  } catch {
+    // Private mode or storage full: the page still works without the cache.
+  }
+}
+
 export function LegalScreen({ doc }: { doc: Doc }) {
   const { title, blurb } = TITLES[doc];
   usePageMeta({ title, description: blurb });
 
   // Operator details live on the backend so they can be filled in at deploy
   // time without editing this file or rebuilding the site.
-  const [config, setConfig] = useState<SiteConfig | null>(null);
+  // The last answer is kept for the session, so a second policy page opens with
+  // the real company details already in place instead of placeholders that then
+  // jump when the (possibly slow, free-tier) server answers.
+  const [config, setConfig] = useState<SiteConfig | null>(() => readCachedConfig());
   useEffect(() => {
+    let alive = true;
     getSiteConfig()
-      .then(setConfig)
-      .catch(() => setConfig(null));
+      .then((c) => {
+        if (!alive) return;
+        cacheConfig(c);
+        setConfig(c);
+      })
+      .catch(() => {
+        // Keep whatever we already had.
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const LEGAL_ENTITY = {

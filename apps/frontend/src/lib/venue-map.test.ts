@@ -30,6 +30,10 @@ describe("addressLine", () => {
     ).toBe("12, 4th Main, Vijayanagar, Mysuru 570017");
     expect(addressLine({ address_line1: " 3 Cross ", address_line2: "" })).toBe("3 Cross");
     expect(addressLine({})).toBe("");
+    // The area already typed into the address is not repeated.
+    expect(addressLine({ address_line1: "16 Demo Street, Koramangala", area_name: "Koramangala", city_name: "Bengaluru" })).toBe(
+      "16 Demo Street, Koramangala, Bengaluru",
+    );
   });
 });
 

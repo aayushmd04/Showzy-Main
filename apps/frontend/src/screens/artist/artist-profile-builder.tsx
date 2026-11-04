@@ -1,3 +1,4 @@
+import { groupByCategory } from "@/lib/categories";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarX, ImagePlus, Star, Trash2, X } from "lucide-react";
 import { ConsoleShell, ARTIST_NAV } from "@/components/naada/console-shell";
@@ -674,10 +675,14 @@ export function ArtistProfileBuilderScreen() {
                 <option value="">
                   {genres.length === 0 ? "Genres unavailable" : "Add a genre…"}
                 </option>
-                {unusedGenres.map((g) => (
-                  <option key={g.id} value={String(g.id)} className="bg-surface">
-                    {g.name}
-                  </option>
+                {groupByCategory(unusedGenres, (g) => g.name).map(({ category, items }) => (
+                  <optgroup key={category?.id ?? "other"} label={category?.label ?? "Other"}>
+                    {items.map((g) => (
+                      <option key={g.id} value={String(g.id)} className="bg-surface">
+                        {g.name}
+                      </option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
               <Button
@@ -1003,7 +1008,7 @@ export function ArtistProfileBuilderScreen() {
 
             <p className="t-small mt-3 text-muted">{cityName || "No city set"}</p>
 
-            {artist.total_gigs > 0 && (
+            {(artist.total_gigs ?? 0) > 0 && (
               <p className="tabular-nums font-semibold mt-2 text-[13px] text-muted">{artist.total_gigs} {artist.total_gigs === 1 ? "gig" : "gigs"} on Showzy</p>
             )}
 

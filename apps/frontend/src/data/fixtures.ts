@@ -31,6 +31,8 @@ export type DisputeOutcome = "release" | "refund";
 
 export interface Venue {
   id: string;
+  /** Address of the venue's own page (`/v/<slug>`). Absent on fixture data. */
+  slug?: string;
   name: string;
   area: string;
   capacity: number;

@@ -155,6 +155,64 @@
     box-shadow: 0 4px 20px var(--glass-shadow);
   }
 
+  /* ── Icon tile ─────────────────────────────────────────────────────────────
+     A small black tile with a thin ember-and-gold edge that slowly travels
+     around it. It stands in for emoji wherever a card needs a mark: dark in
+     both themes, so the gold icon always reads, and still when the visitor
+     prefers reduced motion. */
+  @property --tile-angle {
+    syntax: "<angle>";
+    inherits: false;
+    initial-value: 0deg;
+  }
+  .icon-tile {
+    --tile-size: 56px;
+    position: relative;
+    display: inline-grid;
+    place-items: center;
+    flex: none;
+    width: var(--tile-size);
+    height: var(--tile-size);
+    padding: 1px;
+    border-radius: calc(var(--tile-size) * 0.3);
+    background:
+      conic-gradient(from var(--tile-angle), rgba(232, 184, 92, 0.1) 0 55%, #c4472e 78%, #e8b85c 92%, rgba(232, 184, 92, 0.1));
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  }
+  .icon-tile__face {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    color: #e8b85c;
+    background:
+      radial-gradient(120% 120% at 20% 0%, rgba(196, 71, 46, 0.32), transparent 60%),
+      linear-gradient(165deg, #211914 0%, #0d0a08 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+  .icon-tile__face > svg {
+    width: 46%;
+    height: 46%;
+    stroke-width: 1.6;
+    transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .icon-tile {
+      animation: tile-travel 7s linear infinite;
+    }
+    .icon-tile--still {
+      animation: none;
+    }
+    @keyframes tile-travel {
+      to {
+        --tile-angle: 360deg;
+      }
+    }
+    .icon-tile-host:hover .icon-tile__face > svg {
+      transform: translateY(-2px) scale(1.08);
+    }
+  }
   /* Photos, blurred right down, fixed behind the whole page. */
   .page-backdrop {
     position: fixed;
@@ -897,4 +955,41 @@ html.bloom-run::before {
 @keyframes showzy-shadow {
   0%, 100% { transform: translateX(-50%) scale(1); opacity: 0.9; }
   50% { transform: translateX(-50%) scale(0.55); opacity: 0.35; }
+}
+
+
+/* ── Route loading ──────────────────────────────────────────────────────────
+   A hairline that travels across the top while a page's code arrives, and a
+   slow breath on the placeholder shapes. Both stop for people who ask for less
+   motion; the shapes and the line are still there, just still. */
+.route-bar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 300;
+  height: 2px;
+  overflow: hidden;
+  background: transparent;
+}
+.route-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 38%;
+  background: linear-gradient(90deg, transparent, #c4472e 40%, #e8b85c 70%, transparent);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .route-bar::after {
+    animation: route-bar 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+  .route-pulse {
+    animation: route-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes route-bar {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(270%); }
+  }
+  @keyframes route-pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
 }

@@ -1,3 +1,4 @@
+import { groupByCategory } from "@/lib/categories";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KANNADA_ENABLED } from "@/lib/features";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -453,30 +454,37 @@ export function HostEventEditorScreen() {
             ) : genres.length === 0 ? (
               <p className="t-small text-muted">No genres are set up yet.</p>
             ) : (
-              <div className="flex flex-wrap gap-2">
-                {genres.map((g) => {
-                  const on = form.genres.includes(g.id);
-                  return (
-                    <button
-                      key={g.id}
-                      type="button"
-                      aria-pressed={on}
-                      onClick={() =>
-                        setField(
-                          "genres",
-                          on ? form.genres.filter((x) => x !== g.id) : [...form.genres, g.id],
-                        )
-                      }
-                      className={
-                        on
-                          ? "pill border-signal text-signal"
-                          : "pill border-line text-muted hover:text-paper"
-                      }
-                    >
-                      {g.name}
-                    </button>
-                  );
-                })}
+              <div className="space-y-3">
+                {groupByCategory(genres, (g) => g.name).map(({ category, items }) => (
+                  <div key={category?.id ?? "other"}>
+                    <p className="t-small mb-1.5 text-muted">{category?.label ?? "Other"}</p>
+                    <div className="flex flex-wrap gap-2">
+                      {items.map((g) => {
+                        const on = form.genres.includes(g.id);
+                        return (
+                          <button
+                            key={g.id}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() =>
+                              setField(
+                                "genres",
+                                on ? form.genres.filter((x) => x !== g.id) : [...form.genres, g.id],
+                              )
+                            }
+                            className={
+                              on
+                                ? "pill border-signal text-signal"
+                                : "pill border-line text-muted hover:text-paper"
+                            }
+                          >
+                            {g.name}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>

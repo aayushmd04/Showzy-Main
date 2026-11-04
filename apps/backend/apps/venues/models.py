@@ -134,3 +134,18 @@ class VenueHours(models.Model):
     class Meta:
         unique_together = [("venue", "day_of_week")]
         ordering = ["day_of_week"]
+
+
+class VenueFollower(TimeStampedModel):
+    """Someone who wants to hear about a venue's nights."""
+
+    venue = models.ForeignKey(Venue, on_delete=models.CASCADE, related_name="followers")
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE,
+                             related_name="following_venues")
+
+    class Meta:
+        unique_together = [("venue", "user")]
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user_id} follows {self.venue_id}"

@@ -1,3 +1,4 @@
+import { groupByCategory } from "@/lib/categories";
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Star } from "lucide-react";
@@ -47,20 +48,27 @@ export function HostArtistSearchScreen() {
         <aside className="space-y-6 lg:sticky lg:top-24 lg:self-start">
           <fieldset>
             <legend className="t-micro mb-2">Genre</legend>
-            <div className="flex flex-wrap gap-1.5 lg:flex-col">
-              {ALL_GENRES.map((g) => (
-                <label
-                  key={g}
-                  className="flex min-h-9 cursor-pointer items-center gap-2 text-[14px] text-muted transition-colors hover:text-paper"
-                >
-                  <input
-                    type="checkbox"
-                    checked={genres.includes(g)}
-                    onChange={() => toggleGenre(g)}
-                    className="size-4 accent-[#FF3D6E]"
-                  />
-                  {g}
-                </label>
+            <div className="space-y-3">
+              {groupByCategory(ALL_GENRES, (g) => g).map(({ category, items }) => (
+                <div key={category?.id ?? "other"}>
+                  <p className="t-small mb-1 text-muted">{category?.label ?? "Other"}</p>
+                  <div className="flex flex-wrap gap-1.5 lg:flex-col">
+                    {items.map((g) => (
+                      <label
+                        key={g}
+                        className="flex min-h-9 cursor-pointer items-center gap-2 text-[14px] text-muted transition-colors hover:text-paper"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={genres.includes(g)}
+                          onChange={() => toggleGenre(g)}
+                          className="size-4 accent-[#FF3D6E]"
+                        />
+                        {g}
+                      </label>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </fieldset>

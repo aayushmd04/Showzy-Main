@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inCategory } from "./categories";
+import { categoryOf, groupByCategory, inCategory } from "./categories";
 
 describe("inCategory", () => {
   it("puts the seeded genres under Music", () => {
@@ -23,5 +23,29 @@ describe("inCategory", () => {
 
   it("matches an event with several genres if any one fits", () => {
     expect(inCategory("dance", ["Classical", "Kathak"])).toBe(true);
+  });
+});
+
+
+describe("categoryOf", () => {
+  it("places genres under their art form", () => {
+    expect(categoryOf("Improv")?.id).toBe("comedy");
+    expect(categoryOf("Street Play")?.id).toBe("drama");
+    expect(categoryOf("Kathak")?.id).toBe("dance");
+    expect(categoryOf("Carnatic Fusion")?.id).toBe("music");
+    expect(categoryOf("Painting Workshop")?.id).toBe("art");
+  });
+
+  it("returns null for a genre that fits none", () => {
+    expect(categoryOf("Underwater Basket Weaving")).toBeNull();
+  });
+});
+
+describe("groupByCategory", () => {
+  it("groups in the site's own order with anything unknown last", () => {
+    const genres = ["Kathak", "Improv", "Mystery", "Jazz", "Theatre"];
+    const groups = groupByCategory(genres, (g) => g);
+    expect(groups.map((g) => g.category?.id ?? "other")).toEqual(["music", "drama", "dance", "comedy", "other"]);
+    expect(groups.find((g) => g.category?.id === "drama")?.items).toEqual(["Theatre"]);
   });
 });

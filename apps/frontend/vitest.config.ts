@@ -20,6 +20,10 @@ export default defineConfig({
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: false,
+    // Tests must never reach a real server. A developer usually has the API
+    // running on :8000, and a test that signs in with a made-up token would be
+    // answered with a 401 and signed straight back out. Port 9 refuses at once.
+    env: { VITE_API_BASE: "http://127.0.0.1:9/api/v1" },
     // restoreMocks alone leaves call history on vi.fn()s created inside a
     // vi.mock factory — they are not spies over a real object, so there is
     // nothing to restore. Without clearMocks, "was never called" assertions

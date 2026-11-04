@@ -517,7 +517,8 @@ export function getEvent(id: string): Promise<ApiEvent> {
 
 export interface ApiArtist {
   id: string;
-  user: { id: string; full_name: string; email: string };
+  /** The account behind the artist. Email is only ever sent to the artist themselves and staff. */
+  user: { id: string; full_name: string; email?: string };
   stage_name: string;
   stage_name_kn: string;
   bio: string;
@@ -526,7 +527,8 @@ export interface ApiArtist {
   fee_range_min?: string;
   fee_range_max?: string;
   genres: Array<{ name: string }>;
-  total_gigs: number;
+  /** Hosts and artists only; absent for everyone else. */
+  total_gigs?: number;
   avg_rating: number;
   profile_image?: string;
   primary_photo?: string;
@@ -1377,7 +1379,7 @@ export function getMyArtistProfile(): Promise<ApiArtist> {
 }
 
 export function getArtist(id: string): Promise<ApiArtist> {
-  return get<ApiArtist>(`/artists/${id}/`, false);
+  return get<ApiArtist>(`/artists/${id}/`, Boolean(tokens.access));
 }
 
 export interface ArtistWritePayload {
@@ -1421,6 +1423,65 @@ export async function getMyVenues(): Promise<ApiVenue[]> {
 
 export function getVenue(slug: string): Promise<ApiVenue> {
   return get<ApiVenue>(`/venues/${slug}/`, false);
+}
+
+/** One of a venue's nights, as its public page lists it. */
+export interface ApiVenueNight {
+  id: string;
+  title: string;
+  start_datetime: string;
+  poster_image: string | null;
+  genres: string[];
+}
+
+export interface ApiVenueReview {
+  id: string;
+  reviewer_name: string;
+  rating: number;
+  comment: string;
+  event_title: string;
+  is_verified_attendee: boolean;
+  created_at: string;
+}
+
+/** What `/venues/<slug>/` returns for a public visitor. Contact details are never part of it. */
+export interface ApiVenuePage extends Omit<ApiVenue, "area" | "city" | "slug"> {
+  slug: string;
+  is_verified?: boolean;
+  tagline?: string;
+  description?: string;
+  stage_type?: "indoor" | "outdoor" | "both";
+  has_parking?: boolean;
+  is_accessible?: boolean;
+  has_bar?: boolean;
+  has_restaurant?: boolean;
+  has_ac?: boolean;
+  has_sound_system?: boolean;
+  has_projector?: boolean;
+  amenities?: string[];
+  area?: string | { name?: string };
+  city?: string | { name?: string };
+  photos?: Array<{ id: number; image: string; caption: string; is_primary: boolean }>;
+  hours?: Array<{ day_of_week: number; open_time: string; close_time: string; is_closed: boolean; notes: string }>;
+  follower_count: number;
+  is_following: boolean;
+  avg_rating: number | null;
+  review_count: number;
+  recent_reviews: ApiVenueReview[];
+  upcoming_events: ApiVenueNight[];
+  past_events: ApiVenueNight[];
+}
+
+/** Sent with the token when there is one, so `is_following` is the visitor's own. */
+export function getVenuePage(slug: string): Promise<ApiVenuePage> {
+  return get<ApiVenuePage>(`/venues/${slug}/`, Boolean(tokens.access));
+}
+
+export function followVenue(
+  slug: string,
+  following: boolean,
+): Promise<{ following: boolean; follower_count: number }> {
+  return following ? post(`/venues/${slug}/follow/`) : request("DELETE", `/venues/${slug}/follow/`);
 }
 
 export interface VenueWritePayload {
@@ -1683,7 +1744,10 @@ export function getAllEvents(params = ""): Promise<ApiEvent[]> {
 }
 
 export function getAllArtists(params = ""): Promise<ApiArtist[]> {
-  return getAllPages<ApiArtist>(`/artists/${params}`, false);
+  // The token goes along when there is one: a host's list carries each
+  // artist's fee range, and an artist's carries gig counts. Anonymous callers
+  // get the public profile only.
+  return getAllPages<ApiArtist>(`/artists/${params}`, Boolean(tokens.access));
 }
 
 export function getAllVenues(): Promise<ApiVenue[]> {

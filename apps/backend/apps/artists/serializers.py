@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from .completeness import profile_gaps
 from .models import Artist, ArtistPhoto, ArtistFollower
+from apps.core import privacy
 from apps.core.serializers import GenreSerializer
 from apps.core.urlfields import ForgivingURLField, SocialHandleField
 from apps.core.payout_fields import PayoutFieldsMixin, PAYOUT_READ_ONLY_FIELDS, PayoutDetailReadMixin
@@ -83,13 +84,55 @@ class ArtistPhotoSerializer(serializers.ModelSerializer):
         fields = ["id", "image", "caption", "is_primary", "sort_order"]
 
 
-def _artist_user(obj):
+def _artist_user(obj, *, with_email=False):
+    """The account behind an artist. The email goes only to the owner and staff."""
     if obj.user_id:
-        return {"id": str(obj.user_id), "full_name": obj.user.full_name, "email": obj.user.email}
-    return {"id": "", "full_name": obj.stage_name, "email": ""}
+        data = {"id": str(obj.user_id), "full_name": obj.user.full_name}
+        if with_email:
+            data["email"] = obj.user.email
+        return data
+    return {"id": "", "full_name": obj.stage_name}
 
 
-class ArtistListSerializer(serializers.ModelSerializer):
+#: Fees and calendar: for the people hiring. Never for the audience or other artists.
+_HOST_ONLY = (
+    "fee_range_min", "fee_range_max", "booking_fee_min", "booking_fee_max", "availability",
+    "has_bank_details", "can_receive_payouts",
+)
+#: Gig history: for people who work in the scene.
+_INDUSTRY_ONLY = ("total_gigs",)
+#: Direct contact and the owner's own to-do list: owner and staff only.
+_OWNER_ONLY = ("booking_email", "booking_phone", "booking_notes", "bank_account_last4", "profile_gaps")
+
+
+class ArtistAudienceMixin:
+    """Remove what this viewer is not meant to see from an artist's profile."""
+
+    def _viewer(self):
+        request = self.context.get("request")
+        return getattr(request, "user", None)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        user = self._viewer()
+        owner = privacy.is_staff(user) or (
+            privacy._authed(user) and instance.user_id is not None and instance.user_id == user.id
+        )
+        if not owner:
+            for key in _OWNER_ONLY:
+                data.pop(key, None)
+        if not (owner or privacy.is_host(user)):
+            for key in _HOST_ONLY:
+                data.pop(key, None)
+        if not (owner or privacy.is_industry(user)):
+            for key in _INDUSTRY_ONLY:
+                data.pop(key, None)
+        if "user" in data and not owner:
+            data["user"].pop("email", None)
+        return data
+
+
+class ArtistListSerializer(ArtistAudienceMixin, serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
     primary_photo = serializers.SerializerMethodField()
     city_name = serializers.CharField(source="city.name", read_only=True, allow_null=True)
@@ -112,7 +155,11 @@ class ArtistListSerializer(serializers.ModelSerializer):
         ]
 
     def get_user(self, obj):
-        return _artist_user(obj)
+        user = self._viewer()
+        owner = privacy.is_staff(user) or (
+            privacy._authed(user) and obj.user_id is not None and obj.user_id == user.id
+        )
+        return _artist_user(obj, with_email=owner)
 
     def get_total_gigs(self, obj):
         return obj.event_appearances.count()
@@ -128,7 +175,7 @@ class ArtistListSerializer(serializers.ModelSerializer):
         return None
 
 
-class ArtistDetailSerializer(PayoutDetailReadMixin, serializers.ModelSerializer):
+class ArtistDetailSerializer(ArtistAudienceMixin, PayoutDetailReadMixin, serializers.ModelSerializer):
     genres = GenreSerializer(many=True, read_only=True)
     photos = ArtistPhotoSerializer(many=True, read_only=True)
     primary_photo = serializers.SerializerMethodField()
@@ -162,7 +209,11 @@ class ArtistDetailSerializer(PayoutDetailReadMixin, serializers.ModelSerializer)
         return instance.user_id == user.id
 
     def get_user(self, obj):
-        return _artist_user(obj)
+        user = self._viewer()
+        owner = privacy.is_staff(user) or (
+            privacy._authed(user) and obj.user_id is not None and obj.user_id == user.id
+        )
+        return _artist_user(obj, with_email=owner)
 
     def get_total_gigs(self, obj):
         return obj.event_appearances.count()

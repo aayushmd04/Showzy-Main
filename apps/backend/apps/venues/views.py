@@ -4,7 +4,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from apps.core.models import KYCStatus
-from .models import Venue, VenuePhoto
+from .models import Venue, VenueFollower, VenuePhoto
 from .serializers import (
     VenueListSerializer, VenueDetailSerializer, VenueCreateUpdateSerializer, VenuePhotoSerializer
 )
@@ -103,6 +103,21 @@ def upload_venue_photo(request, slug):
     serializer.is_valid(raise_exception=True)
     serializer.save(venue=venue, uploaded_by=request.user)
     return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+@api_view(["POST", "DELETE"])
+@permission_classes([permissions.IsAuthenticated])
+def follow_venue(request, slug):
+    """Follow or unfollow a venue. POST follows, DELETE unfollows; both are idempotent."""
+    venue = generics.get_object_or_404(Venue, slug=slug, is_active=True, is_deleted=False)
+    if request.method == "POST":
+        VenueFollower.objects.get_or_create(venue=venue, user=request.user)
+    else:
+        VenueFollower.objects.filter(venue=venue, user=request.user).delete()
+    return Response({
+        "following": request.method == "POST",
+        "follower_count": venue.followers.count(),
+    })
 
 
 # ─── Admin — venue KYC ─────────────────────────────────────────────────────────

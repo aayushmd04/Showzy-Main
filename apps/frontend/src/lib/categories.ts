@@ -71,3 +71,31 @@ export function inCategory(id: CategoryId, genres: string[]): boolean {
     return cat.words.some((w) => name.includes(w));
   });
 }
+
+/** The art form a genre belongs to, or null when it matches none of the five. */
+export function categoryOf(genreName: string): Category | null {
+  const name = genreName.toLowerCase();
+  return CATEGORIES.find((c) => c.words.some((w) => name.includes(w))) ?? null;
+}
+
+export interface CategoryGroup<T> {
+  category: Category | null;
+  items: T[];
+}
+
+/**
+ * Sort genres (or anything named like one) under their art form, in the site's
+ * own category order, with anything unrecognised last. Lets a host or artist
+ * choosing genres see "Drama: Theatre, Street Play" instead of one long list.
+ */
+export function groupByCategory<T>(items: T[], nameOf: (item: T) => string): CategoryGroup<T>[] {
+  const groups = new Map<string, CategoryGroup<T>>();
+  for (const item of items) {
+    const category = categoryOf(nameOf(item));
+    const key = category?.id ?? "other";
+    if (!groups.has(key)) groups.set(key, { category, items: [] });
+    groups.get(key)!.items.push(item);
+  }
+  const order = [...CATEGORIES.map((c) => c.id as string), "other"];
+  return [...groups.entries()].sort((a, b) => order.indexOf(a[0]) - order.indexOf(b[0])).map(([, g]) => g);
+}

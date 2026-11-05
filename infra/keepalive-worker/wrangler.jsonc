@@ -1,0 +1,13 @@
+{
+  // Deploy with:  npx wrangler deploy   (from this folder)
+  "name": "showzy-cron",
+  "main": "index.js",
+  "compatibility_date": "2026-10-01",
+  "triggers": { "crons": ["*/10 * * * *"] },
+  "vars": {
+    // The Render address of the API, with no trailing slash.
+    "API_BASE": "https://showzy-api.onrender.com",
+    // Optional: an artist id whose profile is fetched too (touches the database).
+    "ARTIST_ID": "1bbcf212-28ac-487a-809c-eec3174057a2"
+  }
+}

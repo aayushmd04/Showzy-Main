@@ -35,7 +35,7 @@ razorpay==1.4.2
 cryptography==50.0.2
 
 # ── Production serving ───────────────────────────────────────────────────────
-gunicorn==23.0.0              # WSGI: gunicorn naada.wsgi:application
+gunicorn==26.2.0              # WSGI: gunicorn naada.wsgi:application
 whitenoise[brotli]==6.12.0     # static files without nginx
 
 # ── Object storage (optional; only active when AWS_STORAGE_BUCKET_NAME is set)

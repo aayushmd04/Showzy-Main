@@ -1,6 +1,6 @@
 # ── Core framework ───────────────────────────────────────────────────────────
 django==5.2.18                 # 5.2 LTS (5.1 is end-of-life; 5.1.4 had 32 known CVEs)
-djangorestframework==3.18.2
+djangorestframework==3.18.3
 djangorestframework-simplejwt==5.5.1
 django-cors-headers==4.9.0
 
@@ -10,11 +10,11 @@ daphne==4.2.3
 channels-redis==4.3.0
 
 # ── Background jobs ──────────────────────────────────────────────────────────
-celery==5.4.0
+celery==5.6.3
 django-celery-beat==2.9.0
 
 # ── Database ─────────────────────────────────────────────────────────────────
-psycopg2-binary==2.9.10
+psycopg2-binary==2.9.13
 dj-database-url==2.3.0        # parses DATABASE_URL (Supabase direct + pooler)
 
 # ── Config ───────────────────────────────────────────────────────────────────
@@ -22,7 +22,7 @@ python-decouple==3.8
 
 # ── Media / tickets ──────────────────────────────────────────────────────────
 pillow==13.0.0
-qrcode==8.0
+qrcode==8.2
 
 # ── Outbound HTTP (Cloudflare email; also a razorpay dependency)
 requests==2.34.2
@@ -36,15 +36,15 @@ cryptography==50.0.2
 
 # ── Production serving ───────────────────────────────────────────────────────
 gunicorn==23.0.0              # WSGI: gunicorn naada.wsgi:application
-whitenoise[brotli]==6.8.2     # static files without nginx
+whitenoise[brotli]==6.12.0     # static files without nginx
 
 # ── Object storage (optional; only active when AWS_STORAGE_BUCKET_NAME is set)
-django-storages==1.14.4
-boto3==1.43.91
+django-storages==1.14.6
+boto3==1.43.122
 
 # ── Observability & docs ─────────────────────────────────────────────────────
-sentry-sdk==2.19.2            # no-op unless SENTRY_DSN_BACKEND is set
-drf-spectacular==0.28.0       # /api/v1/schema/ and /api/v1/docs/
+sentry-sdk==2.73.0            # no-op unless SENTRY_DSN_BACKEND is set
+drf-spectacular==0.30.0       # /api/v1/schema/ and /api/v1/docs/
 
 # ── Transitive security floors (pulled in by daphne/twisted) ────────────────
 twisted==26.10.0rc1       # rc: the only release fixing CVE-2026-115877 (HTTP request smuggling) + 4 others; move to 26.10.0 final

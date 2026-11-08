@@ -54,7 +54,7 @@ RUN npm run build --workspace apps/frontend
 ##############################################################################
 # Stage 2 — serve. Static files and nginx only; no Node, no node_modules.
 ##############################################################################
-FROM nginx:1.27-alpine AS runtime
+FROM nginx:1.31-alpine AS runtime
 
 # Replaces the stock config. See apps/frontend/nginx.conf — the try_files line
 # in there is what stops deep links like /host/events/<id> returning 404.

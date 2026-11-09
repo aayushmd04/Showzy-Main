@@ -15,7 +15,7 @@ django-celery-beat==2.9.0
 
 # ── Database ─────────────────────────────────────────────────────────────────
 psycopg2-binary==2.9.13
-dj-database-url==2.3.0        # parses DATABASE_URL (Supabase direct + pooler)
+dj-database-url==3.1.2        # parses DATABASE_URL (Supabase direct + pooler)
 
 # ── Config ───────────────────────────────────────────────────────────────────
 python-decouple==3.8

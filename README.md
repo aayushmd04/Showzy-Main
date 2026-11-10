@@ -199,3 +199,5 @@ python3 .claude/skills/ui-ux-pro-max/scripts/search.py "focus ring contrast" --d
 Accessibility floor met throughout: visible `--signal` focus rings, semantic headings and
 landmarks, labelled form fields, alt text / `aria-hidden` on decorative marks, 44px minimum
 targets, no horizontal scroll at 390px, and `prefers-reduced-motion` respected globally.
+
+------

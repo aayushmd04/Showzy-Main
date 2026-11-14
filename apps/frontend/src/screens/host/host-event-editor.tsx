@@ -1,3 +1,4 @@
+import { useAccountSetup, useOnAccountSetup } from "@/components/naada/account-setup";
 import { groupByCategory } from "@/lib/categories";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KANNADA_ENABLED } from "@/lib/features";
@@ -172,6 +173,8 @@ export function HostEventEditorScreen() {
     { errorFallback: "Couldn't save that change to the event." },
   );
 
+  const { open: openSetup } = useAccountSetup();
+
   const loadReference = useCallback(async () => {
     setRefLoading(true);
     setRefError(null);
@@ -198,6 +201,8 @@ export function HostEventEditorScreen() {
   useEffect(() => {
     void loadReference();
   }, [loadReference]);
+  // The venue was just added from the setup prompt: offer it straight away.
+  useOnAccountSetup(loadReference);
 
   const loadEvent = useCallback(async () => {
     if (!id) return;
@@ -417,7 +422,9 @@ export function HostEventEditorScreen() {
                 (refLoading
                   ? "Loading venues…"
                   : visibleVenues.length === 0
-                    ? "No venues in this city yet. Add yours under Venue in the sidebar."
+                    ? venues.length === 0
+                      ? "You haven't added a venue yet. Events are held at a venue you own."
+                      : "No venues in this city yet. Try another city."
                     : undefined)
               }
               className={errorFor("venue") ? "[&_p]:text-fault" : undefined}
@@ -432,6 +439,11 @@ export function HostEventEditorScreen() {
                 ]}
               />
             </Field>
+            {!refLoading && venues.length === 0 && (
+              <Button type="button" variant="primary" onClick={openSetup} className="mt-3">
+                Add your venue
+              </Button>
+            )}
           </div>
 
           <Field

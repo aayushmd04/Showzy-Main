@@ -24,6 +24,7 @@ import { useAuthSheet } from "@/components/naada/auth-sheet";
 import { ApiError, followVenue, getVenuePage, type ApiVenueNight, type ApiVenuePage } from "@/lib/api";
 import { mediaUrl } from "@/lib/adapters";
 import { usePageMeta } from "@/lib/use-meta";
+import { venueJsonLd } from "@/lib/structured-data";
 import { actionError } from "@/components/naada/api-message";
 import { dateListing, dateListingFull } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -118,6 +119,24 @@ export function VenueProfileScreen() {
     title: venue?.name,
     description: venue ? [venue.tagline, venue.description].filter(Boolean).join(" — ").slice(0, 300) || undefined : undefined,
     image: mediaUrl(venue?.photos?.[0]?.image ?? venue?.primary_photo),
+    jsonLd: venue
+      ? venueJsonLd({
+          slug: venue.slug,
+          name: venue.name,
+          description: venue.description,
+          image: mediaUrl(venue.photos?.[0]?.image ?? venue.primary_photo),
+          address_line1: venue.address_line1,
+          address_line2: venue.address_line2,
+          pincode: venue.pincode,
+          area_name: nameOf(venue.area) || venue.area_name,
+          city_name: nameOf(venue.city) || venue.city_name,
+          capacity: venue.capacity,
+          avg_rating: venue.avg_rating,
+          review_count: venue.review_count,
+          hours: venue.hours,
+          mapUrl: venue.google_maps_url || undefined,
+        })
+      : null,
   });
 
   const send = async (target: ApiVenuePage, next: boolean) => {

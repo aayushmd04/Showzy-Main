@@ -19,7 +19,7 @@ import { usePageMeta } from "@/lib/use-meta";
 type Tab = "all" | "unread";
 
 export function NotificationsScreen() {
-  usePageMeta({ title: "Notifications", description: "Everything that has happened on your Showzy account." });
+  usePageMeta({ title: "Notifications", description: "Everything that has happened on your Showzy account.", noindex: true });
   const navigate = useNavigate();
   const { open: openAuth } = useAuthSheet();
   const { signedIn, items, unread, markRead, markAllRead, error, isLoading, mutate } =

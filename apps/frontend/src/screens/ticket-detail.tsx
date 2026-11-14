@@ -87,6 +87,7 @@ export function TicketDetailScreen() {
   usePageMeta({
     title: ticket ? `Ticket ${ticket.code}` : "Ticket",
     description: event ? `Your ticket for ${event.name}.` : undefined,
+    noindex: true,
   });
 
   if (!ticket || !event) return <NotFoundScreen />;

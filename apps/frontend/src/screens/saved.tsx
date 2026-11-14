@@ -20,6 +20,7 @@ export function SavedScreen() {
   usePageMeta({
     title: "Saved gigs",
     description: "The nights you bookmarked on Showzy.",
+    noindex: true,
   });
 
   const navigate = useNavigate();

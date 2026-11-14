@@ -79,7 +79,7 @@ function countLabel(loading: boolean, error: string | null, n: number): string {
 }
 
 export function HostHomeLandingScreen() {
-  usePageMeta({ title: "Your nights", description: "How your nights are selling, who you can book, and what needs a decision." });
+  usePageMeta({ title: "Your nights", description: "How your nights are selling, who you can book, and what needs a decision.", noindex: true });
   const { currentUser } = useStore();
   const branch = useHostBranch();
 

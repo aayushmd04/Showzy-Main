@@ -171,12 +171,18 @@ export function securityHeaders(options: Pick<CspInput, "apiBase" | "sentryDsn" 
     },
     transformIndexHtml() {
       const content = buildCsp({ ...options, scriptHashes: hashes, forHeader: false });
+      const api = originOf(options.apiBase);
       return [
         {
           tag: "meta",
           attrs: { "http-equiv": "Content-Security-Policy", content },
           injectTo: "head-prepend",
         },
+        // Open the connection to the API while the page's own code downloads: the first data
+        // request then skips the DNS + TLS wait (worth most on a phone connection).
+        ...(api && api.startsWith("https://")
+          ? [{ tag: "link", attrs: { rel: "preconnect", href: api, crossorigin: "" }, injectTo: "head-prepend" as const }]
+          : []),
       ];
     },
     generateBundle() {

@@ -1,8 +1,9 @@
 import { useEffect } from "react";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "./site";
+import { toScript, type JsonLd } from "./structured-data";
 
-const SITE = "Showzy";
-const DEFAULT_DESCRIPTION =
-  "Grassroots live music in Mysuru and Bengaluru. Open mics, jam nights, pub gigs and classical evenings.";
+const SITE = SITE_NAME;
+const DEFAULT_DESCRIPTION = SITE_DESCRIPTION;
 
 function setTag(selector: string, attr: "content", value: string, create: () => HTMLMetaElement) {
   let el = document.head.querySelector<HTMLMetaElement>(selector);
@@ -29,6 +30,17 @@ function setProperty(property: string, value: string) {
   });
 }
 
+const ROBOTS_INDEX = "index, follow, max-image-preview:large";
+const ROBOTS_NOINDEX = "noindex, nofollow";
+// The robots tag is decided from two inputs that mount in unpredictable order
+// (a page's own `noindex` and the console shell's `useNoIndex`), so both feed
+// one place rather than each writing the tag and overwriting the other.
+let pageNoindex = false;
+let forcedNoindex = 0;
+function applyRobots() {
+  setMeta("robots", pageNoindex || forcedNoindex > 0 ? ROBOTS_NOINDEX : ROBOTS_INDEX);
+}
+
 export interface PageMeta {
   /** Page title, without the site name — that gets appended. */
   title?: string;
@@ -36,6 +48,10 @@ export interface PageMeta {
   /** Absolute or root-relative image path for link previews. */
   image?: string;
   type?: "website" | "article" | "event";
+  /** Keep this page out of search results (private, thin or error pages). */
+  noindex?: boolean;
+  /** schema.org markup for this page; removed again when the page is left. */
+  jsonLd?: JsonLd | null;
 }
 
 /**
@@ -50,9 +66,9 @@ export interface PageMeta {
  * previews everywhere need the prerender step described in DEPLOY.md; this is
  * the half that works without any build change.
  */
-export function usePageMeta({ title, description, image, type = "website" }: PageMeta) {
+export function usePageMeta({ title, description, image, type = "website", noindex = false, jsonLd }: PageMeta) {
   useEffect(() => {
-    const fullTitle = title ? `${title} · ${SITE}` : `${SITE} — live music in Mysuru & Bengaluru`;
+    const fullTitle = title ? `${title} · ${SITE}` : `${SITE}: ${SITE_TAGLINE}`;
     const desc = description?.trim() || DEFAULT_DESCRIPTION;
     const url = window.location.href;
     // No page image means the branded card, never the previous page's poster.
@@ -82,6 +98,33 @@ export function usePageMeta({ title, description, image, type = "website" }: Pag
       canonical.rel = "canonical";
       document.head.appendChild(canonical);
     }
-    canonical.href = url.split("?")[0];
-  }, [title, description, image, type]);
+    // One address per page, on the real domain: not `www.`, not a preview URL, not a ?q= variant.
+    canonical.href = `${SITE_URL}${window.location.pathname}`.replace(/\/+$/, "") || SITE_URL;
+    setProperty("og:url", canonical.href);
+    pageNoindex = noindex;
+    applyRobots();
+  }, [title, description, image, type, noindex]);
+
+  const ld = jsonLd ? toScript(jsonLd) : "";
+  useEffect(() => {
+    if (!ld) return;
+    const el = document.createElement("script");
+    el.type = "application/ld+json";
+    el.dataset.page = "true";
+    el.textContent = ld;
+    document.head.appendChild(el);
+    return () => el.remove();
+  }, [ld]);
+}
+
+/** Mark the current screen as not for search engines while it is mounted (consoles, account pages). */
+export function useNoIndex(): void {
+  useEffect(() => {
+    forcedNoindex += 1;
+    applyRobots();
+    return () => {
+      forcedNoindex -= 1;
+      applyRobots();
+    };
+  }, []);
 }

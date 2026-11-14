@@ -16,6 +16,11 @@ from .base import BASE_DIR, DATABASES, MIDDLEWARE, config  # noqa: F401
 
 DEBUG = False
 
+# The public site. base.py defaults this to the local dev server, which would
+# put http://localhost:5173 into the sitemap and emails if the env var is ever
+# missing on the host; in production fall back to the real domain instead.
+FRONTEND_URL = config("FRONTEND_URL", default="https://showzy.in").rstrip("/")
+
 # ── Database ──────────────────────────────────────────────────────────────────
 # Inherited verbatim from base.py, which parses DATABASE_URL (Supabase gives a
 # single connection URL) and applies sslmode=require + CONN_MAX_AGE. Nothing to

@@ -80,7 +80,7 @@ function countLabel(loading: boolean, error: string | null, n: number): string {
 }
 
 export function ArtistHomeLandingScreen() {
-  usePageMeta({ title: "Your gigs", description: "Open gigs you can apply to, and everything waiting on you." });
+  usePageMeta({ title: "Your gigs", description: "Open gigs you can apply to, and everything waiting on you.", noindex: true });
   const { currentUser, toast } = useStore();
 
   const fetchEvents = useCallback(

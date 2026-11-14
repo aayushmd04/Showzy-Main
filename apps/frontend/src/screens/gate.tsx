@@ -23,7 +23,7 @@ function when(iso: string) {
 }
 
 export function GateScreen() {
-  usePageMeta({ title: "Gate duty", description: "Check tickets at events you've been invited to." });
+  usePageMeta({ title: "Gate duty", description: "Check tickets at events you've been invited to.", noindex: true });
   const { role, currentUser, toast } = useStore();
   const { open: openAuth } = useAuthSheet();
   const signedIn = role !== "out" && !!currentUser;

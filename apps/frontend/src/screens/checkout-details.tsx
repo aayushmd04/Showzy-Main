@@ -14,7 +14,7 @@ import { dateListing } from "@/lib/format";
 
 /** Section 7.5 — guest details. Consent is required; the CTA stays disabled until it is ticked. */
 export function CheckoutDetailsScreen() {
-  usePageMeta({ title: "Your details" });
+  usePageMeta({ title: "Your details", noindex: true });
   const navigate = useNavigate();
   const { checkout, eventById, setGuestDetails, currentUser } = useStore();
   const { open: openAuth } = useAuthSheet();

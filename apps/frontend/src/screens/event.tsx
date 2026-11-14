@@ -20,6 +20,7 @@ import {
 } from "@/components/naada/event-data";
 import { useStore } from "@/store/app-store";
 import { usePageMeta } from "@/lib/use-meta";
+import { eventJsonLd } from "@/lib/structured-data";
 import { adaptEvent } from "@/lib/adapters";
 import { clampTickets, maxTickets, minTickets } from "@/lib/quantity";
 import { CONVENIENCE_FEE, type NaadaEvent } from "@/data/fixtures";
@@ -31,6 +32,14 @@ import { NotFoundScreen } from "./not-found";
  * Section 7.2 — the most important screen in the product. It is the WhatsApp
  * forward, the Instagram bio link and the Google result.
  */
+/** The cheapest ticket on sale, for search-result price markup. */
+function lowestPrice(raw: EventDetail): number | null {
+  const prices = (raw.ticket_tiers ?? [])
+    .filter((t) => t.is_active && t.total_quantity > 0)
+    .map((t) => Number(t.price));
+  return prices.length ? Math.min(...prices) : null;
+}
+
 export function EventScreen() {
   const { id = "" } = useParams();
   const navigate = useNavigate();
@@ -115,6 +124,31 @@ export function EventScreen() {
       : undefined,
     image: (event as { _posterImage?: string } | undefined)?._posterImage,
     type: "event",
+    jsonLd: raw
+      ? eventJsonLd({
+          id: raw.id,
+          title: raw.title,
+          description: raw.description,
+          start_datetime: raw.start_datetime,
+          end_datetime: raw.end_datetime,
+          status: raw.status,
+          poster_image: (event as { _posterImage?: string } | undefined)?._posterImage ?? null,
+          is_free: raw.is_free,
+          min_price: lowestPrice(raw),
+          seats_left: raw.seats_left,
+          venue: raw.venue
+            ? {
+                name: raw.venue.name,
+                address_line1: raw.venue.address_line1,
+                address_line2: raw.venue.address_line2,
+                pincode: raw.venue.pincode,
+                area_name: raw.venue.area_name,
+                city_name: raw.venue.city_name ?? raw.city_name,
+              }
+            : null,
+          performers: (event?.lineup ?? []).map((id) => artistById(id)?.name).filter(Boolean) as string[],
+        })
+      : null,
   });
 
   if (!event) return <NotFoundScreen />;

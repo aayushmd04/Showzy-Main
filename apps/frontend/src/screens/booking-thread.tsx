@@ -38,7 +38,7 @@ import { NotFoundScreen } from "./not-found";
  */
 export function BookingThreadScreen() {
   const { id = "" } = useParams();
-  usePageMeta({ title: "Booking" });
+  usePageMeta({ title: "Booking", noindex: true });
   const navigate = useNavigate();
   const {
     bookingById,

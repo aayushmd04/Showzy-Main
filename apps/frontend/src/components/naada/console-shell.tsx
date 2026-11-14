@@ -1,3 +1,5 @@
+import { useNoIndex } from "@/lib/use-meta";
+import { SetupBanner } from "@/components/naada/account-setup";
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -95,6 +97,7 @@ export function ConsoleShell({
   actions?: ReactNode;
 }) {
   const location = useLocation();
+  useNoIndex(); // a signed-in console is never something to put in search results
   const [menuOpen, setMenuOpen] = useState(false);
   const reduce = useReducedMotion();
 
@@ -178,6 +181,7 @@ export function ConsoleShell({
         </header>
 
         <main className="mx-auto w-full max-w-[1360px] flex-1 px-4 py-6 md:px-8 md:py-8">
+          <SetupBanner className="mb-6" />
           {children}
         </main>
       </div>

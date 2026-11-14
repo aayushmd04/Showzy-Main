@@ -91,8 +91,11 @@ if REDIS_URL:
     }
     CACHES = {
         "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            # Falls back to a per-process cache if Redis is down or over quota,
+            # instead of turning every rate-limited request into a 500.
+            "BACKEND": "apps.core.resilient_cache.ResilientRedisCache",
             "LOCATION": REDIS_URL,
+            "OPTIONS": {"socket_connect_timeout": 2, "socket_timeout": 2},
         }
     }
 # Without REDIS_URL the in-memory channel layer from base.py stays in place:

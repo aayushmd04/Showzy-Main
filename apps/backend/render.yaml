@@ -175,7 +175,7 @@ services:
     region: singapore
     dockerfilePath: ./apps/backend/Dockerfile
     dockerContext: ./apps/backend
-    dockerCommand: celery -A naada worker --loglevel=info --concurrency=2
+    dockerCommand: celery -A naada worker --loglevel=info --concurrency=2 --without-gossip --without-mingle --without-heartbeat
     autoDeployTrigger: commit
     envVarGroups:
       - naada-backend

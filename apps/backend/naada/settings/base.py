@@ -373,8 +373,23 @@ if CELERY_BROKER_URL.startswith("rediss://"):
 
     CELERY_BROKER_USE_SSL = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
     CELERY_REDIS_BACKEND_USE_SSL = {"ssl_cert_reqs": ssl.CERT_REQUIRED}
-    CELERY_BROKER_TRANSPORT_OPTIONS = {"socket_keepalive": True, "health_check_interval": 30}
+    CELERY_BROKER_TRANSPORT_OPTIONS = {
+        "socket_keepalive": True,
+        # A hosted Redis bills (or caps) per command, and an idle worker used to spend them
+        # constantly: a blocking pop that expired and restarted every second (86,400 a day)
+        # and a ping every 30 s. A blocking pop returns the instant a task arrives, so a long
+        # timeout costs no latency; it only stops the idle polling. 2,880 a day instead.
+        "polling_interval": 30,
+        "health_check_interval": 120,
+        "socket_connect_timeout": 5,
+    }
     CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
+# Nothing reads a task's return value (the few places that need a task id keep the id, not the
+# result), so don't write every result into Redis.
+CELERY_TASK_IGNORE_RESULT = True
+# Publishing from a web request must not hang on a dead broker: try twice, briefly, then fail
+# fast (callers already treat a failed publish as best-effort).
+CELERY_TASK_PUBLISH_RETRY_POLICY = {"max_retries": 1, "interval_start": 0, "interval_step": 0.2, "interval_max": 0.5}
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = "Asia/Kolkata"

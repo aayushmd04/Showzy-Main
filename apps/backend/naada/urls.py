@@ -48,10 +48,19 @@ def _check_cache():
 @permission_classes([AllowAny])
 @throttle_classes([])  # a load balancer polls this every few seconds
 def health_check(request):
-    """Real liveness probe: 200 only when every checked component responds.
+    """Liveness probe for the platform's load balancer.
 
-    Returns 503 with per-component detail otherwise, so an LB stops routing
-    traffic to a node whose database has gone away.
+    Two rules, both learned from an outage:
+
+    * It answers 503 only when the **database** is unreachable. That is the one
+      thing the API cannot serve a request without. The cache is a convenience
+      (rate-limit counters, a lock or two): when Redis is down or over its quota
+      the API carries on with a local fallback, so a dead cache must never make
+      the platform declare the whole service unhealthy and stop routing to it.
+
+    * It does **not touch Redis** unless asked (`?deep=1`). Render polls this
+      every few seconds; two Redis commands per poll is roughly half a million a
+      month, which is the entire free quota of a hosted Redis on its own.
     """
     components = {}
     healthy = True
@@ -64,12 +73,13 @@ def health_check(request):
         components["database"] = f"error: {exc.__class__.__name__}"
         logger.error("Health check: database unreachable: %s", exc)
 
-    try:
-        components["cache"] = _check_cache()
-    except Exception as exc:
-        healthy = False
-        components["cache"] = f"error: {exc.__class__.__name__}"
-        logger.error("Health check: cache unreachable: %s", exc)
+    if request.query_params.get("deep") == "1":
+        try:
+            components["cache"] = _check_cache()
+        except Exception as exc:
+            # Reported, never fatal.
+            components["cache"] = f"degraded: {exc.__class__.__name__}"
+            logger.warning("Health check: cache unreachable (serving without it): %s", exc)
 
     payload = {
         "status": "ok" if healthy else "unhealthy",

@@ -305,7 +305,7 @@ PLATFORM_FEE_PCT = config("PLATFORM_FEE_PCT", default="0.05")
 SITE_NAME = config("SITE_NAME", default="Showzy")
 LEGAL_ENTITY_NAME = config("LEGAL_ENTITY_NAME", default="")
 LEGAL_ENTITY_ADDRESS = config("LEGAL_ENTITY_ADDRESS", default="")
-SUPPORT_EMAIL = config("SUPPORT_EMAIL", default="")
+SUPPORT_EMAIL = config("SUPPORT_EMAIL", default="") or "support@showzy.in"
 SUPPORT_PHONE = config("SUPPORT_PHONE", default="")
 GRIEVANCE_OFFICER = config("GRIEVANCE_OFFICER", default="")
 POLICIES_UPDATED = config("POLICIES_UPDATED", default="")

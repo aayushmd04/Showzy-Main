@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PublicShell } from "@/components/naada/public-shell";
 import { usePageMeta } from "@/lib/use-meta";
-import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from "@/lib/site";
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL, SUPPORT_EMAIL } from "@/lib/site";
 import { getSiteConfig, type SiteConfig } from "@/lib/api";
 import { LEGAL_VERSION } from "@/lib/legal";
 import { openCookieSettings } from "@/lib/consent";
@@ -26,7 +26,7 @@ const PLACEHOLDER: SiteConfig = {
   name: "Showzy",
   legal_name: "[your registered company name]",
   address: "[your registered office address]",
-  email: "[support email]",
+  email: SUPPORT_EMAIL,
   phone: "[support phone]",
   gstin: "",
   grievance_officer: "[grievance officer name]",
@@ -161,12 +161,17 @@ export function LegalScreen({ doc }: { doc: Doc }) {
     name: config?.name || PLACEHOLDER.name,
     legalName: config?.legal_name || PLACEHOLDER.legal_name,
     address: config?.address || PLACEHOLDER.address,
-    email: config?.email || PLACEHOLDER.email,
+    email: config?.email || SUPPORT_EMAIL,
     phone: config?.phone || PLACEHOLDER.phone,
     gstin: config?.gstin || "",
     grievanceOfficer: config?.grievance_officer || PLACEHOLDER.grievance_officer,
     lastUpdated: config?.policies_updated || LEGAL_VERSION,
   };
+  const emailLink = (
+    <a href={`mailto:${LEGAL_ENTITY.email}`} className="link-underline text-paper">
+      {LEGAL_ENTITY.email}
+    </a>
+  );
   const missing = (config?.missing ?? []).map((k) => FIELD_LABEL[k] ?? k);
 
   return (
@@ -238,7 +243,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             <S heading="3. Your account">
               <p>
                 You sign in with a one-time code sent to your email. Keep access to that inbox secure —
-                anyone who can read it can sign in as you. Tell us immediately at {LEGAL_ENTITY.email} if
+                anyone who can read it can sign in as you. Tell us immediately at {emailLink} if
                 you think someone else has access to your account. Don't share your account or let
                 someone else use it.
               </p>
@@ -327,7 +332,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 your rights as a consumer.
               </p>
               <p>
-                If you have a complaint, write to {LEGAL_ENTITY.email}. If it isn't resolved, contact our
+                If you have a complaint, write to {emailLink}. If it isn't resolved, contact our
                 grievance officer ({LEGAL_ENTITY.grievanceOfficer}); details are on the{" "}
                 <Link to="/contact" className="link-underline text-paper">Contact page</Link>.
               </p>
@@ -360,7 +365,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
               <p>
                 {LEGAL_ENTITY.legalName} ({LEGAL_ENTITY.name}) decides why and how your data is used — in
                 the language of India's Digital Personal Data Protection Act, 2023 (the "Act"), we are the
-                Data Fiduciary. Contact us at {LEGAL_ENTITY.email}. Our grievance officer is{" "}
+                Data Fiduciary. Contact us at {emailLink}. Our grievance officer is{" "}
                 {LEGAL_ENTITY.grievanceOfficer}, at the same address.
               </p>
             </S>
@@ -466,7 +471,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 <li><strong>Correct it</strong> — change your name, phone and bio in Settings, or write to us for anything else.</li>
                 <li><strong>Erase it</strong> — Settings → <em>Delete account</em>. We confirm by emailed code, tell you first what will be erased and kept, and won't proceed while an event, booking or payout is pending.</li>
                 <li><strong>Withdraw consent</strong> — switch off emails in Settings or change <button type="button" onClick={openCookieSettings} className="link-underline text-paper">cookie settings</button> at any time. Withdrawing doesn't affect what we did before.</li>
-                <li><strong>Complain</strong> — to our grievance officer at {LEGAL_ENTITY.email}; we aim to reply within 30 days. If unresolved you may complain to the Data Protection Board of India.</li>
+                <li><strong>Complain</strong> — to our grievance officer at {emailLink}; we aim to reply within 30 days. If unresolved you may complain to the Data Protection Board of India.</li>
                 <li><strong>Nominate someone</strong> to exercise these rights for you if you die or can't.</li>
               </ul>
             </S>
@@ -613,7 +618,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 <Link to="/tickets" className="link-underline text-paper">
                   My tickets
                 </Link>{" "}
-                and use <strong>Cancel</strong>, or write to {LEGAL_ENTITY.email} with your ticket number. If
+                and use <strong>Cancel</strong>, or write to {emailLink} with your ticket number. If
                 you are not happy with the outcome, contact our grievance officer,{" "}
                 {LEGAL_ENTITY.grievanceOfficer}, at the same address.
               </p>
@@ -625,7 +630,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
           <>
             <S heading="Support">
               <p>
-                Email <strong>{LEGAL_ENTITY.email}</strong> and a person will reply. For anything about a
+                Email <strong>{emailLink}</strong> and a person will reply. For anything about a
                 specific ticket, include the ticket number — it is on the ticket in{" "}
                 <Link to="/tickets" className="link-underline text-paper">
                   My tickets
@@ -645,7 +650,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             <S heading="Grievance officer">
               <p>
                 In line with Indian law, {LEGAL_ENTITY.grievanceOfficer} is our grievance officer and can be
-                reached at {LEGAL_ENTITY.email}. Write to them if a complaint — about a ticket, a refund,
+                reached at {emailLink}. Write to them if a complaint — about a ticket, a refund,
                 or how we handle your personal data — has not been resolved through normal support. We
                 acknowledge complaints within 48 hours and aim to resolve them within 30 days.
               </p>
@@ -669,7 +674,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
             </S>
             <S heading="For venues and artists">
               <p>
-                If you run a venue or perform and want to list on Showzy, write to {LEGAL_ENTITY.email} and
+                If you run a venue or perform and want to list on Showzy, write to {emailLink} and
                 tell us where you are and what you do.
               </p>
             </S>
@@ -677,7 +682,7 @@ export function LegalScreen({ doc }: { doc: Doc }) {
         )}
 
         <p className="t-small mt-12 border-t border-line pt-6 text-muted">
-          Questions about any of this? Write to {LEGAL_ENTITY.email}.
+          Questions about any of this? Write to {emailLink}.
         </p>
       </div>
     </PublicShell>

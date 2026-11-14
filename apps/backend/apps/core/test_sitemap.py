@@ -74,3 +74,11 @@ class SitemapTests(TestCase):
         body = self.body()
         for private in ("/host", "/artist/", "/settings", "/my-tickets", "/gate", "/checkout", "?q="):
             self.assertNotIn(private, body)
+
+
+class SupportContactTests(TestCase):
+    def test_public_site_config_always_has_a_real_support_address(self):
+        resp = self.client.get("/api/v1/site-config/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["email"], "support@showzy.in")
+        self.assertNotIn("email", resp.json()["missing"])

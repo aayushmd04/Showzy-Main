@@ -46,7 +46,7 @@ const FAQ: Array<[string, string]> = [
   ["How does the escrow work?", "When a host and artist agree a fee, the host locks the amount in escrow before the show. After the gig is marked complete, it's released to the artist 72 hours later, unless a dispute is raised."],
   ["What if the event is cancelled?", "If the host cancels, the escrowed funds are refunded in full. Ticket buyers also receive automatic refunds."],
   ["What cities are you in?", "We're live in Mysuru and Bengaluru. More cities coming soon."],
-  ["Can I sign up as both an artist and a host?", "Currently each account has one role. If you need both, reach out to hello@naada.live."],
+  ["Can I sign up as both an artist and a host?", "Currently each account has one role. If you need both, reach out to support@showzy.in."],
 ];
 
 function Section({

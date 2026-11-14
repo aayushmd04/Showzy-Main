@@ -39,7 +39,8 @@ class VenueListSerializer(serializers.ModelSerializer):
         ]
 
     def get_primary_photo(self, obj):
-        photo = obj.photos.filter(is_primary=True).first() or obj.photos.first()
+        photos = list(obj.photos.all())  # prefetched by the list view
+        photo = next((p for p in photos if p.is_primary), None) or (photos[0] if photos else None)
         if photo:
             request = self.context.get("request")
             return request.build_absolute_uri(photo.image.url) if request and photo.image else None

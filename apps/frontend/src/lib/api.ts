@@ -1727,7 +1727,8 @@ export async function getAllPages<T>(
   let page = 1;
   for (; page <= maxPages; page++) {
     const sep = path.includes("?") ? "&" : "?";
-    const data = await get<Paginated<T>>(`${path}${sep}page=${page}`, auth);
+    // 100 a page (the server's maximum): the catalogue is a handful of requests, not dozens.
+    const data = await get<Paginated<T>>(`${path}${sep}page=${page}&page_size=100`, auth);
     out.push(...data.results);
     if (!data.next) break;
   }

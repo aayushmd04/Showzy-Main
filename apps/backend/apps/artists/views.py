@@ -38,7 +38,14 @@ class ArtistListCreateView(generics.ListCreateAPIView):
         return [permissions.IsAuthenticated()] if self.request.method == "POST" else [permissions.AllowAny()]
 
     def get_queryset(self):
-        qs = Artist.objects.filter(is_active=True, is_deleted=False).prefetch_related("genres", "photos")
+        qs = (
+            Artist.objects.filter(is_active=True, is_deleted=False)
+            .select_related("city", "user")
+            .prefetch_related("genres", "photos")
+            .annotate(gig_count=dj_models.Count("event_appearances", distinct=True))
+            # Stable pages: an unordered list can repeat or skip a row between pages.
+            .order_by("-is_featured", "stage_name", "id")
+        )
         city = self.request.query_params.get("city")
         genre = self.request.query_params.get("genre")
         featured = self.request.query_params.get("featured")

@@ -31,3 +31,6 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
     "otp_verify_email": "500/hour",
     "google_login": "500/hour",
 }
+
+# Local development and the test suite: every edit shows at once, nothing is replayed from memory.
+PUBLIC_READ_CACHE_TTL = config("PUBLIC_READ_CACHE_TTL", default=0, cast=int)

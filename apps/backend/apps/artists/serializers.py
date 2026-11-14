@@ -162,13 +162,17 @@ class ArtistListSerializer(ArtistAudienceMixin, serializers.ModelSerializer):
         return _artist_user(obj, with_email=owner)
 
     def get_total_gigs(self, obj):
-        return obj.event_appearances.count()
+        # The list view annotates this; a lone object falls back to counting.
+        annotated = getattr(obj, "gig_count", None)
+        return annotated if annotated is not None else obj.event_appearances.count()
 
     def get_avg_rating(self, obj):
         return 0.0
 
     def get_primary_photo(self, obj):
-        photo = obj.photos.filter(is_primary=True).first() or obj.photos.first()
+        # Picked from the prefetched photos: two queries per artist otherwise.
+        photos = list(obj.photos.all())
+        photo = next((p for p in photos if p.is_primary), None) or (photos[0] if photos else None)
         if photo:
             request = self.context.get("request")
             return request.build_absolute_uri(photo.image.url) if request and photo.image else None
@@ -225,7 +229,8 @@ class ArtistDetailSerializer(ArtistAudienceMixin, PayoutDetailReadMixin, seriali
         return 0.0
 
     def get_primary_photo(self, obj):
-        photo = obj.photos.filter(is_primary=True).first() or obj.photos.first()
+        photos = list(obj.photos.all())
+        photo = next((p for p in photos if p.is_primary), None) or (photos[0] if photos else None)
         if photo and photo.image:
             request = self.context.get("request")
             return request.build_absolute_uri(photo.image.url) if request else photo.image.url

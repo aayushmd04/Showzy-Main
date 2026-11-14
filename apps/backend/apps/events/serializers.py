@@ -68,27 +68,37 @@ class EventListSerializer(serializers.ModelSerializer):
             "is_seeking_artists", "performance_budget_min", "performance_budget_max",
         ]
 
+    # The list view prefetches `ticket_tiers`, so everything below is arithmetic on
+    # rows already in memory. Filtering the related manager (`.filter(...)`) would
+    # have run a new query per event per field: 82 queries for one page of 20.
+    def _tiers(self, obj):
+        return list(obj.ticket_tiers.all())
+
     def get_min_price(self, obj):
-        tiers = obj.ticket_tiers.filter(is_active=True, total_quantity__gt=0)
-        if not tiers.exists():
+        tiers = [t for t in self._tiers(obj) if t.is_active and t.total_quantity > 0]
+        if not tiers:
             return 0
-        free = tiers.filter(price=0)
-        if free.exists():
+        if any(t.price == 0 for t in tiers):
             return 0
-        return float(tiers.order_by("price").first().price)
+        return float(min(t.price for t in tiers))
 
     def get_seats_left(self, obj):
-        from django.db.models import F, Sum
-        result = obj.ticket_tiers.filter(is_active=True).aggregate(
-            left=Sum(F("total_quantity") - F("sold_quantity") - F("reserved_quantity"))
+        left = sum(
+            t.total_quantity - t.sold_quantity - t.reserved_quantity
+            for t in self._tiers(obj) if t.is_active
         )
-        return max(0, result["left"] or 0)
+        return max(0, left)
 
     def get_is_saved(self, obj):
         request = self.context.get("request")
-        if request and request.user.is_authenticated:
-            return EventSave.objects.filter(user=request.user, event=obj).exists()
-        return False
+        if not (request and request.user.is_authenticated):
+            return False
+        # One query for the whole page, not one per event.
+        saved = self.context.get("_saved_ids")
+        if saved is None:
+            saved = set(EventSave.objects.filter(user=request.user).values_list("event_id", flat=True))
+            self.context["_saved_ids"] = saved
+        return obj.id in saved
 
 
 class EventDetailSerializer(serializers.ModelSerializer):

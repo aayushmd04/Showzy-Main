@@ -5,6 +5,7 @@ from rest_framework import generics, permissions, status, filters
 from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
+from .analytics import record_event_view
 from .models import Event, EventStatus, EventSave, EventView, EventReview
 from .serializers import (
     EventListSerializer, EventDetailSerializer,
@@ -74,13 +75,13 @@ class EventListView(generics.ListAPIView):
             qs = Event.objects.filter(
                 organizer=self.request.user, is_deleted=False
             ).select_related("venue", "venue__city", "venue__area").prefetch_related(
-                "genres", "ticket_tiers", "photos"
+                "genres", "ticket_tiers"
             )
         else:
             qs = Event.objects.filter(
                 status=EventStatus.PUBLISHED, is_deleted=False
             ).select_related("venue", "venue__city", "venue__area").prefetch_related(
-                "genres", "ticket_tiers", "photos"
+                "genres", "ticket_tiers"
             )
 
         city = self.request.query_params.get("city")
@@ -150,14 +151,8 @@ class EventDetailView(generics.RetrieveUpdateDestroyAPIView):
             and (request.user.is_staff or instance.organizer_id == request.user.id)
         ):
             raise NotFound("Event not found.")
-        # Record view
-        EventView.objects.create(
-            event=instance,
-            user=request.user if request.user.is_authenticated else None,
-            ip_address=request.META.get("REMOTE_ADDR"),
-            user_agent=request.META.get("HTTP_USER_AGENT", "")[:300],
-            referrer=request.META.get("HTTP_REFERER", "")[:200],
-        )
+        # Record the view (once per viewer per event per ten minutes).
+        record_event_view(request, instance.id)
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 

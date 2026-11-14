@@ -188,8 +188,8 @@ describe("api client", () => {
       await expect(getAllPages<string>("/events/")).resolves.toEqual(["a", "b", "c"]);
 
       expect(fetchMock).toHaveBeenCalledTimes(2);
-      expect(url(fetchMock.mock.calls[0])).toBe(`${API_BASE}/events/?page=1`);
-      expect(url(fetchMock.mock.calls[1])).toBe(`${API_BASE}/events/?page=2`);
+      expect(url(fetchMock.mock.calls[0])).toBe(`${API_BASE}/events/?page=1&page_size=100`);
+      expect(url(fetchMock.mock.calls[1])).toBe(`${API_BASE}/events/?page=2&page_size=100`);
     });
 
     it("stops at maxPages rather than following an endless next", async () => {
@@ -209,7 +209,7 @@ describe("api client", () => {
 
       await getAllPages("/events/?city=bengaluru");
 
-      expect(url(fetchMock.mock.calls[0])).toBe(`${API_BASE}/events/?city=bengaluru&page=1`);
+      expect(url(fetchMock.mock.calls[0])).toBe(`${API_BASE}/events/?city=bengaluru&page=1&page_size=100`);
     });
   });
 

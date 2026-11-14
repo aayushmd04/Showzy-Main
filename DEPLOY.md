@@ -229,7 +229,7 @@ resolved relative to that root. Start commands:
 | Service | Start command |
 |---|---|
 | web | `daphne -b 0.0.0.0 -p $PORT --proxy-headers naada.asgi:application` |
-| worker | `celery -A naada worker --loglevel=info --concurrency=2` |
+| worker | `celery -A naada worker --loglevel=info --concurrency=2 --without-gossip --without-mingle --without-heartbeat` |
 | beat | `celery -A naada beat --loglevel=info --schedule=/tmp/celerybeat-schedule` |
 
 Set `REDIS_URL` to `redis://default:${{Redis.REDIS_PASSWORD}}@redis.railway.internal:6379`

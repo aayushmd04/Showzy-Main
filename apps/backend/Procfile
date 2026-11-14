@@ -14,5 +14,5 @@
 
 release: python manage.py migrate --noinput
 web: daphne -b 0.0.0.0 -p $PORT --proxy-headers naada.asgi:application
-worker: celery -A naada worker --loglevel=info --concurrency=2
+worker: celery -A naada worker --loglevel=info --concurrency=2 --without-gossip --without-mingle --without-heartbeat
 beat: celery -A naada beat --loglevel=info --schedule=/tmp/celerybeat-schedule

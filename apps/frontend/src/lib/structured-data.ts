@@ -10,7 +10,7 @@
  * else the site withholds from signed-out visitors.
  */
 
-import { INSTAGRAM_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "./site";
+import { INSTAGRAM_URL, SITE_DESCRIPTION, SITE_NAME, SITE_URL, SUPPORT_EMAIL } from "./site";
 
 export type JsonLd = Record<string, unknown>;
 
@@ -42,7 +42,17 @@ export function organizationJsonLd(): JsonLd {
         name: SITE_NAME,
         url: SITE_URL,
         logo: `${SITE_URL}/icon-512.png`,
+        email: SUPPORT_EMAIL,
         sameAs: [INSTAGRAM_URL],
+        contactPoint: [
+          {
+            "@type": "ContactPoint",
+            contactType: "customer support",
+            email: SUPPORT_EMAIL,
+            areaServed: "IN",
+            availableLanguage: ["en", "kn"],
+          },
+        ],
       },
       {
         "@type": "WebSite",

@@ -23,7 +23,7 @@ const PREF_ROWS: { key: keyof api.NotificationPreferences; label: string; hint: 
 ];
 
 export function SettingsScreen() {
-  usePageMeta({ title: "Settings", description: "Manage your Showzy account, notifications and data." });
+  usePageMeta({ title: "Settings", description: "Manage your Showzy account, notifications and data.", noindex: true });
   const navigate = useNavigate();
   const { currentUser, setCurrentUser, role, setRole, lang, setLang, toast } = useStore();
   const { open: openAuth } = useAuthSheet();

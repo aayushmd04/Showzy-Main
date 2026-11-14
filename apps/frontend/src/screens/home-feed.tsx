@@ -362,6 +362,8 @@ export function HomeFeed() {
   usePageMeta({
     description:
       "Live art in Mysuru and Bengaluru: music, theatre, dance, comedy and more, in small rooms near you.",
+    // A search is a different page for every word typed: not something to index.
+    noindex: Boolean(q),
   });
 
   useEffect(() => {

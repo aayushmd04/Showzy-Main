@@ -1,3 +1,4 @@
+import { useAccountSetup } from "@/components/naada/account-setup";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Armchair, Baby, Building2, Check, Copy, Eye, Grid3X3, Minus, RotateCcw, Save, Sofa, StretchHorizontal, Trash2, Plus, X } from "lucide-react";
 import { ConsoleShell, HOST_NAV } from "@/components/naada/console-shell";
@@ -185,6 +186,7 @@ const STORAGE_KEY = "naada_venue_layout";
 // ── Screen ────────────────────────────────────────────────────────────────────
 
 export function HostVenueLayoutScreen() {
+  const { open: openSetup } = useAccountSetup();
   /*
    * The plan belongs to the venue on the server, not to this browser.
    *
@@ -538,7 +540,10 @@ export function HostVenueLayoutScreen() {
           {loadPhase === "no-venue" && (
             <p className="t-small mt-2 text-brass">
               You don't have a venue yet, so this plan can only be kept in this browser.
-              Add your venue first and it'll save properly.
+              Add your venue first and it'll save properly.{" "}
+              <button type="button" onClick={openSetup} className="underline underline-offset-4">
+                Add your venue
+              </button>
             </p>
           )}
           {loadPhase === "error" && (

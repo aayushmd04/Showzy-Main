@@ -360,6 +360,15 @@ nothing will be deleted — and consider who else has access to your inbox.
     return Response(resp)
 
 
+@api_view(["GET"])
+@permission_classes([permissions.IsAuthenticated])
+def account_setup(request):
+    """What this account still needs filled in (see apps.users.setup)."""
+    from .setup import setup_status
+
+    return Response(setup_status(request.user))
+
+
 @api_view(["GET", "POST"])
 @permission_classes([permissions.IsAuthenticated])
 def consents(request):

@@ -6,10 +6,11 @@
  * sections on the second. On a phone the search drops to its own row and the
  * strip scrolls sideways.
  */
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from "@/lib/site";
 import { openCookieSettings } from "@/lib/consent";
 import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Search } from "lucide-react";
+import { Instagram, Search } from "lucide-react";
 
 import { Wordmark } from "@/components/naada/wordmark";
 import { CityPicker } from "@/components/naada/city-picker";
@@ -217,7 +218,19 @@ export function PublicShell({ children }: { children: ReactNode }) {
               Cookie settings
             </button>
           </div>
-          <p className="text-[13px] text-muted">Live art · Mysuru &amp; Bengaluru</p>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+            <a
+              href={INSTAGRAM_URL}
+              target="_blank"
+              rel="noopener noreferrer me"
+              aria-label={`Showzy on Instagram, @${INSTAGRAM_HANDLE}`}
+              className="inline-flex min-h-8 items-center gap-1.5 text-[13px] text-muted no-underline transition-colors hover:text-paper"
+            >
+              <Instagram className="size-4" aria-hidden="true" />
+              @{INSTAGRAM_HANDLE}
+            </a>
+            <p className="text-[13px] text-muted">Live art · Mysuru &amp; Bengaluru</p>
+          </div>
         </div>
       </footer>
     </div>

@@ -583,6 +583,25 @@ export interface ApiVenueList {
   count: number;
 }
 
+/** One thing an account still needs filled in. `blocking` means it stops them doing their job. */
+export interface SetupStep {
+  key: "name" | "venue" | "venue_capacity" | "artist" | "artist_profile";
+  label: string;
+  blocking: boolean;
+}
+
+export interface AccountSetup {
+  role: string;
+  complete: boolean;
+  needs_attention: boolean;
+  steps: SetupStep[];
+}
+
+/** What this account is missing that sign-up now asks for (older accounts were never asked). */
+export function getAccountSetup(): Promise<AccountSetup> {
+  return get<AccountSetup>("/auth/me/setup/");
+}
+
 export function getVenues(): Promise<ApiVenueList> {
   return get<ApiVenueList>("/venues/", false);
 }

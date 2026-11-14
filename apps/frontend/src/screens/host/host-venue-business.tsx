@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/input";
 import { Pill, type PillTone } from "@/components/ui/pill";
 import { VenueLocationCard } from "@/components/naada/venue-location-card";
+import { useAccountSetup, useOnAccountSetup } from "@/components/naada/account-setup";
 import { useHostBranch } from "@/components/naada/host-branch";
 import { getMyVenues, updateVenue } from "@/lib/api";
 import type { ApiVenue } from "@/lib/api";
@@ -66,6 +67,8 @@ export function HostVenueBusinessScreen() {
   const [saveError, setSaveError] = useState("");
   const [savedAt, setSavedAt] = useState<string | null>(null);
 
+  const { open: openSetup } = useAccountSetup();
+
   const load = () => {
     setLoadState("loading");
     getMyVenues()
@@ -83,6 +86,9 @@ export function HostVenueBusinessScreen() {
       })
       .catch(() => setLoadState("error"));
   };
+
+  // The venue was just added from the setup prompt.
+  useOnAccountSetup(load);
 
   // Reload when the host picks another branch.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -139,6 +145,9 @@ export function HostVenueBusinessScreen() {
               GST, PAN and payout details live on your venue record, and there isn't one on this
               account yet.
             </p>
+            <Button variant="primary" className="mt-4" onClick={openSetup}>
+              Add your venue
+            </Button>
           </div>
         )}
         {loadState === "error" && (

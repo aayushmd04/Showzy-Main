@@ -8,6 +8,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { getMyVenues, type ApiVenue } from "@/lib/api";
+import { useOnAccountSetup } from "@/components/naada/account-setup";
 import { useStore } from "@/store/app-store";
 
 const KEY = "showzy_host_branch";
@@ -53,6 +54,9 @@ export function HostBranchProvider({ children }: { children: ReactNode }) {
   const [venues, setVenues] = useState<ApiVenue[]>([]);
   const [loading, setLoading] = useState(false);
   const [chosen, setChosen] = useState<string | null>(remembered);
+  // A host who has just added their first venue from the setup prompt.
+  const [reload, setReload] = useState(0);
+  useOnAccountSetup(useCallback(() => setReload((n) => n + 1), []));
 
   useEffect(() => {
     if (!isHost) {
@@ -68,7 +72,7 @@ export function HostBranchProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, [isHost, currentUser?.id]);
+  }, [isHost, currentUser?.id, reload]);
 
   const select = useCallback((id: string) => {
     setChosen(id);

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { PublicShell } from "@/components/naada/public-shell";
 import { usePageMeta } from "@/lib/use-meta";
+import { INSTAGRAM_HANDLE, INSTAGRAM_URL } from "@/lib/site";
 import { getSiteConfig, type SiteConfig } from "@/lib/api";
 import { LEGAL_VERSION } from "@/lib/legal";
 import { openCookieSettings } from "@/lib/consent";
@@ -647,6 +648,16 @@ export function LegalScreen({ doc }: { doc: Doc }) {
                 reached at {LEGAL_ENTITY.email}. Write to them if a complaint — about a ticket, a refund,
                 or how we handle your personal data — has not been resolved through normal support. We
                 acknowledge complaints within 48 hours and aim to resolve them within 30 days.
+              </p>
+            </S>
+            <S heading="Follow us">
+              <p>
+                Instagram:{" "}
+                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer me" className="link-underline text-paper">
+                  @{INSTAGRAM_HANDLE}
+                </a>
+                . It is the quickest way to see what's on this week; for anything about an order or your
+                account, write to the address above so there is a record.
               </p>
             </S>
             <S heading="Your data">

@@ -50,7 +50,7 @@ function loadRazorpay(): Promise<RazorpayCtor> {
 }
 
 export function CheckoutPayScreen() {
-  usePageMeta({ title: "Payment" });
+  usePageMeta({ title: "Payment", noindex: true });
   const navigate = useNavigate();
   const { checkout, eventById, currentUser, hydrateFromApi, clearCheckout, toast, role } =
     useStore();

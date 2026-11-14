@@ -171,3 +171,11 @@ class EventCreateUpdateSerializer(serializers.ModelSerializer):
             "organizer", "is_deleted", "deleted_at", "published_at",
             "cancelled_at", "artists",
         ]
+        extra_kwargs = {
+            # The commonest wall an older host hits: signed up before venues were
+            # collected, so there is no venue to choose. Say how to get one.
+            "venue": {"error_messages": {
+                "required": "Add your venue first (name, address, city and capacity), then create the event.",
+                "null": "Add your venue first (name, address, city and capacity), then create the event.",
+            }},
+        }

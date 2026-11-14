@@ -35,51 +35,72 @@ class GenreListView(generics.ListAPIView):
 @permission_classes([permissions.AllowAny])
 @renderer_classes([StaticHTMLRenderer])
 def sitemap_xml(request):
-    """Sitemap of published events, pointing at the frontend.
+    """Sitemap of everything public worth searching for, pointing at the frontend.
 
     Search engines need to reach the public site, not the API, so every URL is
     built from FRONTEND_URL rather than this host. robots.txt on the frontend
-    declares this file's location.
+    declares this file's location (which is what permits a sitemap on another
+    host to list the site's pages).
+
+    Listed: the home pages, every published event (upcoming and the last three
+    months, so shared links to a recent gig stay findable), every active artist
+    and venue, and the art-form pages. Not listed: anything private, drafts,
+    search results.
     """
+    from datetime import timedelta
+    from urllib.parse import quote
+    from xml.sax.saxutils import escape
+
     from django.utils import timezone
+    from apps.artists.models import Artist
+    from apps.core.models import Genre
     from apps.events.models import Event, EventStatus
+    from apps.venues.models import Venue
 
     base = settings.FRONTEND_URL.rstrip("/")
-    urls = [
-        (f"{base}/", "daily", "1.0"),
-        (f"{base}/artists", "weekly", "0.7"),
-        (f"{base}/venues", "weekly", "0.7"),
-        (f"{base}/how-it-works", "monthly", "0.4"),
-    ]
+    entries = []
 
-    entries = "".join(
-        f"<url><loc>{loc}</loc><changefreq>{freq}</changefreq>"
-        f"<priority>{pri}</priority></url>"
-        for loc, freq, pri in urls
-    )
+    def add(path, freq, priority, lastmod=None):
+        loc = escape(f"{base}{path}")
+        mod = f"<lastmod>{lastmod.date().isoformat()}</lastmod>" if lastmod else ""
+        entries.append(f"<url><loc>{loc}</loc>{mod}<changefreq>{freq}</changefreq><priority>{priority}</priority></url>")
 
-    events = (
-        Event.objects.filter(
-            status=EventStatus.PUBLISHED,
-            is_deleted=False,
-            start_datetime__gte=timezone.now(),
-        )
-        .only("id", "updated_at")
-        .order_by("start_datetime")[:2000]
-    )
-    for event in events:
-        entries += (
-            f"<url><loc>{base}/e/{event.id}</loc>"
-            f"<lastmod>{event.updated_at.date().isoformat()}</lastmod>"
-            f"<changefreq>daily</changefreq><priority>0.9</priority></url>"
-        )
+    for path, freq, pri in (
+        ("/", "daily", "1.0"), ("/whats-on", "daily", "0.9"), ("/explore", "daily", "0.8"),
+        ("/artists", "weekly", "0.7"), ("/venues", "weekly", "0.7"),
+        ("/how-it-works", "monthly", "0.4"), ("/contact", "yearly", "0.3"),
+    ):
+        add(path, freq, pri)
+
+    for cat in ("music", "drama", "dance", "comedy", "art"):
+        add(f"/explore?category={cat}", "daily", "0.7")
+    for name in Genre.objects.filter(is_active=True).values_list("name", flat=True):
+        add(f"/explore?genre={quote(name)}", "daily", "0.6")
+
+    cutoff = timezone.now() - timedelta(days=90)
+    for event in (
+        Event.objects.filter(status__in=[EventStatus.PUBLISHED, EventStatus.SOLD_OUT, EventStatus.PAST],
+                             is_deleted=False, end_datetime__gte=cutoff)
+        .only("id", "updated_at").order_by("start_datetime")[:20000]
+    ):
+        add(f"/e/{event.id}", "daily", "0.9", event.updated_at)
+
+    for artist in Artist.objects.filter(is_active=True, is_deleted=False).only("id", "updated_at")[:10000]:
+        add(f"/a/{artist.id}", "weekly", "0.6", artist.updated_at)
+
+    for venue in Venue.objects.filter(is_active=True, is_deleted=False).only("slug", "updated_at")[:10000]:
+        add(f"/v/{venue.slug}", "weekly", "0.6", venue.updated_at)
 
     xml = (
         '<?xml version="1.0" encoding="UTF-8"?>'
         '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">'
-        f"{entries}</urlset>"
+        + "".join(entries)
+        + "</urlset>"
     )
-    return Response(xml, content_type="application/xml")
+    response = Response(xml, content_type="application/xml")
+    # Crawlers fetch this rarely; let a CDN or the browser reuse it for an hour.
+    response["Cache-Control"] = "public, max-age=3600"
+    return response
 
 
 @api_view(["GET"])

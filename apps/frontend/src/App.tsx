@@ -6,6 +6,7 @@ import { AppStoreProvider } from "@/store/app-store";
 import { HostBranchProvider } from "@/components/naada/host-branch";
 import { AuthSheetProvider, useAuthSheet } from "@/components/naada/auth-sheet";
 import { BriefComposerProvider } from "@/components/naada/brief-composer";
+import { AccountSetupProvider } from "@/components/naada/account-setup";
 import { ErrorBoundary } from "@/components/naada/error-boundary";
 import { NearbyLoader } from "@/components/naada/nearby-loader";
 import { RequireRole } from "@/components/naada/require-role";
@@ -262,6 +263,7 @@ export default function App() {
             <AuthSheetProvider>
               <SessionWatch />
               <BriefComposerProvider>
+              <AccountSetupProvider>
                 <ScrollToTop />
                 <RoutePrefetcher />
                 <PageviewTracker />
@@ -360,6 +362,7 @@ export default function App() {
                 <NearbyLoader />
                 <CookieConsent />
                 <Toaster />
+              </AccountSetupProvider>
               </BriefComposerProvider>
             </AuthSheetProvider>
             </HostBranchProvider>

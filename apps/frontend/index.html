@@ -34,23 +34,46 @@
     <meta name="apple-mobile-web-app-title" content="Showzy" />
     <meta property="og:site_name" content="Showzy" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Showzy — live music in Mysuru &amp; Bengaluru" />
-    <meta property="og:description" content="Grassroots live music. Open mics, jam nights, pub gigs and classical evenings." />
+    <meta property="og:locale" content="en_IN" />
+    <meta property="og:url" content="https://showzy.in/" />
+    <meta property="og:title" content="Showzy: live music, theatre, comedy and dance in Mysuru &amp; Bengaluru" />
+    <meta property="og:description" content="Find and book live art in small rooms near you. Artists get booked, venues fill rooms." />
     <!-- A poster is what makes a link worth tapping when it lands in a
          WhatsApp group, which is how most gigs here actually travel. Event and
          artist pages replace this with their own image at runtime; this is the
          fallback for everything else, and for scrapers that arrive first. -->
-    <meta property="og:image" content="/og-image.png" />
+    <meta property="og:image" content="https://showzy.in/og-image.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Showzy — live music in Mysuru and Bengaluru" />
-    <meta name="twitter:image" content="/og-image.png" />
+    <meta name="twitter:image" content="https://showzy.in/og-image.png" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="description" content="Showzy — grassroots live music in Mysuru and Bengaluru. Open mics, jam nights, pub gigs and classical evenings." />
-    <title>Showzy — live music in Mysuru &amp; Bengaluru</title>
+    <meta name="description" content="Find and book live art in Mysuru and Bengaluru: music, theatre, dance, comedy and more, in small rooms near you. Artists get booked, venues fill rooms." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <link rel="canonical" href="https://showzy.in/" />
+    <title>Showzy: live music, theatre, comedy and dance in Mysuru &amp; Bengaluru</title>
+    <!-- What the business is, for search engines: the organisation, its Instagram, and the site search box. -->
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@graph":[{"@type":"Organization","@id":"https://showzy.in/#organization","name":"Showzy","url":"https://showzy.in","logo":"https://showzy.in/icon-512.png","sameAs":["https://www.instagram.com/showzy.in/"]},{"@type":"WebSite","@id":"https://showzy.in/#website","url":"https://showzy.in","name":"Showzy","inLanguage":"en-IN","publisher":{"@id":"https://showzy.in/#organization"},"potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://showzy.in/whats-on?q={search_term_string}"},"query-input":"required name=search_term_string"}}]}
+    </script>
   </head>
   <body>
     <div id="root"></div>
+    <!-- For crawlers and link scrapers that do not run JavaScript: a real page of links instead of nothing. -->
+    <noscript>
+      <main style="font-family:system-ui,sans-serif;max-width:640px;margin:48px auto;padding:0 16px;line-height:1.5">
+        <h1>Showzy</h1>
+        <p>Live music, theatre, comedy and dance in Mysuru and Bengaluru. Find a night, book tickets, and meet the artists and venues behind it.</p>
+        <p>Showzy needs JavaScript to show events and take bookings. You can still look around:</p>
+        <ul>
+          <li><a href="/whats-on">What's on</a></li>
+          <li><a href="/artists">Artists</a></li>
+          <li><a href="/venues">Venues</a></li>
+          <li><a href="/how-it-works">How it works</a></li>
+          <li><a href="https://www.instagram.com/showzy.in/">Instagram @showzy.in</a></li>
+        </ul>
+      </main>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

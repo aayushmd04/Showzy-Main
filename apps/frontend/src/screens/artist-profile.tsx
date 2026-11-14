@@ -11,6 +11,7 @@ import { useBriefComposer } from "@/components/naada/brief-composer";
 import { followArtist } from "@/lib/api";
 import { mediaUrl } from "@/lib/adapters";
 import { usePageMeta } from "@/lib/use-meta";
+import { artistJsonLd } from "@/lib/structured-data";
 import { dateCompact, dateListing, money } from "@/lib/format";
 import {
   apiMessage,
@@ -99,6 +100,18 @@ export function ArtistProfileScreen() {
           .slice(0, 300)
       : undefined,
     image: mediaUrl(artist?.primary_photo ?? artist?.profile_image),
+    jsonLd: artist
+      ? artistJsonLd({
+          id: artist.id,
+          name: artist.stage_name,
+          bio: artist.bio,
+          genres: artist.genres.map((g) => g.name),
+          city: artist.city_name,
+          image: mediaUrl(artist.primary_photo ?? artist.profile_image),
+          instagram: artist.instagram,
+          website: artist.website,
+        })
+      : null,
   });
 
   /** Optimistic: the button and the follower count move on the tap, and go back if the server refuses. */

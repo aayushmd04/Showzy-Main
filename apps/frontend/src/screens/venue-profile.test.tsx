@@ -113,8 +113,12 @@ describe("Venue page", () => {
   it("offers no way to reach the venue directly and no prices", async () => {
     open();
     await screen.findByRole("heading", { level: 1 });
-    const text = document.body.textContent ?? "";
+    // The site footer carries Showzy's own Instagram handle; the venue page itself must show no email.
+    const page = document.body.cloneNode(true) as HTMLElement;
+    page.querySelectorAll("footer").forEach((f) => f.remove());
+    const text = page.textContent ?? "";
     expect(text).not.toMatch(/@/); // no email address anywhere
+    expect(document.querySelector('a[href^="mailto:"]')).toBeNull();
     expect(text).not.toMatch(/\+91/);
     expect(screen.queryByText(/hire|rent|per hour/i)).not.toBeInTheDocument();
   });
